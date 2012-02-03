@@ -1,0 +1,97 @@
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  
+  <PropertyGroup>
+    <!--Default Configuration-->
+    <Configuration Condition=" '$(Configuration)' == '' ">Integration</Configuration>
+	<MSBuildExtensionsPath>$(MSBuildProjectDirectory)\Lib</MSBuildExtensionsPath>
+	 <ExtensionTasksPath>$(MSBuildExtensionsPath)\MSBuildExtensions\</ExtensionTasksPath>
+    <!--Solution file-->
+    <SolutionFileName>$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.sln</SolutionFileName>
+  </PropertyGroup>
+
+  <!--Import MSBuild.ExtensionPack Tasks-->
+  <Import Project="$(ExtensionTasksPath)MSBuild.ExtensionPack.tasks"/>
+  
+  <!--Import MSBuildCommunityTasks Tasks-->
+  <Import Project="$(MSBuildExtensionsPath)\msbuild\MSBuild.Community.Tasks.Targets"/>
+
+  <Target Name="Version">
+    <PropertyGroup>
+      <MajorVersion>1</MajorVersion>
+      <MinorVersion>0</MinorVersion>
+      <BuildVersion>0</BuildVersion>
+      <!--Use the SVN Revision number to quickly identify the repo version used to build-->
+      <BuildVersion Condition="$(SVN_REVISION) != ''">$(SVN_REVISION)</BuildVersion>
+      <BuildVersion Condition="$(SVN_REVISION_1) != ''">$(SVN_REVISION_1)</BuildVersion>
+      <RevisionNumber>0</RevisionNumber>
+      <!--Use the Hudson Build number to quickly identify build used-->
+      <RevisionNumber Condition="$(BUILD_NUMBER) != ''">$(BUILD_NUMBER)</RevisionNumber>
+    </PropertyGroup>
+    <!--Version the CommonAssemblyInfo.cs file-->
+    <MSBuild.ExtensionPack.Framework.AssemblyInfo AssemblyInfoFiles="$(MSBuildProjectDirectory)\CommonAssemblyInfo.cs"
+                                                  AssemblyFileMajorVersion="$(MajorVersion)"
+                                                  AssemblyFileMinorVersion="$(MinorVersion)"
+                                                  AssemblyFileBuildNumber="$(BuildVersion)"
+                                                  AssemblyFileRevision="$(RevisionNumber)"
+                                                  AssemblyMajorVersion="$(MajorVersion)"
+                                                  AssemblyMinorVersion="$(MinorVersion)"
+                                                  AssemblyBuildNumber="$(BuildVersion)"
+                                                  AssemblyRevision="$(RevisionNumber)"
+                                                  AssemblyFileVersion="$(MajorVersion).$(MinorVersion).$(BuildVersion).$(RevisionNumber)"
+                                                  AssemblyVersion="$(MajorVersion).$(MinorVersion).$(BuildVersion).$(RevisionNumber)">
+      <Output TaskParameter="MaxAssemblyVersion" PropertyName="MaxAssemblyVersion" />
+    </MSBuild.ExtensionPack.Framework.AssemblyInfo>
+    <Message Text="----current version---: '$(MaxAssemblyVersion)'" />
+  </Target>
+  
+  <Target Name="Clean">
+    <Message Text="Clean Solution" />
+	<ItemGroup>
+			<FilesToDelete Include="$(BuildDir)\**\*"/>
+	</ItemGroup>
+
+	<Delete Files="@(FilesToDelete)" />
+
+	<RemoveDir Directories="$(BuildDir)" />
+	<MakeDir Directories="$(BuildDir)"/>
+	
+    <MSBuild Projects="$(SolutionFileName)" Targets="Clean" Properties="Configuration=$(Configuration)" />
+  </Target>
+  
+  <Target Name="Compile" DependsOnTargets="Version">
+    <Message Text="Build Version" />
+    <MSBuild Projects="$(SolutionFileName)" Targets="Build" Properties="Configuration=$(Configuration);MaxAssemblyVersion=$(MaxAssemblyVersion)" />
+  </Target>
+
+  <Target Name="Test" DependsOnTargets="Clean;Compile">
+    <Message Text="Test Build" />
+  </Target>
+
+  <Target Name="Setup" DependsOnTargets="Clean;Compile">
+    <Message Text="Build Setup Projects" />
+  </Target>
+  
+  <Target Name="Build" DependsOnTargets="Clean;Compile;PrepareForZip;Test;Setup">
+    <Message Text="Build Complete" />
+  </Target>
+  
+  <Target Name="PrepareForZip">
+	
+		<ItemGroup>
+			<LibFiles Include="$(MSBuildProjectDirectory)\lib\**\*.*" Exclude="$(MSBuildProjectDirectory)\lib\**\.svn\**" />
+			<SDKSrcFiles Include="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk\**\*.*" Exclude="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk\**\.svn\**;$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk\**\bin\**;$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk\**\obj\**" />
+			<ExampleSrcFiles Include="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.Example.Console\**\*.*" Exclude="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.Example.Console\**\.svn\**;$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.Example.Console\**\bin\**;$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.Example.Console\**\obj\**" />
+			<!--TestSrcFiles Include="$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\*.*" Exclude="$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\.svn\**;$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\bin\**;$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\obj\**" /-->
+			<SlnSrcFiles Include="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.sln"  />
+		</ItemGroup>
+		
+		<Copy SourceFiles="@(LibFiles)" DestinationFolder="$(BuildDir)\\Src\\Lib\\%(RecursiveDir)"/>	
+		<Copy SourceFiles="@(SDKSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SPIN.Wholesale.SDK\\%(RecursiveDir)"/>	
+		<Copy SourceFiles="@(InterfaceSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SPIN.Wholesale.SDK.Interfaces\\%(RecursiveDir)"/>	
+		<Copy SourceFiles="@(ExampleSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SPIN.Wholesale.SDK.Example.Console\\%(RecursiveDir)"/>	
+		<Copy SourceFiles="@(TestSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SPIN.Wholesale.SDK.Tests\\%(RecursiveDir)"/>	
+		<Copy SourceFiles="@(SlnSrcFiles)" DestinationFolder="$(BuildDir)\\Src"/>	
+		
+	</Target>
+  
+</Project>
