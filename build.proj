@@ -51,7 +51,7 @@
 			<FilesToDelete Include="$(BuildDir)\**\*"/>
 	</ItemGroup>
 	<ItemGroup>
-			<MoreFilesToDelete Include="$(MSBuildProjectDirectory)\**\*"/>
+			<MoreFilesToDelete Include="$(MSBuildProjectDirectory)\**\*.nupkg"/>
 	</ItemGroup>
 	<Delete Files="@(FilesToDelete)" />
 	<Delete Files="@(MoreFilesToDelete)" />
