@@ -96,10 +96,7 @@
 		<ItemGroup>
 			<ZipFiles Include="$(BuildDir)\**\*.*" Exclude="*.zip" />
 		</ItemGroup>
-		<Zip Files="@(ZipFiles)"
-				WorkingDirectory="$(BuildDir)\" 
-				ZipFileName="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk-$(MaxAssemblyVersion).zip"
-				ZipLevel="9" /> 
+		<MSBuild.ExtensionPack.Compression.Zip TaskAction="Create" CompressFiles="@(ZipFiles)" ZipFileName="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk-$(MaxAssemblyVersion).zip"/>
 </Target>
   
 </Project>
