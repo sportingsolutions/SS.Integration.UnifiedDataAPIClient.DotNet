@@ -71,7 +71,7 @@
     <Message Text="Build Setup Projects" />
   </Target>
   
-  <Target Name="Build" DependsOnTargets="Clean;Compile;PrepareForZip;Test;Setup">
+  <Target Name="Build" DependsOnTargets="Clean;Compile;PrepareForZip;Test;Setup;BuildZip">
     <Message Text="Build Complete" />
   </Target>
   
@@ -86,12 +86,20 @@
 		</ItemGroup>
 		
 		<Copy SourceFiles="@(LibFiles)" DestinationFolder="$(BuildDir)\\Src\\lib\\%(RecursiveDir)"/>	
-		<Copy SourceFiles="@(SDKSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SPIN.Wholesale.SDK\\%(RecursiveDir)"/>	
-		<Copy SourceFiles="@(InterfaceSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SPIN.Wholesale.SDK.Interfaces\\%(RecursiveDir)"/>	
-		<Copy SourceFiles="@(ExampleSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SPIN.Wholesale.SDK.Example.Console\\%(RecursiveDir)"/>	
-		<Copy SourceFiles="@(TestSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SPIN.Wholesale.SDK.Tests\\%(RecursiveDir)"/>	
+		<Copy SourceFiles="@(SDKSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\Spin.TradingServices.Udapi.Sdk\\%(RecursiveDir)"/>	
+		<Copy SourceFiles="@(ExampleSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\Spin.TradingServices.Udapi.Sdk.Example.Console\\%(RecursiveDir)"/>	
 		<Copy SourceFiles="@(SlnSrcFiles)" DestinationFolder="$(BuildDir)\\Src"/>	
 		
 	</Target>
+	
+	<Target Name="BuildZip" >
+		<ItemGroup>
+			<ZipFiles Include="$(BuildDir)\**\*.*" Exclude="*.zip" />
+		</ItemGroup>
+		<Zip Files="@(ZipFiles)"
+				WorkingDirectory="$(BuildDir)\" 
+				ZipFileName="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk-$(MaxAssemblyVersion).zip"
+				ZipLevel="9" /> 
+</Target>
   
 </Project>
