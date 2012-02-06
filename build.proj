@@ -101,7 +101,7 @@
 		<ItemGroup>
 			<ZipFiles Include="$(BuildDir)\**\*.*" Exclude="*.zip" />
 		</ItemGroup>
-		<MSBuild.ExtensionPack.Compression.DNZip TaskAction="Create" CompressFiles="@(ZipFiles)" ZipFileName="$(BuildDir)\Spin.TradingServices.Udapi.Sdk-$(MaxAssemblyVersion).zip"/>
+		<MSBuild.ExtensionPack.Compression.DNZip TaskAction="Create" CompressFiles="@(ZipFiles)" ZipFileName="$(BuildDir)\Spin.TradingServices.Udapi.Sdk-$(MaxAssemblyVersion).zip" RemoveRoot="$(BuildDir)"/>
 </Target>
   
 </Project>
