@@ -57,6 +57,7 @@
 	<MakeDir Directories="$(BuildDir)"/>
 	
     <MSBuild Projects="$(SolutionFileName)" Targets="Clean" Properties="Configuration=$(Configuration)" />
+	<Exec Command="del $(MSBuildProjectDirectory)\*.nupkg" />
   </Target>
   
   <Target Name="Compile" DependsOnTargets="Version">
