@@ -15,6 +15,7 @@
   <!--Import MSBuildCommunityTasks Tasks-->
   <Import Project="$(MSBuildExtensionsPath)\msbuild\MSBuild.Community.Tasks.Targets"/>
 
+  
   <Target Name="Version">
     <PropertyGroup>
       <MajorVersion>1</MajorVersion>
