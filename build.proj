@@ -3,7 +3,7 @@
   <PropertyGroup>
     <!--Default Configuration-->
     <Configuration Condition=" '$(Configuration)' == '' ">Integration</Configuration>
-	<MSBuildExtensionsPath>$(MSBuildProjectDirectory)\Lib</MSBuildExtensionsPath>
+	<MSBuildExtensionsPath>$(MSBuildProjectDirectory)\lib</MSBuildExtensionsPath>
 	 <ExtensionTasksPath>$(MSBuildExtensionsPath)\MSBuildExtensions\</ExtensionTasksPath>
     <!--Solution file-->
     <SolutionFileName>$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.sln</SolutionFileName>
@@ -85,7 +85,7 @@
 			<SlnSrcFiles Include="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.sln"  />
 		</ItemGroup>
 		
-		<Copy SourceFiles="@(LibFiles)" DestinationFolder="$(BuildDir)\\Src\\Lib\\%(RecursiveDir)"/>	
+		<Copy SourceFiles="@(LibFiles)" DestinationFolder="$(BuildDir)\\Src\\lib\\%(RecursiveDir)"/>	
 		<Copy SourceFiles="@(SDKSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SPIN.Wholesale.SDK\\%(RecursiveDir)"/>	
 		<Copy SourceFiles="@(InterfaceSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SPIN.Wholesale.SDK.Interfaces\\%(RecursiveDir)"/>	
 		<Copy SourceFiles="@(ExampleSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SPIN.Wholesale.SDK.Example.Console\\%(RecursiveDir)"/>	
