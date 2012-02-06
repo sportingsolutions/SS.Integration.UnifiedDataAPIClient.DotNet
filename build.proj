@@ -50,14 +50,17 @@
 	<ItemGroup>
 			<FilesToDelete Include="$(BuildDir)\**\*"/>
 	</ItemGroup>
-
+	<ItemGroup>
+			<MoreFilesToDelete Include="$(MSBuildProjectDirectory)\**\*"/>
+	</ItemGroup>
 	<Delete Files="@(FilesToDelete)" />
+	<Delete Files="@(MoreFilesToDelete)" />
+
 
 	<RemoveDir Directories="$(BuildDir)" />
 	<MakeDir Directories="$(BuildDir)"/>
 	
     <MSBuild Projects="$(SolutionFileName)" Targets="Clean" Properties="Configuration=$(Configuration)" />
-	<Exec Command="del $([MSBuild]::Unescape('$(MSBuildProjectDirectory)'))\*.nupkg" />
   </Target>
   
   <Target Name="Compile" DependsOnTargets="Version">
