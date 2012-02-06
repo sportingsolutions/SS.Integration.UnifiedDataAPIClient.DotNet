@@ -3,7 +3,7 @@
   <PropertyGroup>
     <!--Default Configuration-->
     <Configuration Condition=" '$(Configuration)' == '' ">Integration</Configuration>
-	<MSBuildExtensionsPath>$(MSBuildProjectDirectory)\lib</MSBuildExtensionsPath>
+	<MSBuildExtensionsPath>$([MSBuild]::Unescape('$(MSBuildProjectDirectory)'))\lib</MSBuildExtensionsPath>
 	 <ExtensionTasksPath>$(MSBuildExtensionsPath)\MSBuildExtensions\</ExtensionTasksPath>
     <!--Solution file-->
     <SolutionFileName>$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.sln</SolutionFileName>
