@@ -9,3 +9,4 @@ Spin.TradingServices.Udapi.Sdk/bin/*
 Spin.TradingServices.Udapi.Sdk/obj/*
 packages/*
 !repositories.config
+Spin.TradingServices.Udapi.Sdk*.zip
