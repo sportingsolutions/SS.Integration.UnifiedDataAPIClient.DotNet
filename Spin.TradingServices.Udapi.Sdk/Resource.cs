@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -18,10 +19,11 @@ namespace Spin.TradingServices.Udapi.Sdk
     {
         private bool _isStreaming;
         private bool _streamingCompleted;
+        private AutoResetEvent _pauseStream;
 
         internal Resource(NameValueCollection headers, RestItem restItem) : base(headers, restItem)
         {
-            
+            _pauseStream = new AutoResetEvent(true);
         }
 
         public string Id
@@ -98,7 +100,11 @@ namespace Spin.TradingServices.Udapi.Sdk
                     }
 
                     var connection = connectionFactory.CreateConnection();
-                    StreamConnected(this, new EventArgs());
+                    if(StreamConnected != null)
+                    {
+                        StreamConnected(this, new EventArgs());    
+                    }
+                    
                     var channel = connection.CreateModel();
                     var consumer = new QueueingBasicConsumer(channel);
                     channel.BasicConsume(queueName, true, consumer);
@@ -107,12 +113,16 @@ namespace Spin.TradingServices.Udapi.Sdk
                     _isStreaming = true;
                     while (_isStreaming)
                     {
+                        _pauseStream.WaitOne();
                         var output = consumer.Queue.Dequeue();
                         if (output != null)
                         {
                             var deliveryArgs = (BasicDeliverEventArgs)output;
                             var message = deliveryArgs.Body;
-                            StreamEvent(this, new StreamEventArgs(Encoding.UTF8.GetString(message)));
+                            if(StreamEvent != null)
+                            {
+                                StreamEvent(this, new StreamEventArgs(Encoding.UTF8.GetString(message)));    
+                            }
                         }
                     }
 
@@ -124,6 +134,16 @@ namespace Spin.TradingServices.Udapi.Sdk
             }
         }
 
+        public void PauseStreaming()
+        {
+            _pauseStream.Reset();
+        }
+
+        public void UnPauseStreaming()
+        {
+            _pauseStream.Set();
+        }
+
         public void StopStreaming()
         {
             _isStreaming = false;
@@ -131,7 +151,10 @@ namespace Spin.TradingServices.Udapi.Sdk
             {
                 
             }
-            StreamDisconnected(this,new EventArgs());
+            if(StreamDisconnected != null)
+            {
+                StreamDisconnected(this, new EventArgs());    
+            }
         }
 
         public event EventHandler StreamConnected;

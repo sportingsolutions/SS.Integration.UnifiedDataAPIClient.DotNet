@@ -24,7 +24,7 @@ namespace Spin.TradingServices.Udapi.Sdk
             var serviceRestItems = GetRestItems("Services");
             return serviceRestItems.Select(serviceRestItem => new Service(_headers, serviceRestItem)).Cast<IService>().ToList();
         }
-
+       
         public IService GetService(string name)
         {
             var serviceRestItems = GetRestItems("Services");

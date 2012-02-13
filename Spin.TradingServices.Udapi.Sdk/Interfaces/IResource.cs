@@ -12,6 +12,8 @@ namespace Spin.TradingServices.Udapi.Sdk.Interfaces
 
         string GetSnapshot();
         void StartStreaming();
+        void PauseStreaming();
+        void UnPauseStreaming();
         void StopStreaming();
 
         event EventHandler StreamConnected;
