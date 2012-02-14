@@ -19,11 +19,11 @@ namespace Spin.TradingServices.Udapi.Sdk
     {
         private bool _isStreaming;
         private bool _streamingCompleted;
-        private AutoResetEvent _pauseStream;
+        private ManualResetEvent _pauseStream;
 
         internal Resource(NameValueCollection headers, RestItem restItem) : base(headers, restItem)
         {
-            _pauseStream = new AutoResetEvent(true);
+            _pauseStream = new ManualResetEvent(true);
         }
 
         public string Id
