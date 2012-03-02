@@ -28,18 +28,20 @@ namespace Spin.TradingServices.Udapi.Sdk.Example.Console
             ICredentials credentials = new Credentials { UserName = userName, Password = password };
             var theSession = SessionFactory.CreateSession(new Uri(_url), credentials);
             var theService = theSession.GetService("UnifiedDataAPI");
-            var theFeature = theService.GetFeature("Basketball");
-            var theResource = theFeature.GetResource("Snow @ Sleet");
+            var theFeature = theService.GetFeature("Tennis");
+            var theResources = theFeature.GetResources();
+            var theResource = theResources.First();
             var theSnapshot = theResource.GetSnapshot();
 
             var fixtureSnapshot = JsonConvert.DeserializeObject<Fixture>(theSnapshot, new JsonSerializerSettings { Converters = new List<JsonConverter> { new IsoDateTimeConverter() }, NullValueHandling = NullValueHandling.Ignore });
             System.Console.WriteLine(theSnapshot);
             theResource.StreamConnected += (sender, args) => System.Console.WriteLine("Stream Connected");
+            
             theResource.StreamEvent += (sender, args) => System.Console.WriteLine(args.Update);
             theResource.StreamDisconnected += (sender, args) => System.Console.WriteLine("Stream Disconnected");
             theResource.StartStreaming();
 
-            Thread.Sleep(60000);
+            Thread.Sleep(600000);
             theResource.StopStreaming();
            
         }
