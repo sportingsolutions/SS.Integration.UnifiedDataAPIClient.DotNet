@@ -45,7 +45,7 @@ namespace Spin.TradingServices.Udapi.Sdk
         {
             if(_state != null)
             {
-                foreach (var restLink in _state.Links.Where(restLink => restLink.Relation == "http://api.sportingsolutions.com/lastresponse"))
+                foreach (var restLink in _state.Links.Where(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/snapshot"))
                 {
                     return RestHelper.GetResponse(new Uri(restLink.Href), null, "GET", "application/json", _headers);
                 }
@@ -59,7 +59,7 @@ namespace Spin.TradingServices.Udapi.Sdk
             {
                 Task.Factory.StartNew((stateObj) =>
                 {
-                    foreach (var restLink in _state.Links.Where(restLink => restLink.Relation == "http://api.sportingsolutions.com/stream/amqp"))
+                    foreach (var restLink in _state.Links.Where(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/amqp"))
                     {
                         _restItems = RestHelper.GetResponse(new Uri(restLink.Href), null, "GET", "application/json", _headers).FromJson<List<RestItem>>();
                         break;
