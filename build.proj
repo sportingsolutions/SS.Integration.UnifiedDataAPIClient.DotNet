@@ -6,7 +6,7 @@
 	<MSBuildExtensionsPath>$([MSBuild]::Unescape('$(MSBuildProjectDirectory)'))\lib</MSBuildExtensionsPath>
 	 <ExtensionTasksPath>$(MSBuildExtensionsPath)\MSBuildExtensions\</ExtensionTasksPath>
     <!--Solution file-->
-    <SolutionFileName>$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.sln</SolutionFileName>
+    <SolutionFileName>$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.sln</SolutionFileName>
   </PropertyGroup>
 
   <!--Import MSBuild.ExtensionPack Tasks-->
@@ -84,15 +84,15 @@
 	
 		<ItemGroup>
 			<LibFiles Include="$(MSBuildProjectDirectory)\lib\**\*.*" Exclude="$(MSBuildProjectDirectory)\lib\**\.svn\**" />
-			<SDKSrcFiles Include="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk\**\*.*" Exclude="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk\**\.svn\**;$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk\**\bin\**;$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk\**\obj\**" />
-			<ExampleSrcFiles Include="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.Example.Console\**\*.*" Exclude="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.Example.Console\**\.svn\**;$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.Example.Console\**\bin\**;$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.Example.Console\**\obj\**" />
+			<SDKSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\*.*" Exclude="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\.svn\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\bin\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\obj\**" />
+			<ExampleSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\*.*" Exclude="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\.svn\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\bin\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\obj\**" />
 			<!--TestSrcFiles Include="$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\*.*" Exclude="$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\.svn\**;$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\bin\**;$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\obj\**" /-->
-			<SlnSrcFiles Include="$(MSBuildProjectDirectory)\Spin.TradingServices.Udapi.Sdk.sln"  />
+			<SlnSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.sln"  />
 		</ItemGroup>
 		
 		<Copy SourceFiles="@(LibFiles)" DestinationFolder="$(BuildDir)\\Src\\lib\\%(RecursiveDir)"/>	
-		<Copy SourceFiles="@(SDKSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\Spin.TradingServices.Udapi.Sdk\\%(RecursiveDir)"/>	
-		<Copy SourceFiles="@(ExampleSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\Spin.TradingServices.Udapi.Sdk.Example.Console\\%(RecursiveDir)"/>	
+		<Copy SourceFiles="@(SDKSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SportingSolutions.Udapi.Sdk\\%(RecursiveDir)"/>	
+		<Copy SourceFiles="@(ExampleSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SportingSolutions.Udapi.Sdk.Example.Console\\%(RecursiveDir)"/>	
 		<Copy SourceFiles="@(SlnSrcFiles)" DestinationFolder="$(BuildDir)\\Src"/>	
 		
 	</Target>
@@ -101,7 +101,7 @@
 		<ItemGroup>
 			<ZipFiles Include="$(BuildDir)\**\*.*" Exclude="*.zip" />
 		</ItemGroup>
-		<MSBuild.ExtensionPack.Compression.DNZip TaskAction="Create" CompressFiles="@(ZipFiles)" ZipFileName="$(BuildDir)\Spin.TradingServices.Udapi.Sdk-$(MaxAssemblyVersion).zip" RemoveRoot="$(BuildDir)"/>
+		<MSBuild.ExtensionPack.Compression.DNZip TaskAction="Create" CompressFiles="@(ZipFiles)" ZipFileName="$(BuildDir)\SportingSolutions.Udapi.Sdk-$(MaxAssemblyVersion).zip" RemoveRoot="$(BuildDir)"/>
 </Target>
   
 </Project>
