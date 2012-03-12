@@ -1,13 +1,13 @@
 
-_ReSharper.Spin.TradingServices.Udapi.Sdk/*
+_ReSharper.SportingSolutions.Udapi.Sdk/*
 build/*
 *.nupkg
-Spin.TradingServices.Udapi.Sdk.Example.Console/bin/*
-Spin.TradingServices.Udapi.Sdk.Example.Console/obj/*
+SportingSolutions.Udapi.Sdk.Example.Console/bin/*
+SportingSolutions.Udapi.Sdk.Example.Console/obj/*
 *.suo
-Spin.TradingServices.Udapi.Sdk/bin/*
-Spin.TradingServices.Udapi.Sdk/obj/*
+SportingSolutions.Udapi.Sdk/bin/*
+SportingSolutions.Udapi.Sdk/obj/*
 packages/*
 !repositories.config
-Spin.TradingServices.Udapi.Sdk*.zip
+SportingSolutions.Udapi.Sdk*.zip
 *.user
