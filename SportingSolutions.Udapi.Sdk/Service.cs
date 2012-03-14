@@ -15,19 +15,19 @@ namespace SportingSolutions.Udapi.Sdk
 
         public string Name
         {
-            get { return _state.Name; }
+            get { return State.Name; }
         }
 
         public List<IFeature> GetFeatures()
         {
-            var restItems = GetNext();
-            return restItems.Select(restItem => new Feature(_headers, restItem)).Cast<IFeature>().ToList();
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list");
+            return restItems.Select(restItem => new Feature(Headers, restItem)).Cast<IFeature>().ToList();
         }
 
         public IFeature GetFeature(string name)
         {
-            var restItems = GetNext();
-            return (from restItem in restItems where restItem.Name == name select new Feature(_headers, restItem)).FirstOrDefault();
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list");
+            return (from restItem in restItems where restItem.Name == name select new Feature(Headers, restItem)).FirstOrDefault();
         }
     }
 }

@@ -10,9 +10,8 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public abstract class Endpoint
     {
-        protected NameValueCollection _headers;
-        protected RestItem _state;
-        protected IList<RestItem> _restItems;
+        protected NameValueCollection Headers;
+        protected readonly RestItem State;
 
         internal Endpoint()
         {
@@ -21,33 +20,18 @@ namespace SportingSolutions.Udapi.Sdk
 
         internal Endpoint(NameValueCollection headers, RestItem restItem)
         {
-            _headers = headers;
-            _state = restItem;
+            Headers = headers;
+            State = restItem;
         }
 
-        protected IEnumerable<RestItem> GetNext()
+        protected IEnumerable<RestItem> FindRelationAndFollow(string relation)
         {
             var result = new List<RestItem>();
-            if(_state != null)
+            if(State != null)
             {
-                var theUrl = _state.Links[0].Href;
-                result = RestHelper.GetResponse(new Uri(theUrl), null, "GET", "application/json", _headers).FromJson<List<RestItem>>();
-            }
-            return result;
-        }
-
-        protected IEnumerable<RestItem> GetRestItems(string name)
-        {
-            var result = new List<RestItem>();
-            if (_restItems != null)
-            {
-                var theUrl = "";
-                foreach (var restItem in _restItems.Where(restItem => restItem.Name == name))
-                {
-                    theUrl = restItem.Links[0].Href;
-                    break;
-                }
-                result = RestHelper.GetResponse(new Uri(theUrl), null, "GET", "application/json", _headers).FromJson<List<RestItem>>();
+                var theLink = State.Links.First(restLink => restLink.Relation == relation);
+                var theUrl = theLink.Href;
+                result = RestHelper.GetResponse(new Uri(theUrl), null, "GET", "application/json", Headers).FromJson<List<RestItem>>();
             }
             return result;
         }

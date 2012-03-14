@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
@@ -9,7 +8,6 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
-using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 
@@ -19,7 +17,7 @@ namespace SportingSolutions.Udapi.Sdk
     {
         private bool _isStreaming;
         private bool _streamingCompleted;
-        private ManualResetEvent _pauseStream;
+        private readonly ManualResetEvent _pauseStream;
 
         internal Resource(NameValueCollection headers, RestItem restItem) : base(headers, restItem)
         {
@@ -28,43 +26,40 @@ namespace SportingSolutions.Udapi.Sdk
 
         public string Id
         {
-            get { return _state.Content.Id; }
+            get { return State.Content.Id; }
         }
 
         public string Name
         {
-            get { return _state.Name; }
+            get { return State.Name; }
         }
 
         public Summary Content
         {
-            get { return _state.Content; }
+            get { return State.Content; }
         }
 
         public string GetSnapshot()
         {
-            if(_state != null)
+            if(State != null)
             {
-                foreach (var restLink in _state.Links.Where(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/snapshot"))
-                {
-                    return RestHelper.GetResponse(new Uri(restLink.Href), null, "GET", "application/json", _headers);
-                }
+                var theLink = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/snapshot");
+                
+                return RestHelper.GetResponse(new Uri(theLink.Href), null, "GET", "application/json", Headers);
             }
             return "";
         }
 
         public void StartStreaming()
         {
-            if (_state != null)
+            if (State != null)
             {
-                Task.Factory.StartNew((stateObj) =>
+                Task.Factory.StartNew(stateObj =>
                 {
-                    foreach (var restLink in _state.Links.Where(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/amqp"))
-                    {
-                        _restItems = RestHelper.GetResponse(new Uri(restLink.Href), null, "GET", "application/json", _headers).FromJson<List<RestItem>>();
-                        break;
-                    }
-                    var amqpUri = new Uri(_restItems[0].Links[0].Href);
+                    var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp");
+                    var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
+
+                    var amqpUri = new Uri(amqpLink.Href);
                     var connectionFactory = new ConnectionFactory();
                     var host = amqpUri.Host;
                     if (!String.IsNullOrEmpty(host))

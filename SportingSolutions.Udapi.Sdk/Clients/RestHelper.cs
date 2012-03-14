@@ -8,7 +8,7 @@ using System.Text;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
-    public class RestHelper
+    public static class RestHelper
     {
         private static HttpWebRequest CreateRequest(Uri url, string data, string httpMethod, string contentType, NameValueCollection headers, int timeout, bool gzip)
         {
