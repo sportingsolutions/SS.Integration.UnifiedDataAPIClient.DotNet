@@ -2,6 +2,7 @@ This is the master repository for the Sporting Solutions Unified Data API Client
 
 Getting Started
 ----------------------
+	'''c#
 	ICredentials credentials = new Credentials { UserName = "jim@bookies", Password = "password" };
 	var theSession = SessionFactory.CreateSession(new Uri("http://api.sportingsolutions.com"), credentials);
 	
@@ -26,5 +27,6 @@ Getting Started
 	theEvent.StreamDisconnected += (sender, args) => System.Console.WriteLine("Stream Disconnected");
  
 	theEvent.StartStreaming();
+	'''
  
 It really is as easy as that!
