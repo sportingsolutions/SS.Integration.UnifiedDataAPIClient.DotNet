@@ -18,15 +18,10 @@
   
   <Target Name="Version">
     <PropertyGroup>
-      <MajorVersion>1</MajorVersion>
-      <MinorVersion>0</MinorVersion>
-      <BuildVersion>0</BuildVersion>
-      <!--Use the SVN Revision number to quickly identify the repo version used to build-->
-      <BuildVersion Condition="$(SVN_REVISION) != ''">$(SVN_REVISION)</BuildVersion>
-      <BuildVersion Condition="$(SVN_REVISION_1) != ''">$(SVN_REVISION_1)</BuildVersion>
-      <RevisionNumber>0</RevisionNumber>
-      <!--Use the Hudson Build number to quickly identify build used-->
-      <RevisionNumber Condition="$(BUILD_NUMBER) != ''">$(BUILD_NUMBER)</RevisionNumber>
+      <MajorVersion>$(MajorVersion)</MajorVersion>
+      <MinorVersion>$(MinorVersion)</MinorVersion>
+      <BuildVersion>$(BuildVersion)</BuildVersion>
+      <RevisionNumber>$(RevisionNumber)</RevisionNumber>
     </PropertyGroup>
     <!--Version the CommonAssemblyInfo.cs file-->
     <MSBuild.ExtensionPack.Framework.AssemblyInfo AssemblyInfoFiles="$(MSBuildProjectDirectory)\CommonAssemblyInfo.cs"
