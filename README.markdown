@@ -41,4 +41,3 @@ theEvent.StreamDisconnected += (sender, args) => System.Console.WriteLine("Strea
 
 theEvent.StartStreaming();
 ```
-It really is as easy as that!
