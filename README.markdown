@@ -1,7 +1,7 @@
 This is the master repository for the Sporting Solutions Unified Data API Client for the .Net Framework.
 
 Getting Started
-
+----------------------
 	ICredentials credentials = new Credentials { UserName = "jim@bookies", Password = "password" };
 	var theSession = SessionFactory.CreateSession(new Uri("http://api.sportingsolutions.com"), credentials);
  
