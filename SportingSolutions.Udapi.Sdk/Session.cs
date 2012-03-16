@@ -11,6 +11,9 @@ using ICredentials = SportingSolutions.Udapi.Sdk.Interfaces.ICredentials;
 
 namespace SportingSolutions.Udapi.Sdk
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class Session : Endpoint, ISession
     {
         private IList<RestItem> _restItems;
