@@ -19,6 +19,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
@@ -96,6 +97,7 @@ namespace SportingSolutions.Udapi.Sdk
                 connectionFactory.Port = port;
             }
             var userInfo = amqpUri.UserInfo;
+            userInfo = HttpUtility.UrlDecode(userInfo);
             if (!String.IsNullOrEmpty(userInfo))
             {
                 var userPass = userInfo.Split(':');
