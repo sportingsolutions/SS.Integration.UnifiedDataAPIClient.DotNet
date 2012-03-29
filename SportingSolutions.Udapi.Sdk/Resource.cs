@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Specialized;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
@@ -19,7 +21,8 @@ namespace SportingSolutions.Udapi.Sdk
         private bool _streamingCompleted;
         private readonly ManualResetEvent _pauseStream;
 
-        internal Resource(NameValueCollection headers, RestItem restItem) : base(headers, restItem)
+        internal Resource(NameValueCollection headers, RestItem restItem)
+            : base(headers, restItem)
         {
             _pauseStream = new ManualResetEvent(true);
         }
@@ -41,10 +44,10 @@ namespace SportingSolutions.Udapi.Sdk
 
         public string GetSnapshot()
         {
-            if(State != null)
+            if (State != null)
             {
                 var theLink = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/snapshot");
-                
+
                 return RestHelper.GetResponse(new Uri(theLink.Href), null, "GET", "application/json", Headers);
             }
             return "";
@@ -52,81 +55,131 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming()
         {
+            Console.WriteLine("Starting streaming");
             if (State != null)
             {
-                Task.Factory.StartNew(stateObj =>
-                {
-                    var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp");
-                    var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
-
-                    var amqpUri = new Uri(amqpLink.Href);
-                    var connectionFactory = new ConnectionFactory();
-                    var host = amqpUri.Host;
-                    if (!String.IsNullOrEmpty(host))
-                    {
-                        connectionFactory.HostName = host;
-                    }
-                    var port = amqpUri.Port;
-                    if (port != -1)
-                    {
-                        connectionFactory.Port = port;
-                    }
-                    var userInfo = amqpUri.UserInfo;
-                    if (!String.IsNullOrEmpty(userInfo))
-                    {
-                        var userPass = userInfo.Split(':');
-                        if (userPass.Length > 2)
-                        {
-                            throw new ArgumentException(string.Format("Bad user info in AMQP URI: {0}", userInfo));
-                        }
-                        connectionFactory.UserName = userPass[0];
-                        if (userPass.Length == 2)
-                        {
-                            connectionFactory.Password = userPass[1];
-                        }
-                    }
-                    var queueName = "";
-                    var path = amqpUri.AbsolutePath;
-                    if (!String.IsNullOrEmpty(path))
-                    {
-                        queueName = path.Substring(path.IndexOf('/', 1) + 1);
-                        var virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
-                        connectionFactory.VirtualHost = "/" + virtualHost;
-                    }
-
-                    var connection = connectionFactory.CreateConnection();
-                    if(StreamConnected != null)
-                    {
-                        StreamConnected(this, new EventArgs());    
-                    }
-                    
-                    var channel = connection.CreateModel();
-                    var consumer = new QueueingBasicConsumer(channel);
-                    channel.BasicConsume(queueName, true, consumer);
-                    channel.BasicQos(0, 10, false);
-
-                    _isStreaming = true;
-                    while (_isStreaming)
-                    {
-                        _pauseStream.WaitOne();
-                        var output = consumer.Queue.Dequeue();
-                        if (output != null)
-                        {
-                            var deliveryArgs = (BasicDeliverEventArgs)output;
-                            var message = deliveryArgs.Body;
-                            if(StreamEvent != null)
-                            {
-                                StreamEvent(this, new StreamEventArgs(Encoding.UTF8.GetString(message)));    
-                            }
-                        }
-                    }
-
-                    channel.Close();
-                    connection.Close();
-                    _streamingCompleted = true;
-                }, null);
-                
+                Task.Factory.StartNew(stateObj => StreamData(), null);
             }
+        }
+
+        private void StreamData()
+        {
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp");
+            var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
+
+            var amqpUri = new Uri(amqpLink.Href);
+            Console.WriteLine("Host: {0}", amqpUri);
+            var connectionFactory = new ConnectionFactory();
+
+            var host = amqpUri.Host;
+            if (!String.IsNullOrEmpty(host))
+            {
+                connectionFactory.HostName = host;
+            }
+            var port = amqpUri.Port;
+            if (port != -1)
+            {
+                connectionFactory.Port = port;
+            }
+            var userInfo = amqpUri.UserInfo;
+            if (!String.IsNullOrEmpty(userInfo))
+            {
+                var userPass = userInfo.Split(':');
+                if (userPass.Length > 2)
+                {
+                    throw new ArgumentException(string.Format("Bad user info in AMQP URI: {0}", userInfo));
+                }
+                connectionFactory.UserName = userPass[0];
+                if (userPass.Length == 2)
+                {
+                    connectionFactory.Password = userPass[1];
+                }
+            }
+            var queueName = "";
+            var path = amqpUri.AbsolutePath;
+            if (!String.IsNullOrEmpty(path))
+            {
+                queueName = path.Substring(path.IndexOf('/', 1) + 1);
+                var virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
+                connectionFactory.VirtualHost = "/" + virtualHost;
+            }
+
+            var connection = connectionFactory.CreateConnection();
+            if (StreamConnected != null)
+            {
+                StreamConnected(this, new EventArgs());
+            }
+
+            var channel = connection.CreateModel();
+            var consumer = new QueueingCustomConsumer(channel);
+
+            channel.BasicConsume(queueName, true, consumer);
+            channel.BasicQos(0, 10, false);
+
+            _isStreaming = true;
+
+            int maxRetries = 10;
+            int disconnections = 0;
+
+            Action reconnect = () =>
+                                   {
+                                       var success = false;
+                                       while (!success && disconnections < maxRetries)
+                                       {
+                                           try
+                                           {
+                                               connection = connectionFactory.CreateConnection();
+                                               channel = connection.CreateModel();
+                                               consumer = new QueueingCustomConsumer(channel);
+                                               channel.BasicConsume(queueName, true, consumer);
+                                               channel.BasicQos(0, 10, false);
+                                               success = true;
+                                           }
+                                           catch (BrokerUnreachableException)
+                                           {
+                                               // give time to load balancer to notice the node is down
+                                               Thread.Sleep(500);
+                                               disconnections++;
+                                           }
+                                       }
+                                   };
+
+            consumer.QueueCancelled += reconnect;
+
+            while (_isStreaming)
+            {
+                try
+                {
+                    _pauseStream.WaitOne();
+                    var output = consumer.Queue.Dequeue();
+                    if (output != null)
+                    {
+                        var deliveryArgs = (BasicDeliverEventArgs)output;
+                        var message = deliveryArgs.Body;
+                        if (StreamEvent != null)
+                        {
+                            StreamEvent(this, new StreamEventArgs(Encoding.UTF8.GetString(message)));
+                        }
+                    }
+                }
+                catch (EndOfStreamException)
+                {
+                    //connection lost
+                    reconnect();
+                }
+            }
+
+
+            channel.Close();
+            connection.Close();
+            _streamingCompleted = true;
+        }
+
+        private void TestConnection(object connection)
+        {
+            var conn = connection as IConnection;
+            if (conn != null)
+                Console.WriteLine("Connection is {0}", conn.IsOpen);
         }
 
         public void PauseStreaming()
@@ -142,13 +195,13 @@ namespace SportingSolutions.Udapi.Sdk
         public void StopStreaming()
         {
             _isStreaming = false;
-            while(!_streamingCompleted)
+            while (!_streamingCompleted)
             {
-                
+
             }
-            if(StreamDisconnected != null)
+            if (StreamDisconnected != null)
             {
-                StreamDisconnected(this, new EventArgs());    
+                StreamDisconnected(this, new EventArgs());
             }
         }
 
