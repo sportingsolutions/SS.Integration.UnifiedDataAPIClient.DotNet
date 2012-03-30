@@ -200,14 +200,7 @@ namespace SportingSolutions.Udapi.Sdk
             connection.Close();
             _streamingCompleted = true;
         }
-
-        private void TestConnection(object connection)
-        {
-            var conn = connection as IConnection;
-            if (conn != null)
-                Console.WriteLine("Connection is {0}", conn.IsOpen);
-        }
-
+        
         public void PauseStreaming()
         {
             _pauseStream.Reset();
