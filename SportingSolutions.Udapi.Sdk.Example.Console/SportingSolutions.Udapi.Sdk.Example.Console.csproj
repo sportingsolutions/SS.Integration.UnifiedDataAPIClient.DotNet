@@ -11,7 +11,8 @@
     <RootNamespace>SportingSolutions.Udapi.Sdk.Example.Console</RootNamespace>
     <AssemblyName>SportingSolutions.Udapi.Sdk.Example.Console</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
-    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\Unified_Data_API_Client_DotNet\</SolutionDir>
     <RestorePackages>true</RestorePackages>
