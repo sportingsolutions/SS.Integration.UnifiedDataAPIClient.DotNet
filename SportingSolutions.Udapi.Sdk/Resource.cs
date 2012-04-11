@@ -73,7 +73,7 @@ namespace SportingSolutions.Udapi.Sdk
             Console.WriteLine("Starting streaming");
             if (State != null)
             {
-                Task.Factory.StartNew(stateObj => StreamData(), null);
+                Task.Factory.StartNew(StreamData); 
             }
         }
 
@@ -140,7 +140,7 @@ namespace SportingSolutions.Udapi.Sdk
             Action reconnect = () =>
                                    {
                                        var success = false;
-                                       while (!success && disconnections < maxRetries)
+                                       while (!success)
                                        {
                                            try
                                            {
@@ -153,9 +153,18 @@ namespace SportingSolutions.Udapi.Sdk
                                            }
                                            catch (BrokerUnreachableException)
                                            {
+                                               if (disconnections > maxRetries)
+                                                   throw;
                                                // give time to load balancer to notice the node is down
                                                Thread.Sleep(500);
                                                disconnections++;
+                                           }
+                                           catch (Exception)
+                                           {
+                                               _streamingCompleted = true;
+                                               StopStreaming();
+                                               _isStreaming = false;
+                                               break;
                                            }
                                        }
                                    };
@@ -177,6 +186,7 @@ namespace SportingSolutions.Udapi.Sdk
                             StreamEvent(this, new StreamEventArgs(Encoding.UTF8.GetString(message)));
                         }
                     }
+                    disconnections = 0;
                 }
                 catch (EndOfStreamException)
                 {
@@ -190,14 +200,7 @@ namespace SportingSolutions.Udapi.Sdk
             connection.Close();
             _streamingCompleted = true;
         }
-
-        private void TestConnection(object connection)
-        {
-            var conn = connection as IConnection;
-            if (conn != null)
-                Console.WriteLine("Connection is {0}", conn.IsOpen);
-        }
-
+        
         public void PauseStreaming()
         {
             _pauseStream.Reset();
