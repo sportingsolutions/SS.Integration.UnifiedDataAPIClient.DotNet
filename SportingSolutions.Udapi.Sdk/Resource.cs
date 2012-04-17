@@ -61,7 +61,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             if (State != null)
             {
-                var theLink = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/v001/rels/snapshot");
+                var theLink = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/v001/snapshot");
 
                 return RestHelper.GetResponse(new Uri(theLink.Href), null, "GET", "application/json", Headers);
             }
@@ -79,7 +79,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         private void StreamData()
         {
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/v001/rels/stream/amqp");
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/v001/stream/amqp");
             var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
 
             var amqpUri = new Uri(amqpLink.Href);
