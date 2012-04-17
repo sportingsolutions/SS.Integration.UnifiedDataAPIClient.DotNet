@@ -34,13 +34,13 @@ namespace SportingSolutions.Udapi.Sdk
 
         public List<IFeature> GetFeatures()
         {
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list");
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/v001/features/list");
             return restItems.Select(restItem => new Feature(Headers, restItem)).Cast<IFeature>().ToList();
         }
 
         public IFeature GetFeature(string name)
         {
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list");
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/v001/features/list");
             return (from restItem in restItems where restItem.Name == name select new Feature(Headers, restItem)).FirstOrDefault();
         }
     }
