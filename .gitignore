@@ -11,3 +11,4 @@ packages/*
 !repositories.config
 SportingSolutions.Udapi.Sdk*.zip
 *.user
+BuildOutput/

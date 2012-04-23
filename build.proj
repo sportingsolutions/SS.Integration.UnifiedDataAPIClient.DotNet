@@ -2,6 +2,7 @@
   
   <PropertyGroup>
     <!--Default Configuration-->
+	<BuildDir Condition=" '$(BuildDir)' == ''">BuildOutput</BuildDir> 
     <Configuration Condition=" '$(Configuration)' == '' ">Integration</Configuration>
 	<MSBuildExtensionsPath>$([MSBuild]::Unescape('$(MSBuildProjectDirectory)'))\lib</MSBuildExtensionsPath>
 	 <ExtensionTasksPath>$(MSBuildExtensionsPath)\MSBuildExtensions\</ExtensionTasksPath>
@@ -9,12 +10,14 @@
     <SolutionFileName>$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.sln</SolutionFileName>
   </PropertyGroup>
 
+  
+  
   <!--Import MSBuild.ExtensionPack Tasks-->
   <Import Project="$(ExtensionTasksPath)MSBuild.ExtensionPack.tasks"/>
   
   <!--Import MSBuildCommunityTasks Tasks-->
   <Import Project="$(MSBuildExtensionsPath)\msbuild\MSBuild.Community.Tasks.Targets"/>
-
+ 
   
   <Target Name="Version">
     <PropertyGroup>
@@ -41,17 +44,16 @@
   </Target>
   
   <Target Name="Clean">
-    <Message Text="Clean Solution" />
+    <Message Text="Clean Solution" />	
 	<ItemGroup>
-			<FilesToDelete Include="$(BuildDir)\**\*"/>
+			
+	<FilesToDelete Include="$(BuildDir)\**\*"/> 
 	</ItemGroup>
 	<ItemGroup>
-			<MoreFilesToDelete Include="$(MSBuildProjectDirectory)\**\*.nupkg"/>
+		<MoreFilesToDelete Include="$(MSBuildProjectDirectory)\**\*.nupkg"/> 
 	</ItemGroup>
 	<Delete Files="@(FilesToDelete)" />
 	<Delete Files="@(MoreFilesToDelete)" />
-
-
 	<RemoveDir Directories="$(BuildDir)" />
 	<MakeDir Directories="$(BuildDir)"/>
 	
