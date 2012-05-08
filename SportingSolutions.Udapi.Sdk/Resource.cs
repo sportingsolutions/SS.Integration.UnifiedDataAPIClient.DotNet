@@ -30,11 +30,13 @@ using SportingSolutions.Udapi.Sdk.Model;
 
 namespace SportingSolutions.Udapi.Sdk
 {
-    public class Resource : Endpoint, IResource
+    public class Resource : Endpoint, IResource, IDisposable
     {
         private bool _isStreaming;
-        private bool _streamingCompleted;
         private readonly ManualResetEvent _pauseStream;
+
+        private IModel _channel;
+        private IConnection _connection;
 
         internal Resource(NameValueCollection headers, RestItem restItem)
             : base(headers, restItem)
@@ -61,7 +63,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             if (State != null)
             {
-                var theLink = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/v001/snapshot");
+                var theLink = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/snapshot");
 
                 return RestHelper.GetResponse(new Uri(theLink.Href), null, "GET", "application/json", Headers);
             }
@@ -79,7 +81,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         private void StreamData()
         {
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/v001/stream/amqp");
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp");
             var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
 
             var amqpUri = new Uri(amqpLink.Href);
@@ -120,17 +122,17 @@ namespace SportingSolutions.Udapi.Sdk
                 connectionFactory.VirtualHost = "/" + virtualHost;
             }
 
-            var connection = connectionFactory.CreateConnection();
+            _connection = connectionFactory.CreateConnection();
             if (StreamConnected != null)
             {
                 StreamConnected(this, new EventArgs());
             }
 
-            var channel = connection.CreateModel();
-            var consumer = new QueueingCustomConsumer(channel);
+            _channel = _connection.CreateModel();
+            var consumer = new QueueingCustomConsumer(_channel);
 
-            channel.BasicConsume(queueName, true, consumer);
-            channel.BasicQos(0, 10, false);
+            _channel.BasicConsume(queueName, true, consumer);
+            _channel.BasicQos(0, 10, false);
 
             _isStreaming = true;
 
@@ -140,15 +142,15 @@ namespace SportingSolutions.Udapi.Sdk
             Action reconnect = () =>
                                    {
                                        var success = false;
-                                       while (!success)
+                                       while (!success && _isStreaming)
                                        {
                                            try
                                            {
-                                               connection = connectionFactory.CreateConnection();
-                                               channel = connection.CreateModel();
-                                               consumer = new QueueingCustomConsumer(channel);
-                                               channel.BasicConsume(queueName, true, consumer);
-                                               channel.BasicQos(0, 10, false);
+                                               _connection = connectionFactory.CreateConnection();
+                                               _channel = _connection.CreateModel();
+                                               consumer = new QueueingCustomConsumer(_channel);
+                                               _channel.BasicConsume(queueName, true, consumer);
+                                               _channel.BasicQos(0, 10, false);
                                                success = true;
                                            }
                                            catch (BrokerUnreachableException)
@@ -161,9 +163,7 @@ namespace SportingSolutions.Udapi.Sdk
                                            }
                                            catch (Exception)
                                            {
-                                               _streamingCompleted = true;
                                                StopStreaming();
-                                               _isStreaming = false;
                                                break;
                                            }
                                        }
@@ -194,11 +194,6 @@ namespace SportingSolutions.Udapi.Sdk
                     reconnect();
                 }
             }
-
-
-            channel.Close();
-            connection.Close();
-            _streamingCompleted = true;
         }
         
         public void PauseStreaming()
@@ -213,19 +208,32 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StopStreaming()
         {
-            _isStreaming = false;
-            while (!_streamingCompleted)
-            {
-
-            }
-            if (StreamDisconnected != null)
-            {
-                StreamDisconnected(this, new EventArgs());
-            }
+            Dispose();
         }
 
         public event EventHandler StreamConnected;
         public event EventHandler StreamDisconnected;
         public event EventHandler<StreamEventArgs> StreamEvent;
+
+        public void Dispose()
+        {
+            _isStreaming = false;
+
+            if (StreamDisconnected != null)
+            {
+                StreamDisconnected(this, new EventArgs());
+            }
+
+            if(_channel != null)
+            {
+                _channel.Close();
+                _channel = null;
+            }
+            if(_connection != null)
+            {
+                _connection.Close();
+                _connection = null;
+            }
+        }
     }
 }

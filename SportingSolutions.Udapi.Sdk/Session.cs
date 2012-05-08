@@ -65,7 +65,7 @@ namespace SportingSolutions.Udapi.Sdk
                 var items = RestHelper.GetResponse(response).FromJson<List<RestItem>>();
 
                 var loginLink = items.SelectMany(restItem => restItem.Links).First(
-                    restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/v001/login");
+                    restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/login");
                 var loginUrl = loginLink.Href;
                 
                 _restItems = Login(new Uri(loginUrl), credentials);
