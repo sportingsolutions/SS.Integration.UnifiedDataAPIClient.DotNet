@@ -1,7 +1,7 @@
 This is the master repository for the Sporting Solutions Unified Data API Client for the .Net Framework.
 The SDK provides an easy to use interface into the Sporting Solutions Unified Data API.  
 
-Usage of this SDK requires a GTP username and password (available on request), it�s usage is authorised only for current or prospective clients.
+Usage of this SDK requires a GTP username and password (available on request), it's usage is authorised only for current or prospective clients.
 
 Any bug reports, comments, feedback or enhancements requests are gratefully received.
 
