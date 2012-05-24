@@ -41,6 +41,8 @@ namespace SportingSolutions.Udapi.Sdk.Example.Console
             ICredentials credentials = new Credentials { UserName = userName, Password = password };
             var theSession = SessionFactory.CreateSession(new Uri(_url), credentials);
             //Get the Unified Data Service
+
+           
             var theService = theSession.GetService("UnifiedDataAPI");
 
             var theFeature = theService.GetFeature(sport);
@@ -51,6 +53,7 @@ namespace SportingSolutions.Udapi.Sdk.Example.Console
 
             //Get the snapshot
             var theSnapshot = theResource.GetSnapshot();
+           
 
             var fixtureSnapshot = JsonConvert.DeserializeObject<Fixture>(theSnapshot, new JsonSerializerSettings { Converters = new List<JsonConverter> { new IsoDateTimeConverter() }, NullValueHandling = NullValueHandling.Ignore });
 
