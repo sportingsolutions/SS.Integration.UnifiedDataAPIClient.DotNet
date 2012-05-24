@@ -31,24 +31,41 @@ namespace SportingSolutions.Udapi.Sdk
     public class Session : Endpoint, ISession
     {
         private IList<RestItem> _restItems;
+        private Uri _serverUri;
+        
 
         public Session(Uri serverUri, ICredentials credentials)
         {
+            _serverUri = serverUri;
             Headers = new NameValueCollection();
             GetRoot(serverUri, credentials);
         }
 
         public IList<IService> GetServices()
         {
-            return _restItems.Select(serviceRestItem => new Service(Headers, serviceRestItem)).Cast<IService>().ToList();
+            if(_restItems == null)
+            {
+                GetRoot(_serverUri,null,false);
+            }
+
+            var result = _restItems.Select(serviceRestItem => new Service(Headers, serviceRestItem)).Cast<IService>().ToList();
+            _restItems = null;
+            return result;
         }
        
         public IService GetService(string name)
         {
-            return _restItems.Select(serviceRestItem => new Service(Headers, serviceRestItem)).FirstOrDefault(service => service.Name == name);
+            if (_restItems == null)
+            {
+                GetRoot(_serverUri, null, false);
+            }
+
+            var result = _restItems.Select(serviceRestItem => new Service(Headers, serviceRestItem)).FirstOrDefault(service => service.Name == name);
+            _restItems = null;
+            return result;
         }
 
-        private void GetRoot(Uri serverUri, ICredentials credentials)
+        private void GetRoot(Uri serverUri, ICredentials credentials, bool authenticate = true)
         {
             HttpWebResponse response;
             try
@@ -59,20 +76,26 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 response = ex.Response as HttpWebResponse;
             }
-            
-            if(response != null && response.StatusCode == HttpStatusCode.Unauthorized)
-            {
-                var items = RestHelper.GetResponse(response).FromJson<List<RestItem>>();
 
-                var loginLink = items.SelectMany(restItem => restItem.Links).First(
-                    restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/login");
-                var loginUrl = loginLink.Href;
-                
-                _restItems = Login(new Uri(loginUrl), credentials);
+            if (authenticate)
+            {
+                if (response != null && response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    var items = RestHelper.GetResponse(response).FromJson<List<RestItem>>();
+
+                    var loginLink = items.SelectMany(restItem => restItem.Links).First(
+                        restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/login");
+                    var loginUrl = loginLink.Href;
+
+                    _restItems = Login(new Uri(loginUrl), credentials);
+                }
             }
             else
             {
-                _restItems = RestHelper.GetResponse(response).FromJson<List<RestItem>>();   
+                if (response != null)
+                {
+                    _restItems = RestHelper.GetResponse(response).FromJson<List<RestItem>>();
+                }
             }
         }
 
