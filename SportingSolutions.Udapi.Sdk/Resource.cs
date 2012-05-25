@@ -27,11 +27,14 @@ using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
+using log4net;
 
 namespace SportingSolutions.Udapi.Sdk
 {
     public class Resource : Endpoint, IResource, IDisposable
     {
+        private ILog _logger = LogManager.GetLogger(typeof(Resource).ToString());
+
         private bool _isStreaming;
         private readonly ManualResetEvent _pauseStream;
 
@@ -41,6 +44,7 @@ namespace SportingSolutions.Udapi.Sdk
         internal Resource(NameValueCollection headers, RestItem restItem)
             : base(headers, restItem)
         {
+            _logger.DebugFormat("Instantiated Resource {0}", restItem.Name);
             _pauseStream = new ManualResetEvent(true);
         }
 
@@ -63,6 +67,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             if (State != null)
             {
+                _logger.InfoFormat("Get Snapshot for  {0}", Name);
                 var theLink = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/snapshot");
 
                 return RestHelper.GetResponse(new Uri(theLink.Href), null, "GET", "application/json", Headers);
@@ -72,7 +77,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming()
         {
-            Console.WriteLine("Starting streaming");
+            _logger.InfoFormat("Starting stream for {0}",Name);
             if (State != null)
             {
                 Task.Factory.StartNew(StreamData); 
@@ -123,6 +128,8 @@ namespace SportingSolutions.Udapi.Sdk
             }
 
             _connection = connectionFactory.CreateConnection();
+            _logger.InfoFormat("Successfully connected to Streaming Server for {0}",Name);
+
             if (StreamConnected != null)
             {
                 StreamConnected(this, new EventArgs());
@@ -133,6 +140,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             _channel.BasicConsume(queueName, true, consumer);
             _channel.BasicQos(0, 10, false);
+            _logger.InfoFormat("Initialised connection to Streaming Queue for {0}", Name);
 
             _isStreaming = true;
 
@@ -141,6 +149,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             Action reconnect = () =>
                                    {
+                                       _logger.WarnFormat("Attempting to reconnect stream for {0}, Attempt {1}",Name,disconnections+1);
                                        var success = false;
                                        while (!success && _isStreaming)
                                        {
@@ -156,10 +165,15 @@ namespace SportingSolutions.Udapi.Sdk
                                            catch (BrokerUnreachableException)
                                            {
                                                if (disconnections > maxRetries)
+                                               {
+                                                   _logger.ErrorFormat("Failed to reconnect Stream for {0} ",Name);
+                                                   StopStreaming();
                                                    throw;
+                                               }
                                                // give time to load balancer to notice the node is down
                                                Thread.Sleep(500);
                                                disconnections++;
+                                               _logger.WarnFormat("Failed to reconnect stream {0}, Attempt {1}", Name,disconnections);   
                                            }
                                            catch (Exception)
                                            {
@@ -190,6 +204,7 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 catch (EndOfStreamException)
                 {
+                    _logger.WarnFormat("Lost connection to stream {0}", Name);
                     //connection lost
                     reconnect();
                 }
@@ -198,16 +213,19 @@ namespace SportingSolutions.Udapi.Sdk
         
         public void PauseStreaming()
         {
+            _logger.InfoFormat("Streaming paused for {0}",Name);
             _pauseStream.Reset();
         }
 
         public void UnPauseStreaming()
         {
+            _logger.InfoFormat("Streaming unpaused for {0}", Name);
             _pauseStream.Set();
         }
 
         public void StopStreaming()
         {
+            _logger.InfoFormat("Streaming stopped for {0}", Name);
             Dispose();
         }
 
