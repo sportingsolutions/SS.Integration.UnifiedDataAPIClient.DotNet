@@ -17,14 +17,17 @@ using System.Collections.Specialized;
 using System.Linq;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
+using log4net;
 
 namespace SportingSolutions.Udapi.Sdk
 {
     public class Service : Endpoint, IService
     {
+        private readonly ILog _logger = LogManager.GetLogger(typeof(Service).ToString());
+
         internal Service(NameValueCollection headers, RestItem restItem):base(headers, restItem)
         {
-            
+            _logger.DebugFormat("Instantiated Service {0}",restItem.Name);
         }
 
         public string Name
@@ -34,12 +37,14 @@ namespace SportingSolutions.Udapi.Sdk
 
         public List<IFeature> GetFeatures()
         {
+            _logger.InfoFormat("Get all available features from {0}",Name);
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list");
             return restItems.Select(restItem => new Feature(Headers, restItem)).Cast<IFeature>().ToList();
         }
 
         public IFeature GetFeature(string name)
         {
+            _logger.InfoFormat("Get {0} from {1}",name,Name);
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list");
             return (from restItem in restItems where restItem.Name == name select new Feature(Headers, restItem)).FirstOrDefault();
         }
