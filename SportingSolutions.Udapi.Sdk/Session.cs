@@ -21,6 +21,7 @@ using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
+using log4net;
 using ICredentials = SportingSolutions.Udapi.Sdk.Interfaces.ICredentials;
 
 namespace SportingSolutions.Udapi.Sdk
@@ -31,8 +32,9 @@ namespace SportingSolutions.Udapi.Sdk
     public class Session : Endpoint, ISession
     {
         private IList<RestItem> _restItems;
-        private Uri _serverUri;
-        
+        private readonly Uri _serverUri;
+
+        private ILog _logger = LogManager.GetLogger(typeof (Session).ToString());
 
         public Session(Uri serverUri, ICredentials credentials)
         {
@@ -43,6 +45,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public IList<IService> GetServices()
         {
+            _logger.Info("Get all available services..");
             if(_restItems == null)
             {
                 GetRoot(_serverUri,null,false);
@@ -55,6 +58,7 @@ namespace SportingSolutions.Udapi.Sdk
        
         public IService GetService(string name)
         {
+            _logger.InfoFormat("Get Service {0}",name);
             if (_restItems == null)
             {
                 GetRoot(_serverUri, null, false);
@@ -67,6 +71,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         private void GetRoot(Uri serverUri, ICredentials credentials, bool authenticate = true)
         {
+            _logger.DebugFormat("Connecting to {0}",serverUri);
             HttpWebResponse response;
             try
             {
@@ -81,6 +86,7 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 if (response != null && response.StatusCode == HttpStatusCode.Unauthorized)
                 {
+                    _logger.Debug("Not authenticated logging on");
                     var items = RestHelper.GetResponse(response).FromJson<List<RestItem>>();
 
                     var loginLink = items.SelectMany(restItem => restItem.Links).First(
@@ -88,12 +94,14 @@ namespace SportingSolutions.Udapi.Sdk
                     var loginUrl = loginLink.Href;
 
                     _restItems = Login(new Uri(loginUrl), credentials);
+                    _logger.Info("Logged in successfully");
                 }
             }
             else
             {
                 if (response != null)
                 {
+                    _logger.Info("Refreshing list of available services..");
                     _restItems = RestHelper.GetResponse(response).FromJson<List<RestItem>>();
                 }
             }
