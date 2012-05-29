@@ -92,6 +92,7 @@ namespace SportingSolutions.Udapi.Sdk
             var amqpUri = new Uri(amqpLink.Href);
             Console.WriteLine("Host: {0}", amqpUri);
             var connectionFactory = new ConnectionFactory();
+            connectionFactory.RequestedHeartbeat = 5;
 
             var host = amqpUri.Host;
             if (!String.IsNullOrEmpty(host))
