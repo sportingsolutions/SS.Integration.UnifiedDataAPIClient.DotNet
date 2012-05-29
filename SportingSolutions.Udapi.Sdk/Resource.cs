@@ -202,7 +202,8 @@ namespace SportingSolutions.Udapi.Sdk
                     }
                     disconnections = 0;
                 }
-                catch (EndOfStreamException)
+                //catch (EndOfStreamException)
+                catch(Exception)
                 {
                     _logger.WarnFormat("Lost connection to stream {0}", Name);
                     //connection lost
