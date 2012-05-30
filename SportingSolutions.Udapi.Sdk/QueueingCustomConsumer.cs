@@ -1,13 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using RabbitMQ.Client;
+using log4net;
 
 namespace SportingSolutions.Udapi.Sdk
 {
     public class QueueingCustomConsumer : QueueingBasicConsumer
     {
+        private readonly ILog _logger = LogManager.GetLogger(typeof(QueueingCustomConsumer).ToString());
+
         public QueueingCustomConsumer(IModel model) : base(model)
         {
 
@@ -15,6 +15,15 @@ namespace SportingSolutions.Udapi.Sdk
 
         public override void HandleBasicCancel(string consumerTag)
         {
+            base.HandleBasicCancel(consumerTag);
+            _logger.Debug("HandleBasicCancel");
+            QueueCancelled();
+        }
+
+        public override void HandleBasicCancelOk(string consumerTag)
+        {
+            base.HandleBasicCancelOk(consumerTag);
+            _logger.Debug("HandleBasicCancelOk");
             QueueCancelled();
         }
 
