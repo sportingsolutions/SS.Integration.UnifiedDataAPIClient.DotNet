@@ -40,6 +40,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         private IModel _channel;
         private IConnection _connection;
+        private QueueingCustomConsumer _consumer;
 
         internal Resource(NameValueCollection headers, RestItem restItem)
             : base(headers, restItem)
@@ -137,9 +138,9 @@ namespace SportingSolutions.Udapi.Sdk
             }
 
             _channel = _connection.CreateModel();
-            var consumer = new QueueingCustomConsumer(_channel);
-
-            _channel.BasicConsume(queueName, true, consumer);
+            _consumer = new QueueingCustomConsumer(_channel);
+            
+            _channel.BasicConsume(queueName, true, _consumer);
             _channel.BasicQos(0, 10, false);
             _logger.InfoFormat("Initialised connection to Streaming Queue for {0}", Name);
 
@@ -158,8 +159,8 @@ namespace SportingSolutions.Udapi.Sdk
                                            {
                                                _connection = connectionFactory.CreateConnection();
                                                _channel = _connection.CreateModel();
-                                               consumer = new QueueingCustomConsumer(_channel);
-                                               _channel.BasicConsume(queueName, true, consumer);
+                                               _consumer = new QueueingCustomConsumer(_channel);
+                                               _channel.BasicConsume(queueName, true, _consumer);
                                                _channel.BasicQos(0, 10, false);
                                                success = true;
                                            }
@@ -184,14 +185,14 @@ namespace SportingSolutions.Udapi.Sdk
                                        }
                                    };
 
-            consumer.QueueCancelled += reconnect;
+            _consumer.QueueCancelled += Dispose;
 
             while (_isStreaming)
             {
                 try
                 {
                     _pauseStream.WaitOne();
-                    var output = consumer.Queue.Dequeue();
+                    var output = _consumer.Queue.Dequeue();
                     if (output != null)
                     {
                         var deliveryArgs = (BasicDeliverEventArgs)output;
@@ -227,8 +228,13 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StopStreaming()
         {
-            _logger.InfoFormat("Streaming stopped for {0}", Name);
-            Dispose();
+            _isStreaming = false;
+            if (_consumer != null)
+            {
+                _channel.BasicCancel(_consumer.ConsumerTag);
+            }
+           
+            //Dispose();
         }
 
         public event EventHandler StreamConnected;
@@ -237,18 +243,18 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void Dispose()
         {
-            _isStreaming = false;
+            _logger.InfoFormat("Streaming stopped for {0}", Name);
+            if(_channel != null)
+            {
+                _channel.Close();
+                _channel = null;
+            }
 
             if (StreamDisconnected != null)
             {
                 StreamDisconnected(this, new EventArgs());
             }
 
-            if(_channel != null)
-            {
-                _channel.Close();
-                _channel = null;
-            }
             if(_connection != null)
             {
                 _connection.Close();
