@@ -40,12 +40,17 @@ namespace SportingSolutions.Udapi.Sdk
 
         protected IEnumerable<RestItem> FindRelationAndFollow(string relation)
         {
-            var result = new List<RestItem>();
-            if(State != null)
+            return FindRelationAndFollowAsString(relation).FromJson<List<RestItem>>();
+        }
+
+        protected string FindRelationAndFollowAsString(string relation)
+        {
+            var result = "";
+            if (State != null)
             {
                 var theLink = State.Links.First(restLink => restLink.Relation == relation);
                 var theUrl = theLink.Href;
-                result = RestHelper.GetResponse(new Uri(theUrl), null, "GET", "application/json", Headers).FromJson<List<RestItem>>();
+                result = RestHelper.GetResponse(new Uri(theUrl), null, "GET", "application/json", Headers);
             }
             return result;
         }
