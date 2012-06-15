@@ -26,6 +26,7 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
 
         string GetSnapshot();
         void StartStreaming();
+        void StartStreaming(int sequenceCheckerInterval, int sequenceDiscrepencyThreshold);
         void PauseStreaming();
         void UnPauseStreaming();
         void StopStreaming();
@@ -33,5 +34,6 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         event EventHandler StreamConnected;
         event EventHandler StreamDisconnected;
         event EventHandler<StreamEventArgs> StreamEvent;
+        event EventHandler StreamSynchronizationError;
     }
 }

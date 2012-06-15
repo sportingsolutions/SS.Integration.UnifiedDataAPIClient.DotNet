@@ -28,10 +28,15 @@ namespace SportingSolutions.Udapi.Sdk.Example.Console
     public class Program
     {
         private static string _url;
+        private static int _sequenceDiscrepencyThreshold;
+        private static int _sequenceCheckerInterval;
 
         static void Main(string[] args)
         {
             _url = ConfigurationManager.AppSettings["url"];
+            _sequenceDiscrepencyThreshold = Convert.ToInt32(ConfigurationManager.AppSettings["sequenceDiscrepencyThreshold"]);
+            _sequenceCheckerInterval = Convert.ToInt32(ConfigurationManager.AppSettings["sequenceCheckFrequency"]);
+            log4net.Config.XmlConfigurator.Configure();
             Consolery.Run(typeof(Program), args);
         }
 
@@ -61,9 +66,9 @@ namespace SportingSolutions.Udapi.Sdk.Example.Console
             theResource.StreamConnected += (sender, args) => System.Console.WriteLine("Stream Connected");
             theResource.StreamEvent += (sender, args) => System.Console.WriteLine(args.Update);
             theResource.StreamDisconnected += (sender, args) => System.Console.WriteLine("Stream Disconnected");
-
+            theResource.StreamSynchronizationError += (sender, args) => System.Console.WriteLine("Stream broken");
             //Start Streaming
-            theResource.StartStreaming();
+            theResource.StartStreaming(_sequenceCheckerInterval,_sequenceDiscrepencyThreshold);
 
             //Wait 60 seconds, then stop the Stream
             Thread.Sleep(600000);
