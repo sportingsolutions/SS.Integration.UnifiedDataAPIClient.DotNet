@@ -48,6 +48,12 @@ namespace SportingSolutions.Udapi.Sdk
         private int _sequenceDiscrepencyThreshold;
         private int _sequenceCheckerInterval;
 
+        private int _disconnections;
+        private int _maxRetries;
+        private ConnectionFactory _connectionFactory;
+        private string _queueName;
+        private bool _isReconnecting;
+
 
         internal Resource(NameValueCollection headers, RestItem restItem)
             : base(headers, restItem)
@@ -97,8 +103,6 @@ namespace SportingSolutions.Udapi.Sdk
             if (State != null)
             {
                 Task.Factory.StartNew(StreamData);
-                _currentSequence = GetSequenceAsInt();
-                _sequenceCheckerTimer = new Timer(timerAutoEvent => CheckSequence(), null, _sequenceCheckerInterval, _sequenceCheckerInterval);
             }
         }
 
@@ -111,7 +115,16 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 if (StreamSynchronizationError != null)
                 {
+                    if (_sequenceCheckerTimer != null)
+                    {
+                        _sequenceCheckerTimer.Dispose();
+                        _sequenceCheckerTimer = null;
+                    }
+
                     StreamSynchronizationError(this, new EventArgs());
+                    _isReconnecting = true;
+                    Reconnect();
+                    _isReconnecting = false;
                 }
             }
         }
@@ -129,104 +142,18 @@ namespace SportingSolutions.Udapi.Sdk
 
         private void StreamData()
         {
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp");
-            var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
+            _connectionFactory = new ConnectionFactory();
 
-            var amqpUri = new Uri(amqpLink.Href);
-            Console.WriteLine("Host: {0}", amqpUri);
-            var connectionFactory = new ConnectionFactory();
-            connectionFactory.RequestedHeartbeat = 5;
-
-            var host = amqpUri.Host;
-            if (!String.IsNullOrEmpty(host))
-            {
-                connectionFactory.HostName = host;
-            }
-            var port = amqpUri.Port;
-            if (port != -1)
-            {
-                connectionFactory.Port = port;
-            }
-            var userInfo = amqpUri.UserInfo;
-            userInfo = HttpUtility.UrlDecode(userInfo);
-            if (!String.IsNullOrEmpty(userInfo))
-            {
-                var userPass = userInfo.Split(':');
-                if (userPass.Length > 2)
-                {
-                    throw new ArgumentException(string.Format("Bad user info in AMQP URI: {0}", userInfo));
-                }
-                connectionFactory.UserName = userPass[0];
-                if (userPass.Length == 2)
-                {
-                    connectionFactory.Password = userPass[1];
-                }
-            }
-            var queueName = "";
-            var path = amqpUri.AbsolutePath;
-            if (!String.IsNullOrEmpty(path))
-            {
-                queueName = path.Substring(path.IndexOf('/', 1) + 1);
-                var virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
-                connectionFactory.VirtualHost = "/" + virtualHost;
-            }
-
-            _connection = connectionFactory.CreateConnection();
-            _logger.InfoFormat("Successfully connected to Streaming Server for {0}",Name);
-
-            if (StreamConnected != null)
-            {
-                StreamConnected(this, new EventArgs());
-            }
-
-            _channel = _connection.CreateModel();
-            _consumer = new QueueingCustomConsumer(_channel);
-            
-            _channel.BasicConsume(queueName, true, _consumer);
-            _channel.BasicQos(0, 10, false);
-            _logger.InfoFormat("Initialised connection to Streaming Queue for {0}", Name);
+            _maxRetries = 10;
+            _disconnections = 0;
 
             _isStreaming = true;
 
-            int maxRetries = 10;
-            int disconnections = 0;
+            Reconnect();
+            
+            _logger.InfoFormat("Initialised connection to Streaming Queue for {0}", Name);
 
-            Action reconnect = () =>
-                                   {
-                                       _logger.WarnFormat("Attempting to reconnect stream for {0}, Attempt {1}",Name,disconnections+1);
-                                       var success = false;
-                                       while (!success && _isStreaming)
-                                       {
-                                           try
-                                           {
-                                               _connection = connectionFactory.CreateConnection();
-                                               _channel = _connection.CreateModel();
-                                               _consumer = new QueueingCustomConsumer(_channel);
-                                               _channel.BasicConsume(queueName, true, _consumer);
-                                               _channel.BasicQos(0, 10, false);
-                                               success = true;
-                                           }
-                                           catch (BrokerUnreachableException)
-                                           {
-                                               if (disconnections > maxRetries)
-                                               {
-                                                   _logger.ErrorFormat("Failed to reconnect Stream for {0} ",Name);
-                                                   StopStreaming();
-                                                   throw;
-                                               }
-                                               // give time to load balancer to notice the node is down
-                                               Thread.Sleep(500);
-                                               disconnections++;
-                                               _logger.WarnFormat("Failed to reconnect stream {0}, Attempt {1}", Name,disconnections);   
-                                           }
-                                           catch (Exception)
-                                           {
-                                               StopStreaming();
-                                               break;
-                                           }
-                                       }
-                                   };
-
+            
             _consumer.QueueCancelled += Dispose;
 
             while (_isStreaming)
@@ -247,13 +174,124 @@ namespace SportingSolutions.Udapi.Sdk
                             StreamEvent(this, new StreamEventArgs(messageString));    
                         }
                     }
-                    disconnections = 0;
+                    _disconnections = 0;
                 }
                 catch(Exception)
                 {
                     _logger.WarnFormat("Lost connection to stream {0}", Name);
                     //connection lost
-                    reconnect();
+                    if(!_isReconnecting)
+                    {
+                        Reconnect();   
+                    }
+                    else
+                    {
+                        Thread.Sleep(1000);
+                    }
+                }
+            }
+        }
+
+        private void Reconnect()
+        {
+            _logger.WarnFormat("Attempting to reconnect stream for {0}, Attempt {1}",Name,_disconnections+1);
+            var success = false;
+            while (!success && _isStreaming)
+            {
+                try
+                {
+                    var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp");
+                    var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
+
+                    var amqpUri = new Uri(amqpLink.Href);
+
+                    _connectionFactory.RequestedHeartbeat = 5;
+
+                    var host = amqpUri.Host;
+                    if (!String.IsNullOrEmpty(host))
+                    {
+                        _connectionFactory.HostName = host;
+                    }
+                    var port = amqpUri.Port;
+                    if (port != -1)
+                    {
+                        _connectionFactory.Port = port;
+                    }
+                    var userInfo = amqpUri.UserInfo;
+                    userInfo = HttpUtility.UrlDecode(userInfo);
+                    if (!String.IsNullOrEmpty(userInfo))
+                    {
+                        var userPass = userInfo.Split(':');
+                        if (userPass.Length > 2)
+                        {
+                            throw new ArgumentException(string.Format("Bad user info in AMQP URI: {0}", userInfo));
+                        }
+                        _connectionFactory.UserName = userPass[0];
+                        if (userPass.Length == 2)
+                        {
+                            _connectionFactory.Password = userPass[1];
+                        }
+                    }
+                    _queueName = "";
+                    var path = amqpUri.AbsolutePath;
+                    if (!String.IsNullOrEmpty(path))
+                    {
+                        _queueName = path.Substring(path.IndexOf('/', 1) + 1);
+                        var virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
+                        _connectionFactory.VirtualHost = "/" + virtualHost;
+                    }
+
+                    if (_channel != null)
+                    {
+                        _channel.Close();
+                        _channel = null;
+                    }
+
+                    if (_connection != null)
+                    {
+                        _connection.Close();
+                        _connection = null;
+                    }
+
+                    _connection = _connectionFactory.CreateConnection();
+                    _logger.InfoFormat("Successfully connected to Streaming Server for {0}", Name);
+
+                    if(_sequenceCheckerTimer != null)
+                    {
+                        _sequenceCheckerTimer.Dispose();
+                        _sequenceCheckerTimer = null;
+                    }
+                    _currentSequence = GetSequenceAsInt();
+                    _sequenceCheckerTimer = new Timer(timerAutoEvent => CheckSequence(), null, _sequenceCheckerInterval, _sequenceCheckerInterval);
+
+                    if (StreamConnected != null)
+                    {
+                        StreamConnected(this, new EventArgs());
+                    }
+
+                    _channel = _connection.CreateModel();
+                    _consumer = new QueueingCustomConsumer(_channel);
+                    _channel.BasicConsume(_queueName, true, _consumer);
+                    _channel.BasicQos(0, 10, false);
+                    success = true;
+                }
+                catch (BrokerUnreachableException)
+                {
+                    if (_disconnections > _maxRetries)
+                    {
+                        _logger.ErrorFormat("Failed to reconnect Stream for {0} ",Name);
+                        StopStreaming();
+                        throw;
+                    }
+                    // give time to load balancer to notice the node is down
+                    Thread.Sleep(500);
+                    _disconnections++;
+                    _logger.WarnFormat("Failed to reconnect stream {0}, Attempt {1}", Name,_disconnections);   
+                }
+                catch (Exception)
+                {
+                    StopStreaming();
+                    break;
                 }
             }
         }
@@ -262,14 +300,20 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _logger.InfoFormat("Streaming paused for {0}",Name);
             _pauseStream.Reset();
-            _sequenceCheckerTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            if(_sequenceCheckerTimer != null)
+            {
+                _sequenceCheckerTimer.Change(Timeout.Infinite, Timeout.Infinite);    
+            }
         }
 
         public void UnPauseStreaming()
         {
             _logger.InfoFormat("Streaming unpaused for {0}", Name);
             _pauseStream.Set();
-            _sequenceCheckerTimer.Change(0, 10000);
+            if(_sequenceCheckerTimer != null)
+            {
+                _sequenceCheckerTimer.Change(_sequenceCheckerInterval, _sequenceCheckerInterval);    
+            }
         }
 
         public void StopStreaming()
@@ -280,7 +324,8 @@ namespace SportingSolutions.Udapi.Sdk
                 _channel.BasicCancel(_consumer.ConsumerTag);
                 if(_sequenceCheckerTimer != null)
                 {
-                    _sequenceCheckerTimer.Dispose();    
+                    _sequenceCheckerTimer.Dispose();
+                    _sequenceCheckerTimer = null;
                 }
             }
         }
@@ -299,15 +344,15 @@ namespace SportingSolutions.Udapi.Sdk
                 _channel = null;
             }
 
-            if (StreamDisconnected != null)
-            {
-                StreamDisconnected(this, new EventArgs());
-            }
-
             if(_connection != null)
             {
                 _connection.Close();
                 _connection = null;
+            }
+
+            if (StreamDisconnected != null)
+            {
+                StreamDisconnected(this, new EventArgs());
             }
         }
     }
