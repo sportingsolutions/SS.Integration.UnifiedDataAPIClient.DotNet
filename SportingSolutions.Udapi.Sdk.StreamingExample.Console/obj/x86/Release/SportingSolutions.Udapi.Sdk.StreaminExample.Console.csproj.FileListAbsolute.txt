@@ -1,0 +1,16 @@
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\log4net.config
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\SportingSolutions.Udapi.Sdk.StreaminExample.Console.exe.config
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\SportingSolutions.Udapi.Sdk.StreaminExample.Console.exe
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\SportingSolutions.Udapi.Sdk.StreaminExample.Console.pdb
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\log4net.dll
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\Newtonsoft.Json.dll
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\SportingSolutions.Udapi.Sdk.dll
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\RabbitMQ.Client.dll
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\log4net.xml
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\Newtonsoft.Json.pdb
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\Newtonsoft.Json.xml
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\SportingSolutions.Udapi.Sdk.pdb
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\bin\Release\RabbitMQ.Client.xml
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\obj\x86\Release\ResolveAssemblyReference.cache
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\obj\x86\Release\SportingSolutions.Udapi.Sdk.StreaminExample.Console.exe
+C:\Development\git\Unified_Data_API_Client_DotNet\SportingSolutions.Udapi.Sdk.StreaminExample.Console\obj\x86\Release\SportingSolutions.Udapi.Sdk.StreaminExample.Console.pdb

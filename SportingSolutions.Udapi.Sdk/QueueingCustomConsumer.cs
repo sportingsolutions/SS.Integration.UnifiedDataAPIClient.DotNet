@@ -17,7 +17,6 @@ namespace SportingSolutions.Udapi.Sdk
         {
             base.HandleBasicCancel(consumerTag);
             _logger.Debug("HandleBasicCancel");
-            QueueCancelled();
         }
 
         public override void HandleBasicCancelOk(string consumerTag)
