@@ -4,6 +4,8 @@ build/*
 *.nupkg
 SportingSolutions.Udapi.Sdk.Example.Console/bin/*
 SportingSolutions.Udapi.Sdk.Example.Console/obj/*
+SportingSolutions.Udapi.Sdk.StremingExample.Console/bin/*
+SportingSolutions.Udapi.Sdk.StremingExample.Console/obj/*
 *.suo
 SportingSolutions.Udapi.Sdk/bin/*
 SportingSolutions.Udapi.Sdk/obj/*
