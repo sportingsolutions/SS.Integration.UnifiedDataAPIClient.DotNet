@@ -29,6 +29,8 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model
 
         public int Epoch { get; set; }
 
+        public int[] LastEpochChangeReason { get; set; }
+
         public string Id { get; set; }
 
         public string MatchStatus { get; set; }
