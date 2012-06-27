@@ -131,11 +131,18 @@ namespace SportingSolutions.Udapi.Sdk
 
         private int GetSequenceAsInt()
         {
-            var stringSequence = FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/sequence");
-            if (!string.IsNullOrEmpty(stringSequence))
+            try
             {
-                var sequence = Convert.ToInt32(stringSequence);
-                return sequence;
+                var stringSequence = FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/sequence");
+                if (!string.IsNullOrEmpty(stringSequence))
+                {
+                    var sequence = Convert.ToInt32(stringSequence);
+                    return sequence;
+                }
+            }
+            catch(Exception ex)
+            {
+                _logger.Error("Unable to retrieve Sequence", ex);
             }
             return 0;
         }
