@@ -58,7 +58,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             return request as HttpWebRequest;
         }
 
-        public static string GetResponse(Uri url, string data, string httpMethod, string contentType, NameValueCollection headers, int timeout = 30000, bool gzip = true)
+        public static string GetResponseWithWebException(Uri url, string data, string httpMethod, string contentType, NameValueCollection headers, int timeout = 30000, bool gzip = true)
         {
             var request = CreateRequest(url, data, httpMethod, contentType, headers, timeout, gzip);
 
@@ -79,6 +79,30 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
                 var responseStreamReader = new StreamReader(responseStream, Encoding.Default);
                 return responseStreamReader.ReadToEnd();
+            }
+        }
+
+        public static string GetResponse(Uri url, string data, string httpMethod, string contentType, NameValueCollection headers, int timeout = 30000, bool gzip = true)
+        {
+            try
+            {
+                return GetResponseWithWebException(url, data, httpMethod, contentType, headers, timeout, gzip);
+            }
+            catch (WebException ex)
+            {
+                using(var response = ex.Response)
+                {
+                    var httpResponse = (HttpWebResponse) response;
+                    using(var rdata = httpResponse.GetResponseStream())
+                    {
+                        if (rdata != null)
+                        {
+                            var text = new StreamReader(rdata).ReadToEnd();
+                            throw new WebException(text, ex, ex.Status, ex.Response);
+                        }
+                        throw;
+                    }
+                }
             }
         }
 
