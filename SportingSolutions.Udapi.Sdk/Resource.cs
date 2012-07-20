@@ -79,14 +79,8 @@ namespace SportingSolutions.Udapi.Sdk
 
         public string GetSnapshot()
         {
-            if (State != null)
-            {
-                _logger.InfoFormat("Get Snapshot for  {0}", Name);
-                var theLink = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/snapshot");
-
-                return RestHelper.GetResponse(new Uri(theLink.Href), null, "GET", "application/json", Headers);
-            }
-            return "";
+            _logger.InfoFormat("Get Snapshot for  {0}", Name);
+            return FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/snapshot");
         }
 
         public void StartStreaming()

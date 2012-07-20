@@ -79,6 +79,10 @@ namespace SportingSolutions.Udapi.Sdk
             }
             catch (WebException ex)
             {
+                if(ex.Status == WebExceptionStatus.NameResolutionFailure)
+                {
+                    throw new Exception("The url cannot be resolved");
+                }
                 response = ex.Response as HttpWebResponse;
             }
 
@@ -104,6 +108,10 @@ namespace SportingSolutions.Udapi.Sdk
                     _logger.Info("Refreshing list of available services..");
                     _restItems = RestHelper.GetResponse(response).FromJson<List<RestItem>>();
                 }
+            }
+            if(_restItems == null)
+            {
+                throw new Exception("Unable to connect. Please check the url and credentials");
             }
         }
 

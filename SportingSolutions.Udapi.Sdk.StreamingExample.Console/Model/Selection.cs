@@ -29,8 +29,6 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model
 
         public Dictionary<string, object> Tags { get; set; }
 
-        public string DisplayPrice { get; set; }
-
         public double? Price { get; set; }
 
         public string Status { get; set; }
