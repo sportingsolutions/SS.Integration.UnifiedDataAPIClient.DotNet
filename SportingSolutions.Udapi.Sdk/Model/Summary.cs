@@ -24,6 +24,8 @@ namespace SportingSolutions.Udapi.Sdk.Model
 
         public string StartTime { get; set; }
 
+        public int Sequence { get; set; }
+
         public List<Tag> Tags { get; set; }
 
         public int MatchStatus { get; set; }

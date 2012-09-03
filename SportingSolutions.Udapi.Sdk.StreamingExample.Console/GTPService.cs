@@ -23,6 +23,7 @@ using Newtonsoft.Json.Converters;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model;
 using log4net;
+using log4net.Appender;
 
 namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 {
@@ -37,7 +38,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         public GTPService()
         {
             _logger = LogManager.GetLogger(typeof(GTPService).ToString());
-            _sportsList = new List<string> {"Tennis"};
+            _sportsList = new List<string> {"Tennis","Football","Baseball","Basketball","IceHockey","Rugby"};
             _listeners = new ConcurrentDictionary<string, StreamListener>();
             _activeFixtures = new ConcurrentDictionary<string, bool>();
         }
@@ -50,8 +51,8 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                 _logger.Info("Connecting to UDAPI....");
                 ICredentials credentials = new Credentials { UserName = ConfigurationManager.AppSettings["ss.user"], Password = ConfigurationManager.AppSettings["ss.password"] };
                 var theSession = SessionFactory.CreateSession(new Uri(ConfigurationManager.AppSettings["ss.url"]), credentials);
-                _logger.Debug("UDAPI, Getting Service");
                 _logger.Info("Successfully connected to UDAPI.");
+                _logger.Debug("UDAPI, Getting Service");
                 var theService = theSession.GetService("UnifiedDataAPI");
                 _logger.Debug("UDAPI, Retrieved Service");
                 _logger.Info("Starting timer...");
@@ -106,12 +107,49 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             }
         }
 
+        public static ILog AddAppender(string loggerName, IAppender appender)
+        {
+            var log = LogManager.GetLogger(loggerName);
+            var l = (log4net.Repository.Hierarchy.Logger)log.Logger;
+
+            l.AddAppender(appender);
+            return log;
+        }
+
+        public static void SetLevel(string loggerName, string levelName)
+        {
+            var log = LogManager.GetLogger(loggerName);
+            var l = (log4net.Repository.Hierarchy.Logger)log.Logger;
+
+            l.Level = l.Hierarchy.LevelMap[levelName];
+        }
+
+        public static IAppender CreateRollingFileAppender(string name,string fileName)
+        {
+            var appender = new FileAppender();
+            appender.Name = name;
+            appender.File = ConfigurationManager.AppSettings["fixture.log.path"] + fileName + ".log";
+            appender.AppendToFile = true;
+          
+            var layout = new log4net.Layout.PatternLayout();
+            layout.ConversionPattern = "%date;%message%newline";
+            layout.ActivateOptions();
+
+            appender.Layout = layout;
+            appender.ActivateOptions();
+
+            return appender;
+        }
+
         private void ProcessFixture(IResource fixture, string sport)
         {
             if (!_activeFixtures.ContainsKey(fixture.Id) && !_listeners.ContainsKey(fixture.Id))
             {
-                _activeFixtures.AddOrUpdate(fixture.Id, true, (t, x) => true);
+                _activeFixtures.TryAdd(fixture.Id, true);
                 
+                SetLevel(fixture.Id,"INFO");
+                var log = AddAppender(fixture.Id,CreateRollingFileAppender(fixture.Name,fixture.Name));
+
                 var matchStatus = 0;
                 
                 if (fixture.Content != null)
@@ -138,9 +176,9 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 
                     var epoch = fixtureSnapshot.Epoch;
 
-                    //do something with the snapshot
+                    var names = ProcessSnapshot(fixtureSnapshot);
 
-                    var streamListener = new StreamListener(fixture, epoch, sport);
+                    var streamListener = new StreamListener(fixture, epoch, sport,log,names);
                     _listeners.TryAdd(fixture.Id, streamListener);
                 }
                 else
@@ -165,6 +203,36 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                     }
                 }
             }
+        }
+
+        private List<Tuple<string, string, Dictionary<string, string>>> ProcessSnapshot(Fixture fixture)
+        {
+            var name = new List<Tuple<string, string, Dictionary<string, string>>>();
+ 
+            foreach (var market in fixture.Markets)
+            {
+                Tuple<string, string, Dictionary<string, string>> t;
+                var marketId = market.Id;
+                var marketName = market.Id;
+                if(market.Tags.ContainsKey("name"))
+                {
+                    marketName = market.Tags["name"].ToString();
+                }
+                var selections = new Dictionary<string, string>();
+                foreach (var selection in market.Selections)
+                {
+                    var selectionId = selection.Id;
+                    var selectionName = selection.Id;
+                    if(selection.Tags.ContainsKey("name"))
+                    {
+                        selectionName = selection.Tags["name"].ToString();
+                    }
+                    selections.Add(selectionId,selectionName);
+                }
+                t = new Tuple<string, string, Dictionary<string, string>>(marketId,marketName,selections);
+                name.Add(t);
+            }
+            return name;
         }
 
         public void Stop()
