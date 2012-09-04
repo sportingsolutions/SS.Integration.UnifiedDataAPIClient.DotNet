@@ -14,6 +14,7 @@
 
 using System;
 using System.Collections.Specialized;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -26,6 +27,7 @@ using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
+using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
@@ -38,21 +40,31 @@ namespace SportingSolutions.Udapi.Sdk
 
         private bool _isStreaming;
         private readonly ManualResetEvent _pauseStream;
+        private readonly AutoResetEvent _echoResetEvent;
+        private readonly AutoResetEvent _echoTimerEvent;
 
         private IModel _channel;
         private IConnection _connection;
         private QueueingCustomConsumer _consumer;
+        private string _virtualHost;
+        private string _queueName;
         private int _currentSequence;
-        private Timer _sequenceCheckerTimer;
 
         private int _sequenceDiscrepencyThreshold;
         private int _sequenceCheckerInterval;
 
+        private int _echoSenderInterval;
+        private DateTime _lastEchoTimeStamp;
+        private string _lastRecievedEchoGuid;
+
         private int _disconnections;
         private int _maxRetries;
         private ConnectionFactory _connectionFactory;
-        private string _queueName;
+        
         private bool _isReconnecting;
+
+        private Task _echoTask;
+        private CancellationTokenSource _echoTokenSource;
 
 
         internal Resource(NameValueCollection headers, RestItem restItem)
@@ -60,6 +72,8 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _logger.DebugFormat("Instantiated Resource {0}", restItem.Name);
             _pauseStream = new ManualResetEvent(true);
+            _echoResetEvent = new AutoResetEvent(false);
+            _echoTimerEvent = new AutoResetEvent(true);
         }
 
         public string Id
@@ -94,51 +108,75 @@ namespace SportingSolutions.Udapi.Sdk
             _sequenceCheckerInterval = sequenceCheckerInterval;
             _sequenceDiscrepencyThreshold = sequenceDiscrepencyThreshold;
 
+            _echoSenderInterval = 10000;
+
             if (State != null)
             {
                 Task.Factory.StartNew(StreamData);
             }
         }
 
-        private void CheckSequence()
+        private void SendEcho(CancellationToken cancelToken)
         {
-            var sequence = GetSequenceAsInt();
-            var sequenceGap = Math.Abs(sequence - _currentSequence);
-            _logger.DebugFormat("Sequence Discrepency = {0}",sequenceGap);
-            if (sequenceGap > _sequenceDiscrepencyThreshold)
+            while(_isStreaming)
             {
-                if (StreamSynchronizationError != null)
-                {
-                    if (_sequenceCheckerTimer != null)
-                    {
-                        _sequenceCheckerTimer.Dispose();
-                        _sequenceCheckerTimer = null;
-                    }
+                _echoTimerEvent.WaitOne(_echoSenderInterval);
 
-                    StreamSynchronizationError(this, new EventArgs());
+                if (cancelToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                var echoGuid = Guid.NewGuid().ToString();
+                try
+                {
+                    if (State != null)
+                    {
+                        var theLink = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
+                        var theUrl = theLink.Href;
+
+                        var streamEcho = new StreamEcho { Host = _virtualHost, Queue = _queueName, Message = echoGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") };
+
+                        var stringStreamEcho = streamEcho.ToJson();
+
+                        RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json", Headers, 3000);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error("Unable to post echo", ex);
+                }
+                var echoArrived = false;
+
+                echoArrived = _echoResetEvent.WaitOne(2000);
+                _echoResetEvent.Reset();
+
+                if (cancelToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                //signal was recieved
+                if(echoArrived)
+                {
+                    if (echoGuid.Equals(_lastRecievedEchoGuid))
+                    {
+                        _logger.Info("OK");
+                    }
+                    else
+                    {
+                        //Guids are not the same!
+                    }
+                }
+                else
+                {
+                    _logger.Info("BAD");
+                    //reached timeout, no echo has arrived
                     _isReconnecting = true;
                     Reconnect();
                     _isReconnecting = false;
                 }
             }
-        }
-
-        private int GetSequenceAsInt()
-        {
-            try
-            {
-                var stringSequence = FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/sequence");
-                if (!string.IsNullOrEmpty(stringSequence))
-                {
-                    var sequence = Convert.ToInt32(stringSequence);
-                    return sequence;
-                }
-            }
-            catch(Exception ex)
-            {
-                _logger.Error("Unable to retrieve Sequence", ex);
-            }
-            return 0;
         }
 
         private void StreamData()
@@ -171,8 +209,29 @@ namespace SportingSolutions.Udapi.Sdk
                         {
                             var messageString = Encoding.UTF8.GetString(message);
                             var jobject = JObject.Parse(messageString);
-                            _currentSequence = jobject["Content"]["Sequence"].Value<int>();
-                            StreamEvent(this, new StreamEventArgs(messageString));    
+                            if(jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
+                            {
+                                //do something
+                                var split = jobject["Content"].Value<String>().Split(';');
+                                _lastRecievedEchoGuid = split[0];
+                                var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ",
+                                                    CultureInfo.InvariantCulture);
+                                var timeBetweenSend = timeSent - _lastEchoTimeStamp;
+                                var roundTripTime = DateTime.Now - timeSent;
+
+                                var sendmillis = timeBetweenSend.TotalMilliseconds;
+                                var roundMillis = roundTripTime.TotalMilliseconds;
+                                
+                                _lastEchoTimeStamp = timeSent;
+
+                                _echoResetEvent.Set();
+                                var t = "";
+                            }
+                            else
+                            {
+                                _currentSequence = jobject["Content"]["Sequence"].Value<int>();
+                                StreamEvent(this, new StreamEventArgs(messageString));       
+                            }
                         }
                     }
                     _disconnections = 0;
@@ -183,6 +242,7 @@ namespace SportingSolutions.Udapi.Sdk
                     //connection lost
                     if(!_isReconnecting)
                     {
+                        StopEcho();
                         Reconnect();   
                     }
                     else
@@ -238,8 +298,9 @@ namespace SportingSolutions.Udapi.Sdk
                     if (!String.IsNullOrEmpty(path))
                     {
                         _queueName = path.Substring(path.IndexOf('/', 1) + 1);
-                        var virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
-                        _connectionFactory.VirtualHost = "/" + virtualHost;
+                        _virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
+
+                        _connectionFactory.VirtualHost = "/" + _virtualHost;
                     }
 
                     if (_channel != null)
@@ -257,14 +318,10 @@ namespace SportingSolutions.Udapi.Sdk
                     _connection = _connectionFactory.CreateConnection();
                     _logger.InfoFormat("Successfully connected to Streaming Server for {0}", Name);
 
-                    if(_sequenceCheckerTimer != null)
-                    {
-                        _sequenceCheckerTimer.Dispose();
-                        _sequenceCheckerTimer = null;
-                    }
-                    _currentSequence = GetSequenceAsInt();
-                    _sequenceCheckerTimer = new Timer(timerAutoEvent => CheckSequence(), null, _sequenceCheckerInterval, _sequenceCheckerInterval);
-
+                    _lastEchoTimeStamp = DateTime.Now;
+                    
+                    StartEcho();
+ 
                     if (StreamConnected != null)
                     {
                         StreamConnected(this, new EventArgs());
@@ -276,7 +333,8 @@ namespace SportingSolutions.Udapi.Sdk
                     _channel.BasicQos(0, 10, false);
                     success = true;
                 }
-                catch (BrokerUnreachableException)
+          //      catch (BrokerUnreachableException)
+                catch(Exception)
                 {
                     if (_disconnections > _maxRetries)
                     {
@@ -289,32 +347,52 @@ namespace SportingSolutions.Udapi.Sdk
                     _disconnections++;
                     _logger.WarnFormat("Failed to reconnect stream {0}, Attempt {1}", Name,_disconnections);   
                 }
-                catch (Exception)
-                {
-                    StopStreaming();
-                    break;
-                }
+          //      catch (Exception)
+          //      {
+          //          StopStreaming();
+          //          break;
+          //      }
+            }
+        }
+
+        private void StartEcho()
+        {
+            if (_echoTask == null)
+            {
+                _echoTokenSource = new CancellationTokenSource();
+                var cancelToken = _echoTokenSource.Token;
+                _echoResetEvent.Reset();
+                _echoTask = Task.Factory.StartNew(() => SendEcho(cancelToken), cancelToken);
             }
         }
         
+        private void StopEcho()
+        {
+            if (_echoTask != null)
+            {
+                _echoTokenSource.Cancel();
+                _echoTimerEvent.Set();
+                _echoResetEvent.Set();
+                while (!_echoTask.IsCompleted)
+                {
+
+                }
+                _echoTask = null;
+            }
+        }
+
         public void PauseStreaming()
         {
             _logger.InfoFormat("Streaming paused for {0}",Name);
             _pauseStream.Reset();
-            if(_sequenceCheckerTimer != null)
-            {
-                _sequenceCheckerTimer.Change(Timeout.Infinite, Timeout.Infinite);    
-            }
+            StopEcho();
         }
 
         public void UnPauseStreaming()
         {
             _logger.InfoFormat("Streaming unpaused for {0}", Name);
             _pauseStream.Set();
-            if(_sequenceCheckerTimer != null)
-            {
-                _sequenceCheckerTimer.Change(_sequenceCheckerInterval, _sequenceCheckerInterval);    
-            }
+            StartEcho();
         }
 
         public void StopStreaming()
@@ -322,11 +400,16 @@ namespace SportingSolutions.Udapi.Sdk
             _isStreaming = false;
             if (_consumer != null)
             {
-                _channel.BasicCancel(_consumer.ConsumerTag);
-                if(_sequenceCheckerTimer != null)
+                StopEcho();
+
+                try
                 {
-                    _sequenceCheckerTimer.Dispose();
-                    _sequenceCheckerTimer = null;
+                    _channel.BasicCancel(_consumer.ConsumerTag);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error("Problem when stopping stream",ex);
+                    Dispose();
                 }
             }
         }
@@ -349,6 +432,11 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 _connection.Close();
                 _connection = null;
+            }
+
+            if(_echoTask != null)
+            {
+                _echoTask = null;
             }
 
             if (StreamDisconnected != null)

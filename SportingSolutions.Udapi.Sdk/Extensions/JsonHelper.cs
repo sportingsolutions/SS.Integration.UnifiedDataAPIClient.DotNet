@@ -24,5 +24,23 @@ namespace SportingSolutions.Udapi.Sdk.Extensions
         {
             return (T)JsonConvert.DeserializeObject(json, typeof(T), new JsonSerializerSettings { Converters = expectIsoDate ? new List<JsonConverter> { new IsoDateTimeConverter() } : null, NullValueHandling = NullValueHandling.Ignore });
         }
+
+        public static string ToJson(this object deserializedObject, bool expectIsoDate = true)
+        {
+            string serializedObject = null;
+            if(deserializedObject != null)
+            {
+                serializedObject = JsonConvert.SerializeObject(deserializedObject, Formatting.None,
+                                            new JsonSerializerSettings
+                                                {
+                                                    Converters =
+                                                        expectIsoDate
+                                                            ? new List<JsonConverter> {new IsoDateTimeConverter()}
+                                                            : null,
+                                                    NullValueHandling = NullValueHandling.Ignore
+                                                });
+            }
+            return serializedObject;
+        }
     }
 }
