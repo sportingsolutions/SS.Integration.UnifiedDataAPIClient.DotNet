@@ -15,7 +15,6 @@
 using System;
 using System.Collections.Specialized;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -24,7 +23,6 @@ using System.Web;
 using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using RabbitMQ.Client.Exceptions;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Extensions;
@@ -36,7 +34,7 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Resource : Endpoint, IResource, IDisposable
     {
-        private ILog _logger = LogManager.GetLogger(typeof(Resource).ToString());
+        private readonly ILog _logger = LogManager.GetLogger(typeof(Resource).ToString());
 
         private bool _isStreaming;
         private readonly ManualResetEvent _pauseStream;
@@ -48,10 +46,6 @@ namespace SportingSolutions.Udapi.Sdk
         private QueueingCustomConsumer _consumer;
         private string _virtualHost;
         private string _queueName;
-        private int _currentSequence;
-
-        private int _sequenceDiscrepencyThreshold;
-        private int _sequenceCheckerInterval;
 
         private int _echoSenderInterval;
         private DateTime _lastEchoTimeStamp;
@@ -99,16 +93,14 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming()
         {
-            StartStreaming(10000,2);
+            StartStreaming(10000);
         }
 
-        public void StartStreaming(int sequenceCheckerInterval, int sequenceDiscrepencyThreshold)
+        public void StartStreaming(int echoInterval)
         {
-            _logger.InfoFormat("Starting stream for {0} with Sequence Checker Interval of {1} and Discrepency Interval of {2}",Name, sequenceCheckerInterval, sequenceDiscrepencyThreshold);
-            _sequenceCheckerInterval = sequenceCheckerInterval;
-            _sequenceDiscrepencyThreshold = sequenceDiscrepencyThreshold;
+            _logger.InfoFormat("Starting stream for {0} with Echo Interval of {1}",Name, echoInterval);
 
-            _echoSenderInterval = 10000;
+            _echoSenderInterval = echoInterval;
 
             if (State != null)
             {
@@ -225,11 +217,9 @@ namespace SportingSolutions.Udapi.Sdk
                                 _lastEchoTimeStamp = timeSent;
 
                                 _echoResetEvent.Set();
-                                var t = "";
                             }
                             else
                             {
-                                _currentSequence = jobject["Content"]["Sequence"].Value<int>();
                                 StreamEvent(this, new StreamEventArgs(messageString));       
                             }
                         }
