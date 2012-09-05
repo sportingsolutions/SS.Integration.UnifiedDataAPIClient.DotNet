@@ -8,6 +8,7 @@
 	 <ExtensionTasksPath>$(MSBuildExtensionsPath)\MSBuildExtensions\</ExtensionTasksPath>
     <!--Solution file-->
     <SolutionFileName>$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.sln</SolutionFileName>
+    <DoxyGen>"C:\Program Files\doxygen\bin\doxygen.exe"</DoxyGen>
   </PropertyGroup>
 
   
@@ -73,8 +74,12 @@
     <Message Text="Build Setup Projects" />
   </Target>
   
-  <Target Name="Build" DependsOnTargets="Clean;Compile;PrepareForZip;Test;Setup;BuildZip">
+  <Target Name="Build" DependsOnTargets="Clean;Compile;GenerateDocs;PrepareForZip;Test;Setup;BuildZip">
     <Message Text="Build Complete" />
+  </Target>
+  
+  <Target Name="GenerateDocs" DependsOnTargets="Compile">
+	<Exec Command="$(DoxyGen) $(MSBuildProjectDirectory)\documentation\doxyfile" />	
   </Target>
   
   <Target Name="PrepareForZip">
@@ -85,12 +90,14 @@
 			<ExampleSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\*.*" Exclude="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\.svn\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\bin\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\obj\**" />
 			<!--TestSrcFiles Include="$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\*.*" Exclude="$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\.svn\**;$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\bin\**;$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\obj\**" /-->
 			<SlnSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.sln"  />
+			<Docs Include="$(MSBuildProjectDirectory)\documentation\html\**" />
 		</ItemGroup>
 		
 		<Copy SourceFiles="@(LibFiles)" DestinationFolder="$(BuildDir)\\Src\\lib\\%(RecursiveDir)"/>	
 		<Copy SourceFiles="@(SDKSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SportingSolutions.Udapi.Sdk\\%(RecursiveDir)"/>	
 		<Copy SourceFiles="@(ExampleSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SportingSolutions.Udapi.Sdk.Example.Console\\%(RecursiveDir)"/>	
-		<Copy SourceFiles="@(SlnSrcFiles)" DestinationFolder="$(BuildDir)\\Src"/>	
+		<Copy SourceFiles="@(SlnSrcFiles)" DestinationFolder="$(BuildDir)\\Src"/>
+		<Copy SourceFiles="@(Docs)" DestinationFolder="$(BuildDir)\\docs\\%(RecursiveDir)" />
 		
 	</Target>
 	
