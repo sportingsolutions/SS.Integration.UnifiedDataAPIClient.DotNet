@@ -133,6 +133,8 @@
     <Compile Include="Model\MarketConverter.cs" />
     <Compile Include="Model\Selection.cs" />
     <Compile Include="Model\SelectionConverter.cs" />
+    <Compile Include="Model\SSEpochChangeReason.cs" />
+    <Compile Include="Model\SSMatchStatus.cs" />
     <Compile Include="Model\StreamMessage.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
