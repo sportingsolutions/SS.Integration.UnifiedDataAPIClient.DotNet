@@ -14,6 +14,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using SportingSolutions.Udapi.Sdk.Events;
@@ -106,7 +107,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 
                 var fixtureDelta = streamMessage.GetContent<Fixture>();
                 _logger.InfoFormat("Attempting to process Markets and Selections for {0}", resource.Name);
-
+                
                 if (fixtureDelta.Epoch > _currentEpoch)
                 {
                     _logger.InfoFormat("Epoch changed for {0} from {1} to {2}", _gtpFixture.Name, _currentEpoch, fixtureDelta.Epoch);

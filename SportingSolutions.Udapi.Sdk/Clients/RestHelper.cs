@@ -93,13 +93,20 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                 using(var response = ex.Response)
                 {
                     var httpResponse = (HttpWebResponse) response;
-                    using(var rdata = httpResponse.GetResponseStream())
+                    if (httpResponse != null)
                     {
-                        if (rdata != null)
+                        using (var rdata = httpResponse.GetResponseStream())
                         {
-                            var text = new StreamReader(rdata).ReadToEnd();
-                            throw new WebException(text, ex, ex.Status, ex.Response);
+                            if (rdata != null)
+                            {
+                                var text = new StreamReader(rdata).ReadToEnd();
+                                throw new WebException(text, ex, ex.Status, ex.Response);
+                            }
+                            throw;
                         }
+                    }
+                    else
+                    {
                         throw;
                     }
                 }
