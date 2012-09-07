@@ -26,7 +26,7 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
 
         string GetSnapshot();
         void StartStreaming();
-        void StartStreaming(int sequenceCheckerInterval, int sequenceDiscrepencyThreshold);
+        void StartStreaming(int echoInterval, int echoMaxDelay);
         void PauseStreaming();
         void UnPauseStreaming();
         void StopStreaming();

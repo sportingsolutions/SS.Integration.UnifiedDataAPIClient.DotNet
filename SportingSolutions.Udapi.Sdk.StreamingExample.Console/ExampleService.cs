@@ -19,7 +19,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 {
     partial class ExampleService : ServiceBase
     {
-        private readonly GTPService _theService;
+        private GTPService _theService;
 
         public ExampleService()
         {
@@ -27,9 +27,12 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             AppDomain.CurrentDomain.UnhandledException += CurrentDomainUnhandledException;
             _theService = new GTPService();
         }
+
         void CurrentDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             _theService.Stop();
+            _theService = new GTPService();
+            _theService.Start();
         }
 
         protected override void OnStart(string[] args)
