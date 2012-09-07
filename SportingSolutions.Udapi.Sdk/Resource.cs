@@ -48,6 +48,7 @@ namespace SportingSolutions.Udapi.Sdk
         private string _queueName;
 
         private int _echoSenderInterval;
+        private int _echoMaxDelay;
         private DateTime _lastEchoTimeStamp;
         private string _lastRecievedEchoGuid;
 
@@ -59,6 +60,8 @@ namespace SportingSolutions.Udapi.Sdk
 
         private Task _echoTask;
         private CancellationTokenSource _echoTokenSource;
+
+        private bool _isProcessingStreamEvent;
 
 
         internal Resource(NameValueCollection headers, RestItem restItem)
@@ -93,14 +96,15 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming()
         {
-            StartStreaming(10000);
+            StartStreaming(10000,3000);
         }
 
-        public void StartStreaming(int echoInterval)
+        public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
             _logger.InfoFormat("Starting stream for {0} with Echo Interval of {1}",Name, echoInterval);
 
             _echoSenderInterval = echoInterval;
+            _echoMaxDelay = echoMaxDelay;
 
             if (State != null)
             {
@@ -110,6 +114,8 @@ namespace SportingSolutions.Udapi.Sdk
 
         private void SendEcho(CancellationToken cancelToken)
         {
+            var echoGuid = Guid.NewGuid().ToString();
+
             while(_isStreaming)
             {
                 _echoTimerEvent.WaitOne(_echoSenderInterval);
@@ -119,54 +125,69 @@ namespace SportingSolutions.Udapi.Sdk
                     return;
                 }
 
-                var echoGuid = Guid.NewGuid().ToString();
-                try
+                if (!_isProcessingStreamEvent)
                 {
-                    if (State != null)
+                    try
                     {
-                        var theLink = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
-                        var theUrl = theLink.Href;
+                        if (State != null)
+                        {
+                            var theLink =
+                                State.Links.First(
+                                    restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
+                            var theUrl = theLink.Href;
 
-                        var streamEcho = new StreamEcho { Host = _virtualHost, Queue = _queueName, Message = echoGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") };
+                            var streamEcho = new StreamEcho
+                                {
+                                    Host = _virtualHost,
+                                    Queue = _queueName,
+                                    Message = echoGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                                };
 
-                        var stringStreamEcho = streamEcho.ToJson();
+                            var stringStreamEcho = streamEcho.ToJson();
 
-                        RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json", Headers, 3000);
+                            RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json",
+                                                   Headers, 3000);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error("Unable to post echo", ex);
-                }
-                var echoArrived = false;
-
-                echoArrived = _echoResetEvent.WaitOne(2000);
-                _echoResetEvent.Reset();
-
-                if (cancelToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                //signal was recieved
-                if(echoArrived)
-                {
-                    if (echoGuid.Equals(_lastRecievedEchoGuid))
+                    catch (Exception ex)
                     {
-                        _logger.Info("OK");
+                        _logger.Error("Unable to post echo", ex);
+                    }
+
+                    var echoArrived = false;
+
+                    echoArrived = _echoResetEvent.WaitOne(_echoMaxDelay);
+                    _echoResetEvent.Reset();
+
+                    if (cancelToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    //signal was recieved
+                    if (echoArrived)
+                    {
+                        if (echoGuid.Equals(_lastRecievedEchoGuid))
+                        {
+                            _logger.Debug("OK");
+                        }
+                        else
+                        {
+                           _logger.Error("Recieved Echo Messages from differerent client");
+                        }
                     }
                     else
                     {
-                        //Guids are not the same!
+                        if (!_isProcessingStreamEvent)
+                        {
+                            _logger.Debug("BAD");
+                            //reached timeout, no echo has arrived
+                            _isReconnecting = true;
+                            Reconnect();
+                            _echoTimerEvent.Set();
+                            _isReconnecting = false;
+                        }
                     }
-                }
-                else
-                {
-                    _logger.Info("BAD");
-                    //reached timeout, no echo has arrived
-                    _isReconnecting = true;
-                    Reconnect();
-                    _isReconnecting = false;
                 }
             }
         }
@@ -203,7 +224,6 @@ namespace SportingSolutions.Udapi.Sdk
                             var jobject = JObject.Parse(messageString);
                             if(jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
                             {
-                                //do something
                                 var split = jobject["Content"].Value<String>().Split(';');
                                 _lastRecievedEchoGuid = split[0];
                                 var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ",
@@ -220,15 +240,17 @@ namespace SportingSolutions.Udapi.Sdk
                             }
                             else
                             {
-                                StreamEvent(this, new StreamEventArgs(messageString));       
+                                _isProcessingStreamEvent = true;                                
+                                StreamEvent(this, new StreamEventArgs(messageString));
+                                _isProcessingStreamEvent = false;
                             }
                         }
                     }
                     _disconnections = 0;
                 }
-                catch(Exception)
+                catch(Exception ex)
                 {
-                    _logger.WarnFormat("Lost connection to stream {0}", Name);
+                    _logger.Error(string.Format("Lost connection to stream {0}", Name), ex);
                     //connection lost
                     if(!_isReconnecting)
                     {
@@ -323,25 +345,18 @@ namespace SportingSolutions.Udapi.Sdk
                     _channel.BasicQos(0, 10, false);
                     success = true;
                 }
-          //      catch (BrokerUnreachableException)
                 catch(Exception)
                 {
                     if (_disconnections > _maxRetries)
                     {
                         _logger.ErrorFormat("Failed to reconnect Stream for {0} ",Name);
                         StopStreaming();
-                        throw;
                     }
                     // give time to load balancer to notice the node is down
                     Thread.Sleep(500);
                     _disconnections++;
                     _logger.WarnFormat("Failed to reconnect stream {0}, Attempt {1}", Name,_disconnections);   
                 }
-          //      catch (Exception)
-          //      {
-          //          StopStreaming();
-          //          break;
-          //      }
             }
         }
 
@@ -414,21 +429,32 @@ namespace SportingSolutions.Udapi.Sdk
             _logger.InfoFormat("Streaming stopped for {0}", Name);
             if(_channel != null)
             {
-                _channel.Close();
+                try
+                {
+                    _channel.Close();
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex);
+                }
                 _channel = null;
             }
-
             if(_connection != null)
             {
-                _connection.Close();
+                try
+                {
+                    _connection.Close();
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex);
+                }
                 _connection = null;
             }
-
             if(_echoTask != null)
             {
                 _echoTask = null;
             }
-
             if (StreamDisconnected != null)
             {
                 StreamDisconnected(this, new EventArgs());

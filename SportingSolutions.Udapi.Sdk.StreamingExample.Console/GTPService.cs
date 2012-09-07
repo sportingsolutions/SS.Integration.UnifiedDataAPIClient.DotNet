@@ -162,6 +162,8 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                         {
                             _logger.InfoFormat("Fixture {0} id {1} is over.", fixture.Name, fixture.Id);
                         }
+                        bool activeFixture;
+                        _activeFixtures.TryRemove(fixture.Id, out activeFixture);
                     }
                 }
             }

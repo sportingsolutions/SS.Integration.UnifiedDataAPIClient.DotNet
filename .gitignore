@@ -14,3 +14,4 @@ packages/*
 SportingSolutions.Udapi.Sdk*.zip
 *.user
 BuildOutput/
+*.ncrunchsolution

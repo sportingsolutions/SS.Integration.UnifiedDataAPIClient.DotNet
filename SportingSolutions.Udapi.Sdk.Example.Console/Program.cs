@@ -29,11 +29,13 @@ namespace SportingSolutions.Udapi.Sdk.Example.Console
     {
         private static string _url;
         private static int _echoInterval;
+        private static int _echoMaxDelay;
 
         static void Main(string[] args)
         {
             _url = ConfigurationManager.AppSettings["url"];
             _echoInterval = Convert.ToInt32(ConfigurationManager.AppSettings["echoInterval"]);
+            _echoMaxDelay = Convert.ToInt32(ConfigurationManager.AppSettings["echoMaxDelay"]);
             log4net.Config.XmlConfigurator.Configure();
             Consolery.Run(typeof(Program), args);
         }
@@ -66,7 +68,7 @@ namespace SportingSolutions.Udapi.Sdk.Example.Console
             theResource.StreamDisconnected += (sender, args) => System.Console.WriteLine("Stream Disconnected");
             theResource.StreamSynchronizationError += (sender, args) => System.Console.WriteLine("Stream broken");
             //Start Streaming
-            theResource.StartStreaming(_echoInterval);
+            theResource.StartStreaming(_echoInterval, _echoMaxDelay);
 
             //Wait 60 seconds, then stop the Stream
             Thread.Sleep(600000);
