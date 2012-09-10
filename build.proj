@@ -90,6 +90,7 @@
 			<LibFiles Include="$(MSBuildProjectDirectory)\lib\**\*.*" Exclude="$(MSBuildProjectDirectory)\lib\**\.svn\**" />
 			<SDKSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\*.*" Exclude="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\.svn\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\bin\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\obj\**" />
 			<ExampleSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\*.*" Exclude="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\.svn\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\bin\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\obj\**" />
+			<StreamingExampleSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.StreamingExample.Console\**\*.*" Exclude="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.StreamingExample.Console\**\.svn\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.StreamingExample.Console\**\bin\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.StreamingExample.Console\**\obj\**" />
 			<!--TestSrcFiles Include="$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\*.*" Exclude="$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\.svn\**;$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\bin\**;$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\obj\**" /-->
 			<SlnSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.sln"  />
 			<Docs Include="$(MSBuildProjectDirectory)\documentation\html\**" />			
@@ -99,6 +100,7 @@
 		<Copy SourceFiles="@(LibFiles)" DestinationFolder="$(BuildDir)\\Src\\lib\\%(RecursiveDir)"/>	
 		<Copy SourceFiles="@(SDKSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SportingSolutions.Udapi.Sdk\\%(RecursiveDir)"/>	
 		<Copy SourceFiles="@(ExampleSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SportingSolutions.Udapi.Sdk.Example.Console\\%(RecursiveDir)"/>	
+		<Copy sourceFiles="@(StreamingExampleSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SportingSolutions.Udapi.Sdk.StreamingExample.Console\\%(RecursiveDir)"/>	
 		<Copy SourceFiles="@(SlnSrcFiles)" DestinationFolder="$(BuildDir)\\Src"/>
 		<Copy SourceFiles="@(Docs)" DestinationFolder="$(BuildDir)\\docs\\%(RecursiveDir)" />
 		<Copy SourceFiles="@(SDKBinaries)" DestinationFolder="$(BuildDir)\\bin" />
