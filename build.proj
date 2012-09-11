@@ -81,7 +81,7 @@
   </Target>
   
   <Target Name="GenerateDocs" DependsOnTargets="Compile">
-	<Exec Command="$(DoxyGen) $(MSBuildProjectDirectory)\documentation\doxyfile" />	
+	<Exec Command="$(DoxyGen) $(MSBuildProjectDirectory)\documentation\doxyfile /version 1.0.0.$(BuildNumber)" />	
   </Target>
   
   <Target Name="PrepareForZip">
