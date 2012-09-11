@@ -81,7 +81,9 @@
   </Target>
   
   <Target Name="GenerateDocs" DependsOnTargets="Compile">
-	<Exec Command="$(DoxyGen) $(MSBuildProjectDirectory)\documentation\doxyfile /version 1.0.0.$(BuildNumber)" />	
+	<!-- <Exec Command="type $(MSBuildProjectDirectory)\documentation\doxyfile &amp; echo PROJECT_NUMBER=$(BuildVersion)" /> -->
+	<Exec Command="echo PROJECT_NUMBER=$(MajorVersion).$(MinorVersion).$(BuildVersion).$(RevisionNumber) &gt;&gt; $(MSBuildProjectDirectory)\documentation\doxyfile" /> 
+	<Exec Command="$(DoxyGen) $(MSBuildProjectDirectory)\documentation\doxyfile" />	
   </Target>
   
   <Target Name="PrepareForZip">
