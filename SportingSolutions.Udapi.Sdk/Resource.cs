@@ -169,7 +169,7 @@ namespace SportingSolutions.Udapi.Sdk
                     {
                         if (echoGuid.Equals(_lastRecievedEchoGuid))
                         {
-                            _logger.Debug("OK");
+                            _logger.DebugFormat("Echo recieved for {0} - {1}", Id, Name);
                         }
                         else
                         {
@@ -180,7 +180,7 @@ namespace SportingSolutions.Udapi.Sdk
                     {
                         if (!_isProcessingStreamEvent)
                         {
-                            _logger.Debug("BAD");
+                            _logger.DebugFormat("No echo recieved for {0} - {1}", Id, Name);
                             //reached timeout, no echo has arrived
                             _isReconnecting = true;
                             Reconnect();
