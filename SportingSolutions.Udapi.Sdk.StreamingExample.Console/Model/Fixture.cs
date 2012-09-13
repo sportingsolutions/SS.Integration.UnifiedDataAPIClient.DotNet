@@ -12,6 +12,7 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+using System;
 using System.Collections.Generic;
 using SportingSolutions.Udapi.Sdk.Model;
 
@@ -33,9 +34,11 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model
 
         public string Id { get; set; }
 
-        public string MatchStatus { get; set; }
+        public DateTime? StartTime { get; set; }
 
         public int Sequence { get; set; }
+
+        public string MatchStatus { get; set; }
 
         public Dictionary<string, object> Tags { get; set; }
 

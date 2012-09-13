@@ -14,22 +14,28 @@
 
 using System;
 using System.ServiceProcess;
+using log4net;
 
 namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 {
     partial class ExampleService : ServiceBase
     {
+        private readonly ILog _logger;
         private GTPService _theService;
 
         public ExampleService()
         {
             InitializeComponent();
             AppDomain.CurrentDomain.UnhandledException += CurrentDomainUnhandledException;
+            _logger = LogManager.GetLogger(typeof(ExampleService).ToString());
             _theService = new GTPService();
         }
 
         void CurrentDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
+            //by default all exceptions are at least wrapped in exception
+            //unless RuntimeCompatibilityAttribute(WrapNonExceptionThrows=true) has been set to false
+            _logger.Error("Unhandled Exception, stopping service", (Exception)e.ExceptionObject);
             _theService.Stop();
             _theService = new GTPService();
             _theService.Start();
