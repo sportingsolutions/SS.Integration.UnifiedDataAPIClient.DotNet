@@ -12,30 +12,25 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-using System.Collections.Generic;
+using System;
 
-namespace SportingSolutions.Udapi.Sdk.Example.Console.Model
+namespace SportingSolutions.Udapi.Sdk.Clients
 {
-    public class Fixture
+    public class Credentials : ICredentials
     {
-        public Fixture()
+        private readonly string _apiUser;
+        private readonly string _apiKey;
+
+        public Credentials(string apiUser, string apiKey)
         {
-            Tags = new Dictionary<string, object>();
-            Markets = new List<Market>();
+            if (string.IsNullOrEmpty(apiUser)) throw new ArgumentNullException("apiUser");
+            if (string.IsNullOrEmpty(apiKey)) throw new ArgumentNullException("apiKey");
+
+            _apiUser = apiUser;
+            _apiKey = apiKey;
         }
 
-        public string Id { get; set; }
-
-        public string Name { get; set; }
-
-        public string SoFar { get; set; }
-
-        public string Status { get; set; }
-
-        public string Date { get; set; }
-
-        public Dictionary<string, object> Tags { get; set; }
-
-        public List<Market> Markets { get; set; }
+        public string ApiUser { get { return _apiUser; } }
+        public string ApiKey { get { return _apiKey; } }
     }
 }

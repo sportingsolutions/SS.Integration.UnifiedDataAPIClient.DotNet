@@ -12,16 +12,16 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-using System;
-using Newtonsoft.Json.Converters;
-
-namespace SportingSolutions.Udapi.Sdk.Example.Console.Model
+namespace SportingSolutions.Udapi.Sdk
 {
-    public class SelectionConverter : CustomCreationConverter<Selection>
+    public class QueueDetails
     {
-        public override Selection Create(Type objectType)
-        {
-            return new Selection();
-        }
+        public string Name { get; set; }
+        public string Host { get; set; }
+        public int Port { get; set; }
+        public string UserName { get; set; }
+        public string Password { get; set; }
+        public string VirtualHost { get; set; }
+
     }
 }

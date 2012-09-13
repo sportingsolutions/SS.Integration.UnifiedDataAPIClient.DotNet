@@ -14,9 +14,9 @@ using System.Resources;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("Spin.TradingServices.Udapi.Sdk")]
-[assembly: AssemblyDescription("Unified Data API Sdk")]
+[assembly: AssemblyTitle("SportingSolutions.Udapi.Sdk")]
+[assembly: AssemblyDescription("Sporting Solutions Unified Data API Sdk")]
 [assembly: AssemblyConfiguration("")]
 
-
+[assembly: InternalsVisibleTo("SportingSolutions.Udapi.Sdk.Tests")]
 

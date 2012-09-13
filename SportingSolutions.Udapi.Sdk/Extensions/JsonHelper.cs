@@ -20,25 +20,33 @@ namespace SportingSolutions.Udapi.Sdk.Extensions
 {
     public static class JsonHelper
     {
-        public static T FromJson<T>(this string json, bool expectIsoDate = true)
+        private static readonly JsonSerializerSettings _settings;
+
+        static JsonHelper()
         {
-            return (T)JsonConvert.DeserializeObject(json, typeof(T), new JsonSerializerSettings { Converters = expectIsoDate ? new List<JsonConverter> { new IsoDateTimeConverter() } : null, NullValueHandling = NullValueHandling.Ignore });
+            _settings = new JsonSerializerSettings
+            {
+                Converters = new List<JsonConverter> { new IsoDateTimeConverter() },
+                NullValueHandling = NullValueHandling.Ignore
+            };
         }
 
-        public static string ToJson(this object deserializedObject, bool expectIsoDate = true)
+        public static T FromJson<T>(this string json)
+        {
+            return (T)JsonConvert.DeserializeObject(json, typeof(T), _settings);
+        }
+
+        public static T FromJson<T>(this string json, bool expectIsoDate = true)
+        {
+            return FromJson<T>(json);
+        }
+
+        public static string ToJson(this object deserializedObject)
         {
             string serializedObject = null;
             if(deserializedObject != null)
             {
-                serializedObject = JsonConvert.SerializeObject(deserializedObject, Formatting.None,
-                                            new JsonSerializerSettings
-                                                {
-                                                    Converters =
-                                                        expectIsoDate
-                                                            ? new List<JsonConverter> {new IsoDateTimeConverter()}
-                                                            : null,
-                                                    NullValueHandling = NullValueHandling.Ignore
-                                                });
+                serializedObject = JsonConvert.SerializeObject(deserializedObject, Formatting.None, _settings);
             }
             return serializedObject;
         }

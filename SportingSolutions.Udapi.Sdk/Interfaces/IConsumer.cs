@@ -13,12 +13,22 @@
 //limitations under the License.
 
 
-namespace SportingSolutions.Udapi.Sdk.Model
-{
-    public class Participant
-    {
-        public int Id { get; set; }
+using SportingSolutions.Udapi.Sdk.Events;
 
-        public string Name { get; set; }
+namespace SportingSolutions.Udapi.Sdk.Interfaces
+{
+    public interface IConsumer
+    {
+        string Id { get; }
+
+        QueueDetails GetQueueDetails();
+
+        void OnStreamConnected();
+
+        void OnStreamDisconnected();
+
+        void OnStreamEvent(StreamEventArgs e);
+
+        void SendEcho();
     }
 }

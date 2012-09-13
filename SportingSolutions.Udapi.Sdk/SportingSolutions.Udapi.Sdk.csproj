@@ -12,7 +12,7 @@
     <AssemblyName>SportingSolutions.Udapi.Sdk</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\Unified_Data_API_Client_DotNet\</SolutionDir>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
     <RestorePackages>true</RestorePackages>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -67,17 +67,19 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="log4net, Version=1.2.10.0, Culture=neutral, PublicKeyToken=1b44e1d426115821, processorArchitecture=MSIL">
+    <Reference Include="log4net, Version=1.2.13.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\log4net.1.2.10\lib\2.0\log4net.dll</HintPath>
+      <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Newtonsoft.Json.4.5.9\lib\net40\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\packages\Newtonsoft.Json.5.0.6\lib\net40\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="RabbitMQ.Client, Version=2.8.6.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
+    <Reference Include="RabbitMQ.Client">
+      <HintPath>..\packages\RabbitMQ.Client.3.3.2\lib\net30\RabbitMQ.Client.dll</HintPath>
+    </Reference>
+    <Reference Include="RestSharp, Version=104.5.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\RabbitMQ.Client.2.8.6\lib\net30\RabbitMQ.Client.dll</HintPath>
+      <HintPath>..\packages\RestSharp.104.5.0\lib\net4\RestSharp.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -92,35 +94,51 @@
     <Compile Include="..\CommonAssemblyInfo.cs">
       <Link>Properties\CommonAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="Clients\RestHelper.cs" />
+    <Compile Include="Clients\Configuration.cs" />
+    <Compile Include="Clients\ConnectClient.cs" />
+    <Compile Include="Clients\ConnectConverter.cs" />
+    <Compile Include="Clients\Credentials.cs" />
+    <Compile Include="Clients\IConfiguration.cs" />
+    <Compile Include="Clients\IConnectClient.cs" />
+    <Compile Include="Clients\ICredentials.cs" />
+    <Compile Include="Clients\RestErrorHelper.cs" />
     <Compile Include="Credentials.cs" />
+    <Compile Include="EchoController.cs" />
+    <Compile Include="Extensions\JsonHelper.cs" />
+    <Compile Include="Interfaces\IDispatcher.cs" />
+    <Compile Include="Interfaces\IEchoController.cs" />
+    <Compile Include="Interfaces\IConsumer.cs" />
+    <Compile Include="Interfaces\IStreamStatistics.cs" />
+    <Compile Include="Interfaces\IStreamSubscriber.cs" />
+    <Compile Include="QueueDetails.cs" />
+    <Compile Include="StreamController.cs" />
     <Compile Include="Endpoint.cs" />
     <Compile Include="Events\StreamEventArgs.cs" />
-    <Compile Include="Extensions\JsonHelper.cs" />
+    <Compile Include="Exceptions\NotAuthenticatedException.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="Interfaces\ICredentials.cs" />
     <Compile Include="Interfaces\IFeature.cs" />
     <Compile Include="Interfaces\IResource.cs" />
     <Compile Include="Interfaces\IService.cs" />
     <Compile Include="Interfaces\ISession.cs" />
-    <Compile Include="Model\Participant.cs" />
     <Compile Include="Model\RestItem.cs" />
     <Compile Include="Model\RestLink.cs" />
     <Compile Include="Model\StreamEcho.cs" />
     <Compile Include="Model\Tag.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="QueueingCustomConsumer.cs" />
     <Compile Include="Resource.cs" />
     <Compile Include="Service.cs" />
     <Compile Include="Session.cs" />
     <Compile Include="SessionFactory.cs" />
     <Compile Include="Model\Summary.cs" />
+    <Compile Include="StreamSubscriber.cs" />
+    <Compile Include="UDAPI.cs" />
+    <Compile Include="UpdateDispatcher.cs" />
   </ItemGroup>
   <ItemGroup>
-    <WCFMetadata Include="Service References\" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
@@ -131,7 +149,7 @@
     <PostBuildEvent>
     </PostBuildEvent>
   </PropertyGroup>
-  <Import Project="$(SolutionDir)\.nuget\nuget.targets" />
+  <Import Project="$(SolutionDir)\.nuget\NuGet.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

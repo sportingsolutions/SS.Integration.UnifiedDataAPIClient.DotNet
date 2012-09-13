@@ -12,26 +12,14 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-using System.Collections.Generic;
-
-namespace SportingSolutions.Udapi.Sdk.Example.Console.Model
+namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
-    public class Market
+    interface IStreamSubscriber
     {
-        public Market()
-        {
-            Tags = new Dictionary<string, object>();
-            Selections = new List<Selection>();
-        }
+        IConsumer Consumer { get; }
 
-        public string Id { get; set; }
+        void StopConsuming();
 
-        public string Name { get; set; }
-
-        public bool Tradable { get; set; }
-
-        public Dictionary<string, object> Tags { get; set; }
-
-        public List<Selection> Selections { get; set; }
+        void StartConsuming(string queueName);
     }
 }

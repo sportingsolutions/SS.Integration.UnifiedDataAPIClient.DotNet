@@ -1,8 +1,11 @@
 _ReSharper.SportingSolutions.Udapi.Sdk/*
+_TeamCity.SportingSolutions.Udapi.Sdk/*
 build/*
 *.nupkg
 SportingSolutions.Udapi.Sdk.Example.Console/bin/*
 SportingSolutions.Udapi.Sdk.Example.Console/obj/*
+SportingSolutions.Udapi.Sdk.Tests/bin/*
+SportingSolutions.Udapi.Sdk.Tests/obj/*
 SportingSolutions.Udapi.Sdk.StreamingExample.Console/bin/*
 SportingSolutions.Udapi.Sdk.StreamingExample.Console/obj/*
 *.suo

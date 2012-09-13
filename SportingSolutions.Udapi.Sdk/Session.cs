@@ -14,115 +14,90 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Text;
 using SportingSolutions.Udapi.Sdk.Clients;
+using SportingSolutions.Udapi.Sdk.Exceptions;
 using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
-using ICredentials = SportingSolutions.Udapi.Sdk.Interfaces.ICredentials;
 
 namespace SportingSolutions.Udapi.Sdk
 {
-    /// <summary>
-    /// 
-    /// </summary>
     public class Session : Endpoint, ISession
     {
-        private IList<RestItem> _restItems;
-        private readonly Uri _serverUri;
-
-        private ILog _logger = LogManager.GetLogger(typeof (Session).ToString());
-
-        public Session(Uri serverUri, ICredentials credentials)
+        internal Session(IConnectClient connectClient)
+            : base(connectClient)
         {
-            _serverUri = serverUri;
-            Headers = new NameValueCollection();
-            GetRoot(serverUri, credentials);
+            Logger = LogManager.GetLogger(typeof(Session).ToString());
         }
 
         public IList<IService> GetServices()
         {
-            _logger.Info("Get all available services..");
-            if(_restItems == null)
-            {
-                GetRoot(_serverUri,null,false);
-            }
-
-            var result = _restItems.Select(serviceRestItem => new Service(Headers, serviceRestItem)).Cast<IService>().ToList();
-            _restItems = null;
-            return result;
+            Logger.Info("Get all available services...");
+            var links = GetRoot();
+            if (links == null)
+                return new List<IService>();
+            
+            return links.Select(serviceRestItem => new Service(serviceRestItem, ConnectClient)).Cast<IService>().ToList();
         }
-       
+
         public IService GetService(string name)
         {
-            _logger.InfoFormat("Get Service {0}",name);
-            if (_restItems == null)
-            {
-                GetRoot(_serverUri, null, false);
-            }
+            Logger.InfoFormat("Get Service {0}", name);
+            var links = GetRoot();
 
-            var result = _restItems.Select(serviceRestItem => new Service(Headers, serviceRestItem)).FirstOrDefault(service => service.Name == name);
-            _restItems = null;
-            return result;
+            if (links == null)
+                return null;
+
+            return links.Select(serviceRestItem => new Service(serviceRestItem, ConnectClient)).FirstOrDefault(service => service.Name == name);
         }
 
-        private void GetRoot(Uri serverUri, ICredentials credentials, bool authenticate = true)
+        private IEnumerable<RestItem> GetRoot()
         {
-            _logger.DebugFormat("Connecting to {0}",serverUri);
-            HttpWebResponse response;
+            var stopwatch = new Stopwatch();
+            var messageStringBuilder = new StringBuilder("Beginning Get Root Request");
             try
             {
-                response = RestHelper.GetResponseEx(serverUri, null, "GET", "application/json", Headers, 60000);
-            }
-            catch (WebException ex)
-            {
-                if(ex.Status == WebExceptionStatus.NameResolutionFailure)
+                stopwatch.Start();
+
+                var getRootResponse = ConnectClient.Login();
+                messageStringBuilder.AppendFormat("GetRoot took {0}ms\r\n", stopwatch.ElapsedMilliseconds);
+                stopwatch.Restart();
+
+                if (getRootResponse.ErrorException != null || getRootResponse.Content == null)
                 {
-                    throw new Exception("The url cannot be resolved");
+                    RestErrorHelper.LogRestError(Logger, getRootResponse, "GetRoot Http Error");
+                    throw new Exception("There has been a problem calling GetRoot", getRootResponse.ErrorException);
                 }
-                response = ex.Response as HttpWebResponse;
-            }
 
-            if (authenticate)
-            {
-                if (response != null && response.StatusCode == HttpStatusCode.Unauthorized)
+                if (getRootResponse.StatusCode == HttpStatusCode.Unauthorized)
                 {
-                    _logger.Debug("Not authenticated logging on");
-                    var items = RestHelper.GetResponse(response).FromJson<List<RestItem>>();
-
-                    var loginLink = items.SelectMany(restItem => restItem.Links).First(
-                        restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/login");
-                    var loginUrl = loginLink.Href;
-
-                    _restItems = Login(new Uri(loginUrl), credentials);
-                    _logger.Info("Logged in successfully");
+                    throw new NotAuthenticatedException("UserName or password are incorrect");
                 }
-            }
-            else
-            {
-                if (response != null)
-                {
-                    _logger.Info("Refreshing list of available services..");
-                    _restItems = RestHelper.GetResponse(response).FromJson<List<RestItem>>();
-                }
-            }
-            if(_restItems == null)
-            {
-                throw new Exception("Unable to connect. Please check the url and credentials");
-            }
-        }
 
-        private List<RestItem> Login(Uri serverUri, ICredentials credentials)
-        {
-            var headers = new NameValueCollection
-                              {{"X-Auth-User", credentials.UserName}, {"X-Auth-Key", credentials.Password}};
+                if (getRootResponse.Content != null)
+                    return getRootResponse.Content.FromJson<List<RestItem>>();
+            }
+            catch (NotAuthenticatedException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Get Root Exception", ex);
+                throw;
+            }
+            finally
+            {
+                Logger.Debug(messageStringBuilder);
+                stopwatch.Stop();
+            }
 
-            var response = RestHelper.GetResponseEx(serverUri, null, "POST", "application/json", headers);
-            Headers.Add("X-Auth-Token",response.Headers.Get("X-Auth-Token"));
-            return RestHelper.GetResponse(response).FromJson<List<RestItem>>();
+            return null;
         }
     }
 }

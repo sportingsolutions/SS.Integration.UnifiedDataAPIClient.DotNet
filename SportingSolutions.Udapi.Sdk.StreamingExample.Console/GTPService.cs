@@ -15,11 +15,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
+using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.StreamingExample.Console.Configuration;
 using SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model;
@@ -36,11 +34,12 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         private readonly ConcurrentDictionary<string, StreamListener> _listeners;
         private readonly ConcurrentDictionary<string, bool> _activeFixtures;
 
+
         public GTPService(ISettings settings = null)
         {
             _settings = settings ?? Settings.Instance;
             _logger = LogManager.GetLogger(typeof(GTPService).ToString());
-            _sportsList = new List<string> {"Tennis"};
+            _sportsList = new List<string> {"Football"};
             _listeners = new ConcurrentDictionary<string, StreamListener>();
             _activeFixtures = new ConcurrentDictionary<string, bool>();
         }
@@ -50,6 +49,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             try
             {
                 _logger.Debug("Starting GTPService");
+
                 IService theService = new Udapi.Udapi();
 
                 _logger.Info("Starting timer...");
@@ -64,32 +64,37 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 
         private void TimerEvent(IService theService)
         {
+            if (FixtureController.IsAddingItems)
+                return;
+
             try
             {
-                foreach (var sport in _sportsList)
-                {
-                    var theFeature = theService.GetFeature(sport);
-                    if (theFeature != null)
-                    {
-                        _logger.InfoFormat("Get the list of available fixtures for {0} from GTP", sport);
-                        var fixtures = theFeature.GetResources();
+                FixtureController.BeginAddingItems();
+                Parallel.ForEach(_sportsList, new ParallelOptions { MaxDegreeOfParallelism = 10 },
+                                 sport =>
+                                 {
+                                     var theFeature = theService.GetFeature(sport);
+                                     if (theFeature != null)
+                                     {
+                                         _logger.InfoFormat("Get the list of available fixtures for {0} from GTP", sport);
+                                         var fixtures = theFeature.GetResources();
 
-                        if (fixtures != null && fixtures.Count > 0)
-                        {
-                            var tmpSport = sport;
-                            Parallel.ForEach(fixtures, new ParallelOptions { MaxDegreeOfParallelism = 10 },
-                                                fixture => ProcessFixture(fixture, tmpSport));
-                        }
-                        else
-                        {
-                            _logger.InfoFormat("There are currently no {0} fixtures in UDAPI", sport);
-                        }
-                    }
-                    else
-                    {
-                        _logger.InfoFormat("Cannot find {0} in UDAPI....", sport);
-                    }
-                } 
+                                         if (fixtures != null && fixtures.Count > 0)
+                                         {
+                                             var tmpSport = sport;
+                                             Parallel.ForEach(fixtures, new ParallelOptions { MaxDegreeOfParallelism = 10 },
+                                                                 fixture => ProcessFixture(fixture, tmpSport));
+                                         }
+                                         else
+                                         {
+                                             _logger.InfoFormat("There are currently no {0} fixtures in UDAPI", sport);
+                                         }
+                                     }
+                                     else
+                                     {
+                                         _logger.InfoFormat("Cannot find {0} in UDAPI....", sport);
+                                     }
+                                 });
             }
             catch (AggregateException aggex)
             {
@@ -102,25 +107,25 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             {
                 _logger.Error(ex);
             }
+            finally
+            {
+                FixtureController.FinishAddingItems();
+            }
         }
 
         private void ProcessFixture(IResource fixture, string sport)
         {
-            if (!_activeFixtures.ContainsKey(fixture.Id) && !_listeners.ContainsKey(fixture.Id))
+            if (fixture.Id == "cHr2GRRjCB9D7yXi4FoEQ2bt-KI")
+                return;
+
+            if (!FixtureController.Contains(fixture.Id))
             {
                 try
                 {
-                    _activeFixtures.TryAdd(fixture.Id, true);
-
                     var matchStatus = 0;
-                    var matchSequence = 0;
+                    
                     if (fixture.Content != null)
-                    {
                         matchStatus = fixture.Content.MatchStatus;
-                        //Get the sequence number, if you store this to file you can check if you need to process a snapshot between restarts
-                        //this can save pushing unnesasary snapshots
-                        matchSequence = fixture.Content.Sequence;
-                    }
 
                     //if not match over
                     if (matchStatus != (int)SSMatchStatus.MatchOver)
@@ -129,22 +134,21 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                         var snapshotString = fixture.GetSnapshot();
                         _logger.InfoFormat("Successfully retrieved UDAPI Snapshot for {0} id {1}", fixture.Name, fixture.Id);
 
-                        var fixtureSnapshot =
-                           (Fixture)
-                           JsonConvert.DeserializeObject(snapshotString, typeof(Fixture),
-                                                           new JsonSerializerSettings
-                                                           {
-                                                               Converters =
-                                                                   new List<JsonConverter> { new IsoDateTimeConverter() },
-                                                               NullValueHandling = NullValueHandling.Ignore
-                                                           });
-
+                        var fixtureSnapshot = snapshotString.FromJson<Fixture>();
                         var epoch = fixtureSnapshot.Epoch;
 
                         //process the snapshot here and push it into the client system
 
-                        var streamListener = new StreamListener(fixture, epoch, sport);
-                        _listeners.TryAdd(fixture.Id, streamListener);
+                        try
+                        {
+                            FixtureController.AddListener(fixture.Id, () => new StreamListener(fixture, epoch));
+                        }
+                        catch (Exception)
+                        {
+                            _logger.ErrorFormat("sport=\"{0}\" : fixtureName=\"{1}\" - Unable to stream fixture", sport, fixture.Name);
+                            throw;
+                        }
+                        
                     }
                     else
                     {
@@ -155,13 +159,26 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                 {
                     _logger.Error(string.Format("Fixture {0} id {1} There is a problem processing this fixture", fixture.Name, fixture.Id), ex);
                 }
-                
-                bool y;
-                _activeFixtures.TryRemove(fixture.Id, out y);
             }
             else
             {
+                bool isMatchOver = FixtureController.Contains(fixture.Id) && FixtureController.GetItem(fixture.Id).FixtureEnded;
+
+                if (isMatchOver)
+                {
+                    if (FixtureController.Contains(fixture.Id))
+                    {
+                        FixtureController.RemoveFixture(fixture.Id);
+                        _logger.InfoFormat("fixtureName=\"{0}\" fixtureId={1} is over.", fixture.Name, fixture.Id);
+                    }
+                }
+                else
+                {
+                    _logger.InfoFormat("fixtureName=\"{0}\" fixtureId={1} is currently being processed", fixture.Name, fixture.Id);
+                }
+
                 _logger.InfoFormat("Fixture {0} id {1} is currently being processed", fixture.Name, fixture.Id);
+
                 if (_listeners.ContainsKey(fixture.Id))
                 {
                     if (_listeners[fixture.Id].FixtureEnded)
@@ -171,6 +188,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                         {
                             _logger.InfoFormat("Fixture {0} id {1} is over.", fixture.Name, fixture.Id);
                         }
+
                         bool activeFixture;
                         _activeFixtures.TryRemove(fixture.Id, out activeFixture);
                     }

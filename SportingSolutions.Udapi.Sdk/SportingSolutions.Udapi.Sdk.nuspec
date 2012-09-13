@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <authors>$author$</authors>
+    <owners>$author$</owners>
+    <licenseUrl>http://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
+    <projectUrl>https://github.com/sportingsolutions/Unified_Data_API_Client_DotNet</projectUrl>
+	<iconUrl>https://raw.github.com/sportingsolutions/Unified_Data_API_Client_DotNet/master/SportingSolutions.Udapi.Sdk/packageIcon.png</iconUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <description>The SDK provides an easy to use interface into the Sporting Solutions Unified Data API. Usage of this SDK requires a GTP username and password (available on request), it's usage is authorised only for current or prospective clients.</description>
+    <copyright>Copyright (c) SPIN Services Ltd. 2013</copyright>
+    <dependencies>
+      <dependency id="log4net" version="[2.0.3]" />
+      <dependency id="Newtonsoft.Json" version="5.0.6" />
+      <dependency id="RabbitMQ.Client" version="3.3.2" />
+    </dependencies>
+	<tags>SportingSolutions GTP  Connect  SportingSolutionsConnect SDK SportingIndex Sporting Solutions Index UnifiedDataAPI</tags>
+  </metadata>
+</package>

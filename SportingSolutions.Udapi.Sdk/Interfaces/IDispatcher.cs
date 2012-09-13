@@ -12,16 +12,25 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-using System;
-using Newtonsoft.Json.Converters;
 
-namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model
+using System;
+
+namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
-    public class MarketConverter : CustomCreationConverter<Market>
+    internal interface IDispatcher : IDisposable
     {
-        public override Market Create(Type objectType)
-        {
-            return new Market();
-        }
+        bool HasSubscriber(string subscriberId);
+
+        void AddSubscriber(IStreamSubscriber subscriber);
+
+        IStreamSubscriber GetSubscriber(string subscriberId);
+
+        void RemoveSubscriber(IStreamSubscriber subscriber);
+
+        void RemoveAll();
+
+        bool DispatchMessage(string consumerId, string message);
+
+        int SubscribersCount { get; }
     }
 }

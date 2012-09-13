@@ -12,29 +12,16 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-using System.Collections.Generic;
+using System;
 
-namespace SportingSolutions.Udapi.Sdk.Example.Console.Model
+namespace SportingSolutions.Udapi.Sdk.Exceptions
 {
-    public class Selection
+    public class NotAuthenticatedException : Exception
     {
-        public Selection()
-        {
-            Tags = new Dictionary<string, object>();
-        }
+        public NotAuthenticatedException(string message, Exception innerException)
+            : base(message, innerException) { }
 
-        public string Id { get; set; }
-
-        public string Name { get; set; }
-
-        public Dictionary<string, object> Tags { get; set; }
-
-        public string DisplayPrice { get; set; }
-
-        public double? Price { get; set; }
-
-        public string Status { get; set; }
-
-        public bool? Tradable { get; set; }
+        public NotAuthenticatedException(string message) 
+            : base(message) { }
     }
 }

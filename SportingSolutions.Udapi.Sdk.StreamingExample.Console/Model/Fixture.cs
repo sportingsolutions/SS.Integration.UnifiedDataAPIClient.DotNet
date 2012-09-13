@@ -14,7 +14,6 @@
 
 using System;
 using System.Collections.Generic;
-using SportingSolutions.Udapi.Sdk.Model;
 
 namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model
 {
