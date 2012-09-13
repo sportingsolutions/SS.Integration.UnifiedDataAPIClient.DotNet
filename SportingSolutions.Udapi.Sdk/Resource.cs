@@ -321,10 +321,17 @@ namespace SportingSolutions.Udapi.Sdk
                         _channel = null;
                     }
 
-                    if (_connection != null)
+                    try
                     {
-                        _connection.Close();
-                        _connection = null;
+                        if (_connection != null)
+                        {
+                            _connection.Close();
+                            _connection = null;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex);
                     }
 
                     _connection = _connectionFactory.CreateConnection();
