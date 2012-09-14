@@ -325,7 +325,10 @@ namespace SportingSolutions.Udapi.Sdk
                     {
                         if (_connection != null)
                         {
-                            _connection.Close();
+                            if (_connection.IsOpen)
+                            {
+                                _connection.Close();
+                            }
                             _connection = null;
                         }
                     }
@@ -410,10 +413,9 @@ namespace SportingSolutions.Udapi.Sdk
         public void StopStreaming()
         {
             _isStreaming = false;
+            StopEcho();
             if (_consumer != null)
             {
-                StopEcho();
-
                 try
                 {
                     _channel.BasicCancel(_consumer.ConsumerTag);
@@ -423,6 +425,10 @@ namespace SportingSolutions.Udapi.Sdk
                     _logger.Error("Problem when stopping stream",ex);
                     Dispose();
                 }
+            }
+            else
+            {
+                Dispose();
             }
         }
 
@@ -450,7 +456,10 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 try
                 {
-                    _connection.Close();
+                    if (_connection.IsOpen)
+                    {
+                        _connection.Close();
+                    }
                 }
                 catch (Exception ex)
                 {
