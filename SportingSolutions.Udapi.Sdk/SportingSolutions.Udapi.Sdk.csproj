@@ -96,6 +96,7 @@
     <Compile Include="Credentials.cs" />
     <Compile Include="Endpoint.cs" />
     <Compile Include="Events\StreamEventArgs.cs" />
+    <Compile Include="Exceptions\NotAuthenticatedException.cs" />
     <Compile Include="Extensions\JsonHelper.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="Interfaces\ICredentials.cs" />
