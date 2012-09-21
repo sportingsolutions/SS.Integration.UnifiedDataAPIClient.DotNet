@@ -9,7 +9,7 @@
     <!--Solution file-->
     <SolutionFileName>$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.sln</SolutionFileName>
     <DoxyGen>"C:\Program Files\doxygen\bin\doxygen.exe"</DoxyGen>
-    <SplitVersion Include="$(BUILD_NUMBER.Split('.'))" />
+    <SplitVersion>$(BUILD_NUMBER.Split('.'))</SplitVersion>
   </PropertyGroup>
 
   
@@ -23,13 +23,24 @@
   
   <Target Name="Version">
     <Message Text="$(SplitVersion)" />
+    <MSBuild.ExtensionPack.Framework.MsBuildHelper TaskAction="GetItem" InputItems1="$(SplitVersion)" Position="0">
+      <Output TaskParameter="OutputItems" ItemName="major"/>
+    </MSBuild.ExtensionPack.Framework.MsBuildHelper>
+    <MSBuild.ExtensionPack.Framework.MsBuildHelper TaskAction="GetItem" InputItems1="$(SplitVersion)" Position="1">
+      <Output TaskParameter="OutputItems" ItemName="minor"/>
+    </MSBuild.ExtensionPack.Framework.MsBuildHelper>
+    <MSBuild.ExtensionPack.Framework.MsBuildHelper TaskAction="GetItem" InputItems1="$(SplitVersion)" Position="2">
+      <Output TaskParameter="OutputItems" ItemName="build"/>
+    </MSBuild.ExtensionPack.Framework.MsBuildHelper>
+    <MSBuild.ExtensionPack.Framework.MsBuildHelper TaskAction="GetItem" InputItems1="$(SplitVersion)" Position="3">
+      <Output TaskParameter="OutputItems" ItemName="revision"/>
+    </MSBuild.ExtensionPack.Framework.MsBuildHelper>
+
     <PropertyGroup>
-     <MajorVersion>1</MajorVersion>
-      <MinorVersion>0</MinorVersion>
-      <BuildVersion>0</BuildVersion>
-      <!--Use the build number to quickly identify the repo version used to build-->
-      <BuildVersion Condition="$(BUILD_NUMBER) != ''">$(BUILD_NUMBER)</BuildVersion>
-      <RevisionNumber>0</RevisionNumber>
+     <MajorVersion>%(major.Identity)</MajorVersion>
+      <MinorVersion>%(minor.Identity)</MinorVersion>
+      <BuildVersion>%(build.Identity)</BuildVersion>
+      <RevisionNumber>%(revision.Identity)</RevisionNumber>
     </PropertyGroup>
     <!--Version the CommonAssemblyInfo.cs file-->
     <MSBuild.ExtensionPack.Framework.AssemblyInfo AssemblyInfoFiles="$(MSBuildProjectDirectory)\CommonAssemblyInfo.cs"
