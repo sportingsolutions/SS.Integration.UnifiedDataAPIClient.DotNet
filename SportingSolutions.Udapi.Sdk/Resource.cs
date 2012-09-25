@@ -32,7 +32,7 @@ using log4net;
 
 namespace SportingSolutions.Udapi.Sdk
 {
-    public class Resource : Endpoint, IResource, IDisposable
+    public class Resource : Endpoint, IResource, IDisposable, IStreamStatistics
     {
         private readonly ILog _logger = LogManager.GetLogger(typeof(Resource).ToString());
 
@@ -49,7 +49,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         private int _echoSenderInterval;
         private int _echoMaxDelay;
-        private DateTime _lastEchoTimeStamp;
+        
         private string _lastRecievedEchoGuid;
 
         private int _disconnections;
@@ -82,6 +82,11 @@ namespace SportingSolutions.Udapi.Sdk
         {
             get { return State.Name; }
         }
+
+        public DateTime LastMessageReceived { get; private set; }
+        public DateTime LastStreamDisconnect { get; private set; }
+        public bool IsStreamActive { get { return _isStreaming; } }
+        public double EchoRoundTripInMilliseconds { get; private set; }
 
         public Summary Content
         {
@@ -154,9 +159,7 @@ namespace SportingSolutions.Udapi.Sdk
                         _logger.Error("Unable to post echo", ex);
                     }
 
-                    var echoArrived = false;
-
-                    echoArrived = _echoResetEvent.WaitOne(_echoMaxDelay);
+                    var echoArrived = _echoResetEvent.WaitOne(_echoMaxDelay);
                     _echoResetEvent.Reset();
 
                     if (cancelToken.IsCancellationRequested)
@@ -181,6 +184,7 @@ namespace SportingSolutions.Udapi.Sdk
                         if (!_isProcessingStreamEvent)
                         {
                             _logger.DebugFormat("No echo recieved for {0} - {1}", Id, Name);
+                            LastStreamDisconnect = DateTime.UtcNow;
                             //reached timeout, no echo has arrived
                             _isReconnecting = true;
                             Reconnect();
@@ -220,22 +224,20 @@ namespace SportingSolutions.Udapi.Sdk
                         var message = deliveryArgs.Body;
                         if (StreamEvent != null)
                         {
+                            LastMessageReceived = DateTime.UtcNow;
+
                             var messageString = Encoding.UTF8.GetString(message);
                             var jobject = JObject.Parse(messageString);
                             if(jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
                             {
                                 var split = jobject["Content"].Value<String>().Split(';');
                                 _lastRecievedEchoGuid = split[0];
-                                var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ",
-                                                    CultureInfo.InvariantCulture);
-                                var timeBetweenSend = timeSent - _lastEchoTimeStamp;
+                                var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
                                 var roundTripTime = DateTime.Now - timeSent;
 
-                                var sendmillis = timeBetweenSend.TotalMilliseconds;
                                 var roundMillis = roundTripTime.TotalMilliseconds;
-                                
-                                _lastEchoTimeStamp = timeSent;
 
+                                EchoRoundTripInMilliseconds = roundMillis;
                                 _echoResetEvent.Set();
                             }
                             else
@@ -251,6 +253,7 @@ namespace SportingSolutions.Udapi.Sdk
                 catch(Exception ex)
                 {
                     _logger.Error(string.Format("Lost connection to stream {0}", Name), ex);
+                    LastStreamDisconnect = DateTime.UtcNow;
                     //connection lost
                     if(!_isReconnecting)
                     {
@@ -339,8 +342,6 @@ namespace SportingSolutions.Udapi.Sdk
 
                     _connection = _connectionFactory.CreateConnection();
                     _logger.InfoFormat("Successfully connected to Streaming Server for {0}", Name);
-
-                    _lastEchoTimeStamp = DateTime.Now;
                     
                     StartEcho();
  
@@ -467,10 +468,9 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 _connection = null;
             }
-            if(_echoTask != null)
-            {
-                _echoTask = null;
-            }
+            
+            _echoTask = null;
+            
             if (StreamDisconnected != null)
             {
                 StreamDisconnected(this, new EventArgs());

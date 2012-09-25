@@ -1,4 +1,5 @@
 _ReSharper.SportingSolutions.Udapi.Sdk/*
+_TeamCity.SportingSolutions.Udapi.Sdk/*
 build/*
 *.nupkg
 SportingSolutions.Udapi.Sdk.Example.Console/bin/*
