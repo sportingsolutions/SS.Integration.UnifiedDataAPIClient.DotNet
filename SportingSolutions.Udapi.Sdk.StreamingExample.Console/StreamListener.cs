@@ -15,6 +15,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using SportingSolutions.Udapi.Sdk.Events;
@@ -155,7 +156,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                 }
                 else if (fixtureDelta.Epoch == _currentEpoch)
                 {
-                    ProcessDelta(fixtureDelta);
+                    ProcessDelta(fixtureDelta); 
                 }
             }
             catch (Exception ex)
@@ -167,7 +168,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         private void SuspendAndReprocessSnapshot()
         {
             Fixture fixtureSnapshot = null;
-            _gtpFixture.PauseStreaming();
+            
             try
             {
                 SuspendAllMarkets();
@@ -192,11 +193,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                 _logger.Error(string.Format("There has been an error when trying to Suspend and Reprocess snapshot for {0} - {1}", _gtpFixture.Name, _gtpFixture.Id), ex);
             }
             //If an error occured this may be null. Nothing we can do but unpasuse the stream
-            if (fixtureSnapshot == null || fixtureSnapshot.MatchStatus != ((int)SSMatchStatus.MatchOver).ToString())
-            {
-                _gtpFixture.UnPauseStreaming();
-            }
-            else
+            if (fixtureSnapshot != null || fixtureSnapshot.MatchStatus == ((int)SSMatchStatus.MatchOver).ToString())
             {
                 _logger.InfoFormat("Stopping Streaming for {0} with id {1}, Match Status is Match Over", _gtpFixture.Name, _gtpFixture.Id);
                 _gtpFixture.StopStreaming();
