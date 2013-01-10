@@ -55,7 +55,9 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
         {
             try
             {
-                return ReconnectOnException(x => x.GetSnapshot(), _theRealObject);
+                var snapshot = ReconnectOnException(x => x.GetSnapshot(), _theRealObject);
+                _logger.DebugFormat("Snapshot - {0}",snapshot);
+                return snapshot;
             }
             catch (Exception)
             {

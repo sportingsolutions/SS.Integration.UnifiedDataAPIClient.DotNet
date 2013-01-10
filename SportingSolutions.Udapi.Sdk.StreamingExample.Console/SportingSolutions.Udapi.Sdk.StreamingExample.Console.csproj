@@ -134,6 +134,7 @@
     <Compile Include="Model\Fixture.cs" />
     <Compile Include="Model\Market.cs" />
     <Compile Include="Model\MarketConverter.cs" />
+    <Compile Include="Model\Participant.cs" />
     <Compile Include="Model\Selection.cs" />
     <Compile Include="Model\SelectionConverter.cs" />
     <Compile Include="Model\SSEpochChangeReason.cs" />
