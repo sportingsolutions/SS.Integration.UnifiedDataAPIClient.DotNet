@@ -26,10 +26,6 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model
 
         public string Id { get; set; }
 
-        public string Name { get; set; }
-
-        public bool Tradable { get; set; }
-
         public Dictionary<string, object> Tags { get; set; }
 
         public List<Selection> Selections { get; set; }
