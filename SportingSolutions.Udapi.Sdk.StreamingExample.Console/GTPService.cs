@@ -16,6 +16,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -40,7 +41,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         {
             _settings = settings ?? Settings.Instance;
             _logger = LogManager.GetLogger(typeof(GTPService).ToString());
-            _sportsList = new List<string> {"Tennis"};
+            _sportsList = new List<string> {"AmericanFootball"};
             _listeners = new ConcurrentDictionary<string, StreamListener>();
             _activeFixtures = new ConcurrentDictionary<string, bool>();
         }
@@ -73,6 +74,8 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                     {
                         _logger.InfoFormat("Get the list of available fixtures for {0} from GTP", sport);
                         var fixtures = theFeature.GetResources();
+
+                        var fixturesDic = fixtures.ToDictionary(x => x.Id);
 
                         if (fixtures != null && fixtures.Count > 0)
                         {

@@ -12,16 +12,22 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-using System;
-using Newtonsoft.Json.Converters;
 
-namespace SportingSolutions.Udapi.Sdk.Example.Console.Model
+using System.Collections.Generic;
+
+namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model
 {
-    public class MarketConverter : CustomCreationConverter<Market>
+    public class Participant
     {
-        public override Market Create(Type objectType)
+        public Participant()
         {
-            return new Market();
+            Tags = new Dictionary<string, object>();
         }
+
+        public int Id { get; set; }
+
+        public string Name { get; set; }
+
+        public Dictionary<string, object> Tags { get; set; }
     }
 }
