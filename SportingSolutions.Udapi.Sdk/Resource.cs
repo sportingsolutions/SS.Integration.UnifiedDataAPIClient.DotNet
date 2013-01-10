@@ -113,7 +113,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             if (State != null)
             {
-                Task.Factory.StartNew(StreamData);
+                Task.Factory.StartNew(StreamData,TaskCreationOptions.LongRunning);
             }
         }
 
@@ -130,67 +130,66 @@ namespace SportingSolutions.Udapi.Sdk
                     return;
                 }
 
-                if (!_isProcessingStreamEvent)
+                if (_isProcessingStreamEvent) continue;
+                
+                try
                 {
-                    try
+                    if (State != null)
                     {
-                        if (State != null)
-                        {
-                            var theLink =
-                                State.Links.First(
-                                    restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
-                            var theUrl = theLink.Href;
+                        var theLink =
+                            State.Links.First(
+                                restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
+                        var theUrl = theLink.Href;
 
-                            var streamEcho = new StreamEcho
-                                {
-                                    Host = _virtualHost,
-                                    Queue = _queueName,
-                                    Message = echoGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                                };
+                        var streamEcho = new StreamEcho
+                            {
+                                Host = _virtualHost,
+                                Queue = _queueName,
+                                Message = echoGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                            };
 
-                            var stringStreamEcho = streamEcho.ToJson();
+                        var stringStreamEcho = streamEcho.ToJson();
 
-                            RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json",
-                                                   Headers, 3000);
-                        }
+                        RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json",
+                                               Headers, 3000);
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.Error("Unable to post echo", ex);
-                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error("Unable to post echo", ex);
+                }
 
-                    var echoArrived = _echoResetEvent.WaitOne(_echoMaxDelay);
-                    _echoResetEvent.Reset();
+                var echoArrived = _echoResetEvent.WaitOne(_echoMaxDelay);
+                _echoResetEvent.Reset();
 
-                    if (cancelToken.IsCancellationRequested)
-                    {
-                        return;
-                    }
+                if (cancelToken.IsCancellationRequested)
+                {
+                    return;
+                }
 
-                    //signal was recieved
-                    if (echoArrived)
+                //signal was recieved
+                if (echoArrived)
+                {
+                    if (echoGuid.Equals(_lastRecievedEchoGuid))
                     {
-                        if (echoGuid.Equals(_lastRecievedEchoGuid))
-                        {
-                            _logger.DebugFormat("Echo recieved for {0} - {1}", Id, Name);
-                        }
-                        else
-                        {
-                           _logger.Error("Recieved Echo Messages from differerent client");
-                        }
+                        _logger.DebugFormat("Echo recieved for fixture with id={0}-{1}", Id, Name);
                     }
                     else
                     {
-                        if (!_isProcessingStreamEvent)
-                        {
-                            _logger.DebugFormat("No echo recieved for {0} - {1}", Id, Name);
-                            LastStreamDisconnect = DateTime.UtcNow;
-                            //reached timeout, no echo has arrived
-                            _isReconnecting = true;
-                            Reconnect();
-                            _echoTimerEvent.Set();
-                            _isReconnecting = false;
-                        }
+                        _logger.Error("Recieved Echo Messages from differerent client");
+                    }
+                }
+                else
+                {
+                    if (!_isProcessingStreamEvent)
+                    {
+                        _logger.InfoFormat("No echo recieved for fixture with id={0}-{1}", Id, Name);
+                        LastStreamDisconnect = DateTime.UtcNow;
+                        //reached timeout, no echo has arrived
+                        _isReconnecting = true;
+                        Reconnect();
+                        _echoTimerEvent.Set();
+                        _isReconnecting = false;
                     }
                 }
             }
@@ -392,7 +391,7 @@ namespace SportingSolutions.Udapi.Sdk
                 _echoResetEvent.Set();
                 while (!_echoTask.IsCompleted)
                 {
-
+                    
                 }
                 _echoTask = null;
             }
