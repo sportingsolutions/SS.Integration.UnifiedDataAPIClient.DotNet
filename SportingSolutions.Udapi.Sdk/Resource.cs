@@ -242,7 +242,6 @@ namespace SportingSolutions.Udapi.Sdk
                             else
                             {
                                 _isProcessingStreamEvent = true;      
-                                _logger.DebugFormat("StreamUpdate - {0}",messageString);
                                 StreamEvent(this, new StreamEventArgs(messageString));
                                 _isProcessingStreamEvent = false;
                             }
