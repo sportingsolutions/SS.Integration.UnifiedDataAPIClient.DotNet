@@ -117,89 +117,11 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        private void SendEcho(CancellationToken cancelToken)
-        {
-            var echoGuid = Guid.NewGuid().ToString();
-
-            while(_isStreaming)
-            {
-                _echoTimerEvent.WaitOne(_echoSenderInterval);
-
-                if (cancelToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                if (_isProcessingStreamEvent) continue;
-                
-                try
-                {
-                    if (State != null)
-                    {
-                        var theLink =
-                            State.Links.First(
-                                restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
-                        var theUrl = theLink.Href;
-
-                        var streamEcho = new StreamEcho
-                            {
-                                Host = _virtualHost,
-                                Queue = _queueName,
-                                Message = echoGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                            };
-
-                        var stringStreamEcho = streamEcho.ToJson();
-
-                        RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json",
-                                               Headers, 3000);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(string.Format("Unable to post echo for fixtureName=\"{0}\" fixtureId={1}",Name, Id), ex);
-                }
-
-                var echoArrived = _echoResetEvent.WaitOne(_echoMaxDelay);
-                _echoResetEvent.Reset();
-
-                if (cancelToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                //signal was recieved
-                if (echoArrived)
-                {
-                    if (echoGuid.Equals(_lastRecievedEchoGuid))
-                    {
-                        _logger.DebugFormat("Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
-                    }
-                    else
-                    {
-                        _logger.Error("Recieved Echo Messages from differerent client");
-                    }
-                }
-                else
-                {
-                    if (!_isProcessingStreamEvent)
-                    {
-                        _logger.InfoFormat("No echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
-                        LastStreamDisconnect = DateTime.UtcNow;
-                        //reached timeout, no echo has arrived
-                        _isReconnecting = true;
-                        Reconnect();
-                        _echoTimerEvent.Set();
-                        _isReconnecting = false;
-                    }
-                }
-            }
-        }
-
         private void StreamData()
         {
             _connectionFactory = new ConnectionFactory();
 
-            _maxRetries = 10;
+            _maxRetries = 1;
             _disconnections = 0;
 
             _isStreaming = true;
@@ -362,10 +284,13 @@ namespace SportingSolutions.Udapi.Sdk
                         _logger.ErrorFormat("Failed to reconnect Stream for fixtureName=\"{0}\" fixtureId={1} ",Name, Id);
                         StopStreaming();
                     }
-                    // give time to load balancer to notice the node is down
-                    Thread.Sleep(500);
-                    _disconnections++;
-                    _logger.WarnFormat("Failed to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name,Id,_disconnections);   
+                    else
+                    {
+                        // give time for load balancer to notice the node is down
+                        Thread.Sleep(500);
+                        _disconnections++;
+                        _logger.WarnFormat("Failed to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id, _disconnections);      
+                    }
                 }
             }
         }
@@ -386,14 +311,104 @@ namespace SportingSolutions.Udapi.Sdk
             if (_echoTask != null)
             {
                 _echoTokenSource.Cancel();
-                _echoTimerEvent.Set();
-                _echoResetEvent.Set();
-                while (!_echoTask.IsCompleted)
-                {
-                    
-                }
-                _echoTask = null;
             }
+        }
+
+        private void SendEcho(CancellationToken cancelToken)
+        {
+            var echoGuid = Guid.NewGuid().ToString();
+
+            while (_isStreaming)
+            {
+                var indexofSignal = WaitHandle.WaitAny(new[] { _echoTimerEvent, cancelToken.WaitHandle }, _echoSenderInterval);
+                if (indexofSignal == 1)
+                {
+                    return;
+                }
+
+                if (cancelToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                if (_isProcessingStreamEvent) continue;
+
+                try
+                {
+                    if (State != null)
+                    {
+                        var theLink =
+                            State.Links.First(
+                                restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
+                        var theUrl = theLink.Href;
+
+                        var streamEcho = new StreamEcho
+                        {
+                            Host = _virtualHost,
+                            Queue = _queueName,
+                            Message = echoGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                        };
+
+                        var stringStreamEcho = streamEcho.ToJson();
+
+                        RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json",
+                                               Headers, 3000);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(string.Format("Unable to post echo for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
+                }
+
+                var waitHandleResult = WaitHandle.WaitAny(new[] { _echoResetEvent, cancelToken.WaitHandle }, _echoMaxDelay);
+                var echoArrived = false;
+                if (waitHandleResult == 0)
+                {
+                    echoArrived = true;
+                }
+                else if (waitHandleResult == 1)
+                {
+                    return;
+                }
+                _echoResetEvent.Reset();
+
+                if (cancelToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                //signal was recieved
+                if (echoArrived)
+                {
+                    if (echoGuid.Equals(_lastRecievedEchoGuid))
+                    {
+                        _logger.DebugFormat("Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
+                    }
+                    else
+                    {
+                        _logger.Error("Recieved Echo Messages from differerent client");
+                    }
+                }
+                else
+                {
+                    if (!_isProcessingStreamEvent)
+                    {
+                        _logger.InfoFormat("No echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
+                        LastStreamDisconnect = DateTime.UtcNow;
+                        //reached timeout, no echo has arrived
+                        _isReconnecting = true;
+                        Reconnect();
+
+                        _echoTimerEvent.Set();
+                        _isReconnecting = false;
+                        if (cancelToken.IsCancellationRequested)
+                        {
+                            return;
+                        }
+                    }
+                }
+            }
+            _logger.DebugFormat("Echo successfully cancelled for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
         }
 
         public void PauseStreaming()
