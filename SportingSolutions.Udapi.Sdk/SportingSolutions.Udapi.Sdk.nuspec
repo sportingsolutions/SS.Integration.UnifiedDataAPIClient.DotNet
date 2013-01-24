@@ -16,5 +16,6 @@
       <dependency id="Newtonsoft.Json" version="4.5.9" />
       <dependency id="RabbitMQ.Client" version="2.8.6" />
     </dependencies>
+	<tags>SportingSolutions GTP SportingIndex Sporting Solutions Index UnifiedDataAPI</tags>
   </metadata>
 </package>
