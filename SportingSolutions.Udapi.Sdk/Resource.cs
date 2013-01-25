@@ -121,7 +121,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _connectionFactory = new ConnectionFactory();
 
-            _maxRetries = 1;
+            _maxRetries = 10;
             _disconnections = 0;
 
             _isStreaming = true;
