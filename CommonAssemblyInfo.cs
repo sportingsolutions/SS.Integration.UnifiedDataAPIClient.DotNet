@@ -3,9 +3,9 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyProduct("Spin.TradingServices.C2E")]
-[assembly: AssemblyCompany("Sporting Index Ltd.")]
-[assembly: AssemblyCopyright("Copyright (c) Sporting Index Ltd. 2011")]
+[assembly: AssemblyProduct("SportingSolutions.GTP")]
+[assembly: AssemblyCompany("Sporting Solutions")]
+[assembly: AssemblyCopyright("Copyright (c) SPIN Services Ltd. 2013")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 [assembly: AssemblyVersion("7.5.12.21")]

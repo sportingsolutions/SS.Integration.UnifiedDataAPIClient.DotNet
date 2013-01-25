@@ -7,10 +7,10 @@
     <owners>$author$</owners>
     <licenseUrl>http://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
     <projectUrl>https://github.com/sportingsolutions/Unified_Data_API_Client_DotNet</projectUrl>
-	<iconUrl>https://dl.dropbox.com/u/30149716/SS/nugetPackageLogo.png</iconUrl>
-    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+	<iconUrl>https://github.com/sportingsolutions/Unified_Data_API_Client_DotNet/blob/master/SportingSolutions.Udapi.Sdk/packageIcon.png</iconUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
     <description>$description$</description>
-    <copyright>Copyright 2012 Sporting Solutions</copyright>
+    <copyright>Copyright (c) SPIN Services Ltd. 2013</copyright>
     <dependencies>
       <dependency id="log4net" version="[1.2.10]" />
       <dependency id="Newtonsoft.Json" version="4.5.9" />
