@@ -7,7 +7,7 @@
     <owners>$author$</owners>
     <licenseUrl>http://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
     <projectUrl>https://github.com/sportingsolutions/Unified_Data_API_Client_DotNet</projectUrl>
-	<iconUrl>https://github.com/sportingsolutions/Unified_Data_API_Client_DotNet/blob/master/SportingSolutions.Udapi.Sdk/packageIcon.png</iconUrl>
+	<iconUrl>https://raw.github.com/sportingsolutions/Unified_Data_API_Client_DotNet/master/SportingSolutions.Udapi.Sdk/packageIcon.png</iconUrl>
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
     <description>$description$</description>
     <copyright>Copyright (c) SPIN Services Ltd. 2013</copyright>
