@@ -39,14 +39,14 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _logger.InfoFormat("Get all available resources from {0}", Name);
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list");
-            return restItems.Select(restItem => new Resource(Headers, restItem)).Cast<IResource>().ToList();
+            return restItems.Select(restItem => new ResourceSingleQueue(Headers, restItem)).Cast<IResource>().ToList();
         }
 
         public IResource GetResource(string name)
         {
             _logger.InfoFormat("Get {0} from {1}", name, Name);
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list");
-            return (from restItem in restItems where restItem.Name == name select new Resource(Headers, restItem)).FirstOrDefault();
+            return (from restItem in restItems where restItem.Name == name select new ResourceSingleQueue(Headers, restItem)).FirstOrDefault();
         }
     }
 }
