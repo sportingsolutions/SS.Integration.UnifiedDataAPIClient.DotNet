@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.Linq;
+using System.Reactive;
+using System.Reactive.Concurrency;
+using System.Reactive.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +14,9 @@ using System.Web.UI.WebControls;
 using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
+using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
@@ -64,52 +69,79 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming()
         {
-            lock (_streamingLock)
-            {
-                if (_streamingTask == null)
-                    _streamingTask = Task.Factory.StartNew(StreamData, TaskCreationOptions.LongRunning);
-            }
+            _streamObserver = Observer.Create<string>(x =>
+                {
+                    if (StreamEvent != null)
+                    {
+                        StreamEvent(this, new StreamEventArgs(x));
+                    }
+
+                    _logger.DebugFormat("Stream update arrived to a resource with Id={0}!", this.Id);
+                });
+
+            StreamSubscriber.StartStream(Id, GetQueueDetails(), _streamObserver);
+            EchoSender.StartEcho(PostEcho, GetQueueDetails());
+        }
+
+        private void PostEcho(StreamEcho x)
+        {
+            var theLink =
+                State.Links.First(
+                    restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
+            var theUrl = theLink.Href;
+
+            var stringStreamEcho = x.ToJson();
+
+            RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json",
+                                   Headers, 3000);
+        }
+
+        public IObservable<string> GetStreamData()
+        {
+            return null;
         }
 
         private void StreamData()
         {
             Reconnect();
 
+
+
             while (true)
             {
                 try
                 {
                     var output = _consumer.Queue.Dequeue();
-                    if (output != null)
+                    if (output == null) continue;
+
+                    var deliveryArgs = (BasicDeliverEventArgs)output;
+                    var message = deliveryArgs.Body;
+                    if (StreamEvent == null) continue;
+
+                    LastMessageReceived = DateTime.UtcNow;
+
+                    var messageString = Encoding.UTF8.GetString(message);
+                    var jobject = JObject.Parse(messageString);
+                    if (jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
                     {
-                        var deliveryArgs = (BasicDeliverEventArgs)output;
-                        var message = deliveryArgs.Body;
-                        if (StreamEvent != null)
-                        {
-                            LastMessageReceived = DateTime.UtcNow;
+                        var split = jobject["Content"].Value<String>().Split(';');
+                        //_lastRecievedEchoGuid = split[0];
+                        var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ",
+                                                           CultureInfo.InvariantCulture);
+                        var roundTripTime = DateTime.Now - timeSent;
 
-                            var messageString = Encoding.UTF8.GetString(message);
-                            var jobject = JObject.Parse(messageString);
-                            if (jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
-                            {
-                                var split = jobject["Content"].Value<String>().Split(';');
-                                //_lastRecievedEchoGuid = split[0];
-                                var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
-                                var roundTripTime = DateTime.Now - timeSent;
+                        var roundMillis = roundTripTime.TotalMilliseconds;
 
-                                var roundMillis = roundTripTime.TotalMilliseconds;
-
-                                EchoRoundTripInMilliseconds = roundMillis;
-                                //_echoResetEvent.Set();
-                            }
-                            else
-                            {
-                                //_isProcessingStreamEvent = true;      
-                                StreamEvent(this, new StreamEventArgs(messageString));
-                                //_isProcessingStreamEvent = false;
-                            }
-                        }
+                        EchoRoundTripInMilliseconds = roundMillis;
+                        //_echoResetEvent.Set();
                     }
+                    else
+                    {
+                        //_isProcessingStreamEvent = true;      
+                        StreamEvent(this, new StreamEventArgs(messageString));
+                        //_isProcessingStreamEvent = false;
+                    }
+
                     _disconnections = 0;
                 }
                 catch (Exception ex)
@@ -149,6 +181,53 @@ namespace SportingSolutions.Udapi.Sdk
 
         private static object _streamingLock = new object();
         private Task _streamingTask;
+        private IObserver<string> _streamObserver;
+
+        private QueueDetails GetQueueDetails()
+        {
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp");
+            var amqpLink =
+                restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
+
+            var amqpUri = new Uri(amqpLink.Href);
+
+            var queueDetails = new QueueDetails() { Host = amqpUri.Host };
+
+            var userInfo = amqpUri.UserInfo;
+            userInfo = HttpUtility.UrlDecode(userInfo);
+            if (!String.IsNullOrEmpty(userInfo))
+            {
+                var userPass = userInfo.Split(':');
+                if (userPass.Length > 2)
+                {
+                    throw new ArgumentException(string.Format("Bad user info in AMQP URI: {0}", userInfo));
+                }
+                queueDetails.UserName = userPass[0];
+                if (userPass.Length == 2)
+                {
+                    queueDetails.Password = userPass[1];
+                }
+            }
+
+            var path = amqpUri.AbsolutePath;
+            if (!String.IsNullOrEmpty(path))
+            {
+                queueDetails.Name = path.Substring(path.IndexOf('/', 1) + 1);
+                var virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
+
+                queueDetails.VirtualHost = "/" + virtualHost;
+            }
+
+            var port = amqpUri.Port;
+            if (port != -1)
+            {
+                queueDetails.Port = port;
+            }
+
+            return queueDetails;
+        }
+
+
 
         private void Reconnect()
         {
@@ -171,7 +250,7 @@ namespace SportingSolutions.Udapi.Sdk
                         _connectionFactory = _connectionFactory ?? new ConnectionFactory();
                         _connectionFactory.RequestedHeartbeat = 5;
                     }
-                    
+
 
                     var host = amqpUri.Host;
                     if (!String.IsNullOrEmpty(host))
