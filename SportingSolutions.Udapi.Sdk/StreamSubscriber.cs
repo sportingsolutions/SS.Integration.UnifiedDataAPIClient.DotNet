@@ -57,7 +57,13 @@ namespace SportingSolutions.Udapi.Sdk
         public static void StartStream(string fixtureId,QueueDetails queue, IObserver<string> subscriber)
         {
             SetupStream(fixtureId, queue);
-            _updateStream.Where(x => x.Id == fixtureId).Select(x=> x.Message).Subscribe(subscriber);
+            _updateStream.Where(x => x.Id == fixtureId && !x.IsEcho).Select(x=> x.Message).Subscribe(subscriber);
+            (_updateStream as IConnectableObservable<IFixtureUpdate>).Connect();
+        }
+
+        public static void SubscribeToEchoStream(IObserver<string> subscriber)
+        {
+            _updateStream.Where(x=> x.IsEcho).Select(x=> x.Message).SubscribeOn(Scheduler.Default).Subscribe(subscriber);
             (_updateStream as IConnectableObservable<IFixtureUpdate>).Connect();
         }
 
@@ -81,42 +87,30 @@ namespace SportingSolutions.Udapi.Sdk
 
             //LastMessageReceived = DateTime.UtcNow;
 
-            var fixtureStreamUpdate = new FixtureStreamUpdate() { Id = _mappingQueueToFixture.Where(x=> x.Value == deliveryArgs.RoutingKey.Split('.')[2]).First().Value };
+
+
+            var fixtureStreamUpdate = new FixtureStreamUpdate() { };
 
             var messageString = Encoding.UTF8.GetString(message);
 
-            _logger.DebugFormat("Update arrived for fixtureId={0}",fixtureStreamUpdate.Id);
+            
 
             var jobject = JObject.Parse(messageString);
             if (jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
             {
-                var split = jobject["Content"].Value<String>().Split(';');
-                //_lastRecievedEchoGuid = split[0];
-                var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ",
-                                                   CultureInfo.InvariantCulture);
-                var roundTripTime = DateTime.Now - timeSent;
-
-                var roundMillis = roundTripTime.TotalMilliseconds;
-
-                //EchoRoundTripInMilliseconds = roundMillis;
-
+                fixtureStreamUpdate.Id = _mappingQueueToFixture[deliveryArgs.RoutingKey];
+                fixtureStreamUpdate.Message = jobject["Content"].Value<String>();
                 fixtureStreamUpdate.IsEcho = true;
-
-                //_echoResetEvent.Set();
             }
             else
             {
                 fixtureStreamUpdate.Message = messageString;
+                fixtureStreamUpdate.Id = deliveryArgs.RoutingKey.Split('.')[2];
             }
 
+            _logger.DebugFormat("Update arrived for fixtureId={0}", fixtureStreamUpdate.Id);
             return fixtureStreamUpdate;
         }
-
-        //protected double EchoRoundTripInMilliseconds
-        //{
-        //    get { throw new NotImplementedException(); }
-        //    set { throw new NotImplementedException(); }
-        //}
 
         private static void UpdateMapping(string fixtureId, QueueDetails queue)
         {

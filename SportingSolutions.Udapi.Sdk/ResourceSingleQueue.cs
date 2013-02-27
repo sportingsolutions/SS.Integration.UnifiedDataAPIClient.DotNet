@@ -79,8 +79,9 @@ namespace SportingSolutions.Udapi.Sdk
                     _logger.DebugFormat("Stream update arrived to a resource with Id={0}!", this.Id);
                 });
 
-            StreamSubscriber.StartStream(Id, GetQueueDetails(), _streamObserver);
-            EchoSender.StartEcho(PostEcho, GetQueueDetails());
+            var queueDetails = GetQueueDetails();
+            StreamSubscriber.StartStream(Id,queueDetails, _streamObserver);
+            EchoSender.StartEcho(PostEcho, queueDetails);
         }
 
         private void PostEcho(StreamEcho x)
