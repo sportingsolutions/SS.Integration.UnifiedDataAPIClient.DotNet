@@ -42,14 +42,11 @@ namespace SportingSolutions.Udapi.Sdk
         {
             lock (_initSync)
             {
-                SetupNewBinding(queue);
-                UpdateMapping(fixtureId, queue);
+                UpdateMapping(fixtureId, SetupNewBinding(queue));
 
                 if (_updateStream == null)
                     StartStreaming();
 
-                //return _updateStream.Where(x => x.Id == fixtureId).Select(x => x.Message);
-                
                 return _updateStream;
             }
         }
@@ -59,6 +56,11 @@ namespace SportingSolutions.Udapi.Sdk
             SetupStream(fixtureId, queue);
             _updateStream.Where(x => x.Id == fixtureId && !x.IsEcho).Select(x=> x.Message).Subscribe(subscriber);
             (_updateStream as IConnectableObservable<IFixtureUpdate>).Connect();
+        }
+
+        public static void StopStream(string fixtureId)
+        {
+            
         }
 
         public static void SubscribeToEchoStream(IObserver<string> subscriber)
@@ -82,50 +84,43 @@ namespace SportingSolutions.Udapi.Sdk
             if (output == null) return null;
 
             var deliveryArgs = (BasicDeliverEventArgs)output;
-            var headers = deliveryArgs.BasicProperties.Headers;
             var message = deliveryArgs.Body;
+            var fixtureStreamUpdate = new FixtureStreamUpdate() {Id = _mappingQueueToFixture[deliveryArgs.ConsumerTag]};
 
-            //LastMessageReceived = DateTime.UtcNow;
-
-
-
-            var fixtureStreamUpdate = new FixtureStreamUpdate() { };
+            _logger.DebugFormat("Update arrived for fixtureId={0}", fixtureStreamUpdate.Id);
 
             var messageString = Encoding.UTF8.GetString(message);
-
-            
 
             var jobject = JObject.Parse(messageString);
             if (jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
             {
-                fixtureStreamUpdate.Id = _mappingQueueToFixture[deliveryArgs.RoutingKey];
                 fixtureStreamUpdate.Message = jobject["Content"].Value<String>();
                 fixtureStreamUpdate.IsEcho = true;
             }
             else
             {
                 fixtureStreamUpdate.Message = messageString;
-                fixtureStreamUpdate.Id = deliveryArgs.RoutingKey.Split('.')[2];
             }
 
             _logger.DebugFormat("Update arrived for fixtureId={0}", fixtureStreamUpdate.Id);
             return fixtureStreamUpdate;
         }
 
-        private static void UpdateMapping(string fixtureId, QueueDetails queue)
+        private static void UpdateMapping(string fixtureId, string consumerTag)
         {
-            _logger.DebugFormat("Mapping fixtureId={0} to queue={1}",fixtureId,queue.Name);
-            _mappingQueueToFixture[queue.Name] = fixtureId;
+            _logger.DebugFormat("Mapping fixtureId={0} to consumerTag={1}",fixtureId,consumerTag);
+            _mappingQueueToFixture[consumerTag] = fixtureId;
         }
 
-        private static void SetupNewBinding(QueueDetails queue)
+        private static string SetupNewBinding(QueueDetails queue)
         {
             lock (_initSync)
             {
                 if (_connection == null || _consumer == null)
                     InitializeConnection(queue);
             }
-            _channel.BasicConsume(queue.Name, true, _consumer);
+
+            return _channel.BasicConsume(queue.Name, true, _consumer);
         }
 
         //TODO: Reconnections
