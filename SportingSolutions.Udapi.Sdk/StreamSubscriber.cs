@@ -101,8 +101,7 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 fixtureStreamUpdate.Message = messageString;
             }
-
-            _logger.DebugFormat("Update arrived for fixtureId={0}", fixtureStreamUpdate.Id);
+            
             return fixtureStreamUpdate;
         }
 
