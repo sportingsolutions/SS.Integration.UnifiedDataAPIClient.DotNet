@@ -71,12 +71,11 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _streamObserver = Observer.Create<string>(x =>
                 {
+                    _logger.DebugFormat("Stream update arrived to a resource with Id={0}!", this.Id);
                     if (StreamEvent != null)
                     {
                         StreamEvent(this, new StreamEventArgs(x));
                     }
-
-                    _logger.DebugFormat("Stream update arrived to a resource with Id={0}!", this.Id);
                 });
 
             var queueDetails = GetQueueDetails();

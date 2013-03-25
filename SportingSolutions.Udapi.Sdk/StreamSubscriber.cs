@@ -54,7 +54,7 @@ namespace SportingSolutions.Udapi.Sdk
         public static void StartStream(string fixtureId,QueueDetails queue, IObserver<string> subscriber)
         {
             SetupStream(fixtureId, queue);
-            _updateStream.Where(x => x.Id == fixtureId && !x.IsEcho).Select(x=> x.Message).Subscribe(subscriber);
+            _updateStream.Where(x => x.Id == fixtureId && !x.IsEcho).Select(x => x.Message).ObserveOn(Scheduler.Default).Subscribe(subscriber);
             (_updateStream as IConnectableObservable<IFixtureUpdate>).Connect();
         }
 
@@ -65,7 +65,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public static void SubscribeToEchoStream(IObserver<string> subscriber)
         {
-            _updateStream.Where(x=> x.IsEcho).Select(x=> x.Message).SubscribeOn(Scheduler.Default).Subscribe(subscriber);
+            _updateStream.Where(x => x.IsEcho).Select(x => x.Message).ObserveOn(Scheduler.Default).Subscribe(subscriber);
             (_updateStream as IConnectableObservable<IFixtureUpdate>).Connect();
         }
 
@@ -87,18 +87,20 @@ namespace SportingSolutions.Udapi.Sdk
             var message = deliveryArgs.Body;
             var fixtureStreamUpdate = new FixtureStreamUpdate() {Id = _mappingQueueToFixture[deliveryArgs.ConsumerTag]};
 
-            _logger.DebugFormat("Update arrived for fixtureId={0}", fixtureStreamUpdate.Id);
+            
 
             var messageString = Encoding.UTF8.GetString(message);
 
             var jobject = JObject.Parse(messageString);
             if (jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
             {
+             //   _logger.DebugFormat("Echo arrived for fixtureId={0}", fixtureStreamUpdate.Id);
                 fixtureStreamUpdate.Message = jobject["Content"].Value<String>();
                 fixtureStreamUpdate.IsEcho = true;
             }
             else
             {
+                _logger.DebugFormat("Update arrived for fixtureId={0}", fixtureStreamUpdate.Id);
                 fixtureStreamUpdate.Message = messageString;
             }
             
