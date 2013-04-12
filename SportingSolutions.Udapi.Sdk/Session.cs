@@ -72,26 +72,15 @@ namespace SportingSolutions.Udapi.Sdk
         private void GetRoot(Uri serverUri, ICredentials credentials, bool authenticate = true)
         {
             _logger.DebugFormat("Connecting to {0}",serverUri);
-            HttpWebResponse response;
-            try
-            {
-                response = RestHelper.GetResponseEx(serverUri, null, "GET", "application/json", Headers, 60000);
-            }
-            catch (WebException ex)
-            {
-                if(ex.Status == WebExceptionStatus.NameResolutionFailure)
-                {
-                    throw new Exception("The url cannot be resolved");
-                }
-                response = ex.Response as HttpWebResponse;
-            }
 
-            if (authenticate)
+            var response = RestHelper.GetResponse(serverUri, null, "GET", "application/json", Headers, 60000);
+
+            if (response != null)
             {
-                if (response != null && response.StatusCode == HttpStatusCode.Unauthorized)
+                if (authenticate && response.StatusCode == HttpStatusCode.Unauthorized)
                 {
                     _logger.Debug("Not authenticated logging on");
-                    var items = RestHelper.GetResponse(response).FromJson<List<RestItem>>();
+                    var items = response.Content.FromJson<List<RestItem>>();
 
                     var loginLink = items.SelectMany(restItem => restItem.Links).First(
                         restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/login");
@@ -100,16 +89,14 @@ namespace SportingSolutions.Udapi.Sdk
                     _restItems = Login(new Uri(loginUrl), credentials);
                     _logger.Info("Logged in successfully");
                 }
-            }
-            else
-            {
-                if (response != null)
+                else
                 {
                     _logger.Info("Refreshing list of available services..");
-                    _restItems = RestHelper.GetResponse(response).FromJson<List<RestItem>>();
+                    _restItems = response.Content.FromJson<List<RestItem>>();
                 }
             }
-            if(_restItems == null)
+
+            if (_restItems == null)
             {
                 throw new Exception("Unable to connect. Please check the url and credentials");
             }
@@ -120,9 +107,9 @@ namespace SportingSolutions.Udapi.Sdk
             var headers = new NameValueCollection
                               {{"X-Auth-User", credentials.UserName}, {"X-Auth-Key", credentials.Password}};
 
-            var response = RestHelper.GetResponseEx(serverUri, null, "POST", "application/json", headers);
+            var response = RestHelper.GetResponse(serverUri, null, "POST", "application/json", headers);
             Headers.Add("X-Auth-Token",response.Headers.Get("X-Auth-Token"));
-            return RestHelper.GetResponse(response).FromJson<List<RestItem>>();
+            return response.Content.FromJson<List<RestItem>>();
         }
     }
 }
