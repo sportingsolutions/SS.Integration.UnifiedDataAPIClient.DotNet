@@ -130,7 +130,8 @@ namespace SportingSolutions.Udapi.Sdk
             
             _logger.InfoFormat("Initialised connection to Streaming Queue for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
-            
+            LastMessageReceived = DateTime.UtcNow;
+
             _consumer.QueueCancelled += Dispose;
 
             while (_isStreaming)
@@ -297,11 +298,12 @@ namespace SportingSolutions.Udapi.Sdk
 
         private void StartEcho()
         {
-            if (_echoTask == null)
+            if (_echoTask == null || _echoTask.IsCanceled || _echoTask.IsCompleted)
             {
                 _echoTokenSource = new CancellationTokenSource();
                 var cancelToken = _echoTokenSource.Token;
                 _echoResetEvent.Reset();
+                _logger.InfoFormat("Starting echo for fixtureName=\"{0}\" fixtureId={1}",Name, Id);
                 _echoTask = Task.Factory.StartNew(() => SendEcho(cancelToken), cancelToken);
             }
         }

@@ -17,10 +17,11 @@ using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
+using System.Linq;
 
 namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
 {
-    internal class UdapiResource : BaseSS<IResource>, IResource
+    internal class UdapiResource : BaseSS<IResource>, IResource, IStreamStatistics
     {
         private readonly String _featureName;
         private readonly String _resourceName;
@@ -70,10 +71,6 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
         {
             try
             {
-                _theRealObject.StreamConnected += StreamConnected;
-                _theRealObject.StreamDisconnected += StreamDisconnected;
-                _theRealObject.StreamEvent += StreamEvent;
-                _theRealObject.StreamSynchronizationError += StreamSynchronizationError;
                 ReconnectOnException(x => x.StartStreaming(), _theRealObject);
             }
             catch (Exception)
@@ -87,10 +84,6 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
         {
             try
             {
-                _theRealObject.StreamConnected += StreamConnected;
-                _theRealObject.StreamDisconnected += StreamDisconnected;
-                _theRealObject.StreamEvent += StreamEvent;
-                _theRealObject.StreamSynchronizationError += StreamSynchronizationError;
                 ReconnectOnException(x => x.StartStreaming(echoInterval, echoMaxDelay), _theRealObject);
             }
             catch (Exception)
@@ -114,10 +107,6 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
         {
             try
             {
-                _theRealObject.StreamConnected -= StreamConnected;
-                _theRealObject.StreamDisconnected -= StreamDisconnected;
-                _theRealObject.StreamEvent -= StreamEvent;
-                _theRealObject.StreamSynchronizationError -= StreamSynchronizationError;
                 ReconnectOnException(x => x.StopStreaming(), _theRealObject);
             }
             catch (Exception)
@@ -142,9 +131,80 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             get { return ReconnectOnException(x => x.Content, _theRealObject); }
         }
 
-        public event EventHandler StreamConnected;
-        public event EventHandler StreamDisconnected;
-        public event EventHandler<StreamEventArgs> StreamEvent;
+        public DateTime LastMessageReceived
+        {
+            get { return ((IStreamStatistics)_theRealObject).LastMessageReceived; }
+        }
+
+        public DateTime LastStreamDisconnect
+        {
+            get { return ((IStreamStatistics)_theRealObject).LastStreamDisconnect; }
+        }
+
+        public bool IsStreamActive
+        {
+            get { return ((IStreamStatistics)_theRealObject).IsStreamActive; }
+        }
+
+        public double EchoRoundTripInMilliseconds
+        {
+            get { return ((IStreamStatistics)_theRealObject).EchoRoundTripInMilliseconds; }
+        }
+
+        public event EventHandler StreamConnected
+        {
+            add
+            {
+                if(_theRealObject != null)
+                {
+                    _theRealObject.StreamConnected += value;
+                }
+            }
+            remove
+            {
+                if(_theRealObject != null)
+                {
+                    _theRealObject.StreamConnected -= value;
+                }
+            }
+        }
+
+        public event EventHandler StreamDisconnected
+        {
+            add
+            {
+                if(_theRealObject != null)
+                {
+                    _theRealObject.StreamDisconnected += value;
+                }
+            }
+            remove
+            {
+                if(_theRealObject != null)
+                {
+                    _theRealObject.StreamDisconnected -= value;
+                }
+            }
+        }
+
+        public event EventHandler<StreamEventArgs> StreamEvent
+        {
+            add
+            {
+                if (_theRealObject != null)
+                {
+                    _theRealObject.StreamEvent += value;
+                }
+            }
+            remove
+            {
+                if (_theRealObject != null)
+                {
+                    _theRealObject.StreamEvent -= value;
+                }
+            }
+        }
+
         public event EventHandler StreamSynchronizationError;
     }
 }
