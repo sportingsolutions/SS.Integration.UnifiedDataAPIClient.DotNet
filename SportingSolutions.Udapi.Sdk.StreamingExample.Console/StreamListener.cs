@@ -39,6 +39,11 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 
         public bool FixtureEnded { get; private set; }
 
+        public IStreamStatistics StreamStatistics
+        {
+            get { return (IStreamStatistics)_gtpFixture; }
+        }
+
         public StreamListener(IResource gtpFixture, int currentEpoch, string sport)
         {
             _logger = LogManager.GetLogger(typeof(StreamListener).ToString());
@@ -57,6 +62,9 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         {
             if (_gtpFixture != null)
             {
+                _gtpFixture.StreamConnected -= GtpFixtureStreamConnected;
+                _gtpFixture.StreamDisconnected -= GtpFixtureStreamDisconnected;
+                _gtpFixture.StreamEvent -= GtpFixtureStreamEvent;
                 _gtpFixture.StopStreaming();
             }
         }
@@ -105,7 +113,6 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             try
             {
                 var resource = sender as IResource;
-
                 //Notice the two-step deserialization
                 var streamMessage = (StreamMessage)JsonConvert.DeserializeObject(e.Update, typeof(StreamMessage),
                                                        new JsonSerializerSettings
@@ -176,7 +183,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                 _logger.InfoFormat("Get UDAPI Snapshot for {0}", _gtpFixture.Name);
                 var snapshotString = _gtpFixture.GetSnapshot();
                 _logger.InfoFormat("Successfully retrieved UDAPI Snapshot for {0}", _gtpFixture.Name);
-
+                
                 fixtureSnapshot =
                     (Fixture)
                     JsonConvert.DeserializeObject(snapshotString, typeof(Fixture),
