@@ -13,6 +13,9 @@
 //limitations under the License.
 
 using System;
+using System.Reactive;
+using System.Reactive.Linq;
+using System.Threading.Tasks;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
@@ -26,6 +29,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
         private readonly String _resourceName;
 
         private readonly ILog _simpleLogger;
+        private IObserver<string> _observer;
 
         internal UdapiResource(String featureName, String resourceName, IResource theResource)
         {
@@ -74,7 +78,15 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
                 _theRealObject.StreamDisconnected += StreamDisconnected;
                 _theRealObject.StreamEvent += StreamEvent;
                 _theRealObject.StreamSynchronizationError += StreamSynchronizationError;
+                
                 ReconnectOnException(x => x.StartStreaming(), _theRealObject);
+                //_observer = Observer.Create<string>(x =>
+                //    {
+                //        if (StreamEvent != null)
+                //            StreamEvent(null, new StreamEventArgs(x));
+                //    });
+                    
+                //_theRealObject.GetStreamData().Subscribe(_observer);
             }
             catch (Exception)
             {
@@ -87,11 +99,12 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
         {
             try
             {
-                _theRealObject.StreamConnected += StreamConnected;
-                _theRealObject.StreamDisconnected += StreamDisconnected;
-                _theRealObject.StreamEvent += StreamEvent;
-                _theRealObject.StreamSynchronizationError += StreamSynchronizationError;
-                ReconnectOnException(x => x.StartStreaming(echoInterval, echoMaxDelay), _theRealObject);
+                StartStreaming();
+                //_theRealObject.StreamConnected += StreamConnected;
+                //_theRealObject.StreamDisconnected += StreamDisconnected;
+                //_theRealObject.StreamEvent += StreamEvent;
+                //_theRealObject.StreamSynchronizationError += StreamSynchronizationError;
+                //ReconnectOnException(x => x.StartStreaming(echoInterval, echoMaxDelay), _theRealObject);
             }
             catch (Exception)
             {
@@ -125,6 +138,11 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
                 _simpleLogger.ErrorFormat("{0} : {1} - Unable to stop streaming from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName, _resourceName);
                 throw;
             }
+        }
+
+        public IObservable<string> GetStreamData()
+        {
+            throw new NotImplementedException();
         }
 
         public string Id

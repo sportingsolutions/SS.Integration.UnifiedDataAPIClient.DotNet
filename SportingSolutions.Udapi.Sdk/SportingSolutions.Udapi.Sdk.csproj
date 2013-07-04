@@ -80,6 +80,18 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Reactive.Core">
+      <HintPath>..\packages\Rx-Core.2.1.30214.0\lib\Net40\System.Reactive.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Reactive.Interfaces">
+      <HintPath>..\packages\Rx-Interfaces.2.1.30214.0\lib\Net40\System.Reactive.Interfaces.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Reactive.Linq">
+      <HintPath>..\packages\Rx-Linq.2.1.30214.0\lib\Net40\System.Reactive.Linq.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Reactive.PlatformServices">
+      <HintPath>..\packages\Rx-PlatformServices.2.1.30214.0\lib\Net40\System.Reactive.PlatformServices.dll</HintPath>
+    </Reference>
     <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -93,28 +105,34 @@
     </Compile>
     <Compile Include="Clients\RestHelper.cs" />
     <Compile Include="Credentials.cs" />
+    <Compile Include="EchoSender.cs" />
     <Compile Include="Endpoint.cs" />
     <Compile Include="Events\StreamEventArgs.cs" />
     <Compile Include="Exceptions\NotAuthenticatedException.cs" />
     <Compile Include="Extensions\JsonHelper.cs" />
     <Compile Include="Feature.cs" />
+    <Compile Include="Interfaces\IFixtureUpdate.cs" />
     <Compile Include="Interfaces\ICredentials.cs" />
     <Compile Include="Interfaces\IFeature.cs" />
     <Compile Include="Interfaces\IResource.cs" />
     <Compile Include="Interfaces\IService.cs" />
     <Compile Include="Interfaces\ISession.cs" />
     <Compile Include="Interfaces\IStreamStatistics.cs" />
+    <Compile Include="Model\FixtureStreamUpdate.cs" />
     <Compile Include="Model\RestItem.cs" />
     <Compile Include="Model\RestLink.cs" />
     <Compile Include="Model\StreamEcho.cs" />
     <Compile Include="Model\Tag.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="QueueDetails.cs" />
     <Compile Include="QueueingCustomConsumer.cs" />
     <Compile Include="Resource.cs" />
+    <Compile Include="ResourceSingleQueue.cs" />
     <Compile Include="Service.cs" />
     <Compile Include="Session.cs" />
     <Compile Include="SessionFactory.cs" />
     <Compile Include="Model\Summary.cs" />
+    <Compile Include="StreamSubscriber.cs" />
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />
