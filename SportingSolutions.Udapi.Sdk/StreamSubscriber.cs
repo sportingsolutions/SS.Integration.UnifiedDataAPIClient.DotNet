@@ -325,7 +325,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             StopEchos();
 
-            Thread.Sleep(1000);
+            Thread.Sleep(5000);
 
             Reconnect();
         }
@@ -343,6 +343,21 @@ namespace SportingSolutions.Udapi.Sdk
             Thread.Sleep(1000);
 
             Reconnect(resource);
+
+            // Ensure we don't miss any update by comparing sequence numbers
+            Task.Factory.StartNew(
+                () =>
+                    {
+                        var snapshot = resource.GetSnapshot();
+
+                        var jobject = JObject.Parse(snapshot);
+                        var snapshotSequence = jobject["Sequence"].Value<int>();
+
+                        if (snapshotSequence > resource.LastSequence)
+                        {
+                            resource.PushValueToObserver(snapshot);
+                        }
+                    });
         }
 
         /// <summary>

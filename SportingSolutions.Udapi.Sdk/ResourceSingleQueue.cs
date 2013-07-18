@@ -28,9 +28,9 @@ namespace SportingSolutions.Udapi.Sdk
     {
         private ILog _logger = LogManager.GetLogger(typeof(ResourceSingleQueue));
 
-        private IObserver<string> _streamObserver;
-
         private bool _isStreamStopped;
+
+        private IObserver<string> _observer;
 
         internal ResourceSingleQueue(NameValueCollection headers, RestItem restItem) : base(headers, restItem) { }
 
@@ -39,20 +39,13 @@ namespace SportingSolutions.Udapi.Sdk
         public event EventHandler<StreamEventArgs> StreamEvent;
         public event EventHandler StreamSynchronizationError;
 
-        public string Id
-        {
-            get { return State.Content.Id; }
-        }
-
-        public string Name
-        {
-            get { return State.Name; }
-        }
-
+        public string Id { get { return State.Content.Id; } }
+        public string Name { get { return State.Name; } }
+        public int LastSequence { get; set; }
         public DateTime LastMessageReceived { get; private set; }
         public DateTime LastStreamDisconnect { get; private set; }
-        public bool IsStreamActive { get; private set; }
         public double EchoRoundTripInMilliseconds { get; private set; }
+        public bool IsStreamActive { get; set; }
 
         public Summary Content
         {
@@ -68,20 +61,54 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming()
         {
-            _streamObserver = Observer.Create<string>(x =>
+            IsStreamActive = true;
+
+            _observer = Observer.Create<string>(update =>
                 {
                     _logger.DebugFormat("Stream update arrived to a resource with fixtureId={0}!", this.Id);
 
-                    if (StreamEvent != null)
+                    LastMessageReceived = DateTime.Now;
+
+                    var updateSequence = GetSequenceFromStreamUpdate(update);
+
+                    if (updateSequence > LastSequence)
                     {
-                        StreamEvent(this, new StreamEventArgs(x));
+                        LastSequence = updateSequence; 
                     }
+
+                    Task.Factory.StartNew(
+                        () =>
+                            {
+                                if (StreamEvent != null)
+                                {
+                                    StreamEvent(this, new StreamEventArgs(update));
+                                }
+                            });
                 });
 
-            StreamSubscriber.StartStream(this, _streamObserver);
+            StreamSubscriber.StartStream(this, _observer);
 
             EchoSender.StartEcho(PostEcho, GetQueueDetails());
             StartEcho();
+        }
+
+        private static int GetSequenceFromStreamUpdate(string update)
+        {
+            var jobject = JObject.Parse(update);
+
+            int updateSequence;
+
+            try
+            {
+                updateSequence = jobject["Content"]["Sequence"].Value<int>();
+            }
+            catch (Exception)
+            {
+                // If coming from snapshot the Json's structure is different
+                updateSequence = jobject["Sequence"].Value<int>();
+            }
+
+            return updateSequence;
         }
 
         internal void StartEcho()
@@ -107,6 +134,14 @@ namespace SportingSolutions.Udapi.Sdk
             RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json", Headers, 3000);
         }
 
+        internal void PushValueToObserver(string value)
+        {
+            if (_observer != null && !string.IsNullOrWhiteSpace(value))
+            {
+                _observer.OnNext(value);
+            }
+        }
+
         internal void FireStreamConnected()
         {
             if (StreamConnected != null)
@@ -117,6 +152,8 @@ namespace SportingSolutions.Udapi.Sdk
 
         internal void FireStreamDisconnected()
         {
+            LastStreamDisconnect = DateTime.Now;
+
             if (StreamDisconnected != null)
             {
                 StreamDisconnected(this, EventArgs.Empty);
