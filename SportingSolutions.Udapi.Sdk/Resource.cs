@@ -52,7 +52,7 @@ namespace SportingSolutions.Udapi.Sdk
         
         private string _lastRecievedEchoGuid;
 
-        private int _disconnections;
+        private int _reconnectionsSinceLastMessage;
         private int _maxRetries;
         private ConnectionFactory _connectionFactory;
         
@@ -122,8 +122,6 @@ namespace SportingSolutions.Udapi.Sdk
             _connectionFactory = new ConnectionFactory();
 
             _maxRetries = 10;
-            _disconnections = 0;
-
             _isStreaming = true;
 
             Reconnect();
@@ -152,6 +150,8 @@ namespace SportingSolutions.Udapi.Sdk
                             var jobject = JObject.Parse(messageString);
                             if(jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
                             {
+                                _logger.Info("Echo Arrived");
+
                                 var split = jobject["Content"].Value<String>().Split(';');
                                 _lastRecievedEchoGuid = split[0];
                                 var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
@@ -170,7 +170,7 @@ namespace SportingSolutions.Udapi.Sdk
                             }
                         }
                     }
-                    _disconnections = 0;
+                    _reconnectionsSinceLastMessage = 0;
                 }
                 catch(Exception ex)
                 {
@@ -192,14 +192,23 @@ namespace SportingSolutions.Udapi.Sdk
 
         private void Reconnect()
         {
-            _logger.WarnFormat("Attempting to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}",Name,Id,_disconnections+1);
+            _logger.WarnFormat("Attempting to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id, _reconnectionsSinceLastMessage + 1);
             var success = false;
             while (!success && _isStreaming)
             {
                 try
                 {
+                    if (_reconnectionsSinceLastMessage > _maxRetries)
+                    {
+                        _logger.ErrorFormat("Failed to reconnect Stream for fixtureName=\"{0}\" fixtureId={1} ", Name,
+                                            Id);
+                        StopStreaming();
+                        return;
+                    }  
+
                     var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp");
-                    var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
+                    var amqpLink =
+                        restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
 
                     var amqpUri = new Uri(amqpLink.Href);
 
@@ -264,9 +273,9 @@ namespace SportingSolutions.Udapi.Sdk
 
                     _connection = _connectionFactory.CreateConnection();
                     _logger.InfoFormat("Successfully connected to Streaming Server for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-                    
+
                     StartEcho();
- 
+
                     if (StreamConnected != null)
                     {
                         StreamConnected(this, new EventArgs());
@@ -277,21 +286,18 @@ namespace SportingSolutions.Udapi.Sdk
                     _channel.BasicConsume(_queueName, true, _consumer);
                     _channel.BasicQos(0, 10, false);
                     success = true;
+
                 }
-                catch(Exception)
+                catch (Exception)
                 {
-                    if (_disconnections > _maxRetries)
-                    {
-                        _logger.ErrorFormat("Failed to reconnect Stream for fixtureName=\"{0}\" fixtureId={1} ",Name, Id);
-                        StopStreaming();
-                    }
-                    else
-                    {
-                        // give time for load balancer to notice the node is down
-                        Thread.Sleep(500);
-                        _disconnections++;
-                        _logger.WarnFormat("Failed to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id, _disconnections);      
-                    }
+                    // give time for load balancer to notice the node is down
+                    Thread.Sleep(500);
+                    _logger.WarnFormat("Failed to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id,
+                        _reconnectionsSinceLastMessage);
+                }
+                finally
+                {
+                    _reconnectionsSinceLastMessage++;
                 }
             }
         }
@@ -322,6 +328,8 @@ namespace SportingSolutions.Udapi.Sdk
 
             while (_isStreaming)
             {
+            
+
                 var indexofSignal = WaitHandle.WaitAny(new[] { _echoTimerEvent, cancelToken.WaitHandle }, _echoSenderInterval);
                 if (indexofSignal == 1)
                 {
@@ -361,8 +369,9 @@ namespace SportingSolutions.Udapi.Sdk
                 {
                     _logger.Error(string.Format("Unable to post echo for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
                 }
-
+                
                 var waitHandleResult = WaitHandle.WaitAny(new[] { _echoResetEvent, cancelToken.WaitHandle }, _echoMaxDelay);
+                
                 var echoArrived = false;
                 if (waitHandleResult == 0)
                 {
@@ -378,7 +387,7 @@ namespace SportingSolutions.Udapi.Sdk
                 {
                     return;
                 }
-
+               
                 //signal was recieved
                 if (echoArrived)
                 {
@@ -409,6 +418,7 @@ namespace SportingSolutions.Udapi.Sdk
                         }
                     }
                 }
+               
             }
             _logger.DebugFormat("Echo successfully cancelled for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
         }
