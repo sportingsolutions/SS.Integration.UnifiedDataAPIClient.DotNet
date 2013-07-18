@@ -15,19 +15,19 @@ using log4net;
 using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 
 namespace SportingSolutions.Udapi.Sdk
 {
-    using RabbitMQ.Client.Exceptions;
-
     public class StreamSubscriber
     {
         private static ILog _logger = LogManager.GetLogger(typeof(StreamSubscriber));
 
         private static bool _shouldStream = false;
         private static object _initSync = new object();
+        private static object _queueBindSync = new object();
 
         private static string _hostName;
         private static int _port;
@@ -42,13 +42,13 @@ namespace SportingSolutions.Udapi.Sdk
         
         private static IObservable<IFixtureUpdate> _updateStream;
 
-        private static Dictionary<string, string> _mappingQueueToFixture;
+        private static ConcurrentDictionary<string, string> _mappingQueueToFixture;
         private static ConcurrentDictionary<string, IDisposable> _subscriptions;
         private static ConcurrentDictionary<string, ResourceSingleQueue> _subscribedResources;
 
         static StreamSubscriber()
         {
-            _mappingQueueToFixture = new Dictionary<string, string>();
+            _mappingQueueToFixture = new ConcurrentDictionary<string, string>();
             _subscriptions = new ConcurrentDictionary<string, IDisposable>();
             _subscribedResources = new ConcurrentDictionary<string, ResourceSingleQueue>();
         }
@@ -117,19 +117,7 @@ namespace SportingSolutions.Udapi.Sdk
 
                 foreach (var subscribedResource in _subscribedResources)
                 {
-                    var resource = subscribedResource.Value;
-
-                    if (resource != null)
-                    {
-                        resource.StopEcho();
-
-                        IDisposable subscription;
-
-                        if (_subscriptions.TryRemove(subscribedResource.Key, out subscription))
-                        {
-                            subscription.Dispose();
-                        }
-                    }
+                    StopStream(subscribedResource.Key);
                 }
 
                 CloseConnection();
@@ -187,13 +175,7 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 catch (BrokerUnreachableException ex)
                 {
-                    _logger.Error(string.Format("Cannot reach Streaming Server"), ex);
-
-                    StopEchos();
-
-                    Thread.Sleep(1000);
-
-                    Reconnect();
+                    HandleUnreachableServerIssue(ex);
                 }
                 catch (Exception ex)
                 {
@@ -247,12 +229,7 @@ namespace SportingSolutions.Udapi.Sdk
             var deliveryArgs = (BasicDeliverEventArgs)output;
             var message = deliveryArgs.Body;
 
-            if (_consumer.ConsumerTag != deliveryArgs.ConsumerTag)
-            {
-                _logger.ErrorFormat("ERRRRORRRR!!!!!!! consumer tag does not match");
-            }
-
-            fixtureId = _mappingQueueToFixture[deliveryArgs.ConsumerTag];
+            fixtureId = _mappingQueueToFixture[_consumer.ConsumerTag];
 
             return Encoding.UTF8.GetString(message);
         }
@@ -261,7 +238,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _logger.DebugFormat("Mapping fixtureId={0} to consumerTag={1}", fixtureId, consumerTag);
 
-            _mappingQueueToFixture[consumerTag] = fixtureId;
+            _mappingQueueToFixture.AddOrUpdate(consumerTag, s => fixtureId, (s, s1) => fixtureId);
         }
         
         private static string SetupNewBinding(QueueDetails queue)
@@ -288,7 +265,14 @@ namespace SportingSolutions.Udapi.Sdk
 
         private static string BindQueueToConnection(string queueName)
         {
-            return _channel.BasicConsume(queueName, true, _consumer);
+            string consumerTag = string.Empty;
+
+            lock (_queueBindSync)
+            {
+                consumerTag = _channel.BasicConsume(queueName, true, _consumer);  // BasicConsume is not thread safe
+            }
+
+            return consumerTag;
         }
 
         private static void InitializeConnection()
@@ -335,6 +319,17 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
+        private static void HandleUnreachableServerIssue(Exception exception)
+        {
+            _logger.Error(string.Format("Cannot reach Streaming Server"), exception);
+
+            StopEchos();
+
+            Thread.Sleep(1000);
+
+            Reconnect();
+        }
+
         private static void HandleIndividualConnectionIssues(Exception exception)
         {
             var consumerTag = _consumer.ConsumerTag;
@@ -345,20 +340,17 @@ namespace SportingSolutions.Udapi.Sdk
 
             StopEchos();
 
-            Task.Factory.StartNew(() => resource.FireStreamDisconnected());
-
             Thread.Sleep(1000);
 
-            // Rebuild RabbitMQ connection
-            InitializeConnection();
-
-            // Bind all existing subscribers' queues to new connection and start Echo
-            RebindAllSubscribers(false);
-
-            Task.Factory.StartNew(() => resource.FireStreamConnected());
+            Reconnect(resource);
         }
 
-        private static void Reconnect()
+        /// <summary>
+        /// Reconnect to Streaming Server
+        /// Rebind all subscribers' queues and fire all resources' events (if singleResource is null)
+        /// If singleResource param is not null, will reconnect all queues anyway but only its events will be fired
+        /// </summary>
+        private static void Reconnect(ResourceSingleQueue singleResource = null)
         {
             var success = false;
             var disconnections = 1;
@@ -367,17 +359,28 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 try
                 {
-                    _logger.WarnFormat("Attempting to reconnect to Streaming Server. Attempt {0}", disconnections++);
+                    if (disconnections == 2)  // It'll wait for second attempt to fire disconnection events
+                    {
+                        FireDisconnectedEvent(singleResource);
+                    }
+
+                    _logger.WarnFormat("Attempting to reconnect to Streaming Server. Attempt {0}", disconnections);
                     
                     // Rebuild RabbitMQ connection
                     InitializeConnection();
 
                     // Bind all existing subscribers' queues to new connection and start Echo
-                    RebindAllSubscribers();
+                    RebindAllSubscribersQueues();
 
                     _logger.InfoFormat("Successfully connected to Streaming Server");
 
+                    if (disconnections > 1)  // It'll fire connected events only after first attempt
+                    {
+                        FireConnectedEvent(singleResource);
+                    }
+
                     success = true;
+                    disconnections++;
                 }
                 catch (Exception ex)
                 {
@@ -389,26 +392,63 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        private static void RebindAllSubscribers(bool fireStreamConnectedEvent = true)
+        private static void RebindAllSubscribersQueues()
         {
-            foreach (var subscribedResource in _subscribedResources)
+            var options = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
+
+            Parallel.ForEach(_subscribedResources, options,
+                subscribedResource =>
+                    {
+                        var resource = subscribedResource.Value;
+
+                        if (resource != null)
+                        {
+                            var queueName = resource.GetQueueDetails().Name;
+
+                            var consumerTag = BindQueueToConnection(queueName);
+
+                            UpdateMapping(resource.Id, consumerTag);
+
+                            resource.StartEcho();
+                        }
+                    });
+        }
+
+        private static void FireConnectedEvent(ResourceSingleQueue singleResource = null)
+        {
+            if (singleResource != null)
             {
-                var resource = subscribedResource.Value;
-
-                if (resource != null)
+                Task.Factory.StartNew(() => singleResource.FireStreamConnected());
+            }
+            else
+            {
+                foreach (var subscribedResource in _subscribedResources)
                 {
-                    var queueName = resource.GetQueueDetails().Name;
+                    var resource = subscribedResource.Value;
 
-                    var consumerTag = BindQueueToConnection(queueName);
-
-                    UpdateMapping(resource.Id, consumerTag);
-
-                    resource.StartEcho();
-
-                    // Fire Event
-                    if (fireStreamConnectedEvent)
+                    if (resource != null)
                     {
                         Task.Factory.StartNew(() => resource.FireStreamConnected());
+                    }
+                }
+            }
+        }
+
+        private static void FireDisconnectedEvent(ResourceSingleQueue singleResource = null)
+        {
+            if (singleResource != null)
+            {
+                Task.Factory.StartNew(() => singleResource.FireStreamDisconnected());
+            }
+            else
+            {
+                foreach (var subscribedResource in _subscribedResources)
+                {
+                    var resource = subscribedResource.Value;
+
+                    if (resource != null)
+                    {
+                        Task.Factory.StartNew(() => resource.FireStreamDisconnected());
                     }
                 }
             }

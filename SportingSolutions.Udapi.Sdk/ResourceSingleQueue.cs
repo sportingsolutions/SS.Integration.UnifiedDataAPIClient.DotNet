@@ -86,10 +86,12 @@ namespace SportingSolutions.Udapi.Sdk
 
         internal void StartEcho()
         {
+            // TODO: implement a way to start echos for this subscriber
         }
 
         internal void StopEcho()
         {
+            // TODO: implement a way to stop echos for this subscriber
         }
 
         private void PostEcho(StreamEcho x)
@@ -133,7 +135,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void PauseStreaming()
         {
-
+            
         }
 
         public void UnPauseStreaming()
