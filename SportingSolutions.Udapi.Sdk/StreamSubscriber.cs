@@ -344,18 +344,32 @@ namespace SportingSolutions.Udapi.Sdk
 
             Reconnect(resource);
 
-            // Ensure we don't miss any update by comparing sequence numbers
+            CheckForMissingUpdates(fixtureId, resource);
+        }
+
+        /// <summary>
+        /// Ensure we don't miss any update by comparing sequence numbers
+        /// </summary>
+        private static void CheckForMissingUpdates(string fixtureId, ResourceSingleQueue resource)
+        {
             Task.Factory.StartNew(
                 () =>
                     {
+                        _logger.DebugFormat("Retrieving snapshot to check whether an update was lost after disconnection for fixtureId={0}", fixtureId);
+
                         var snapshot = resource.GetSnapshot();
+                        var updateWrapper = "{\"Relation\":\"http://api.sportingsolutions.com/rels/snapshot\",\"Content\":";
+                        var update = string.Format("{0}{1}{2}", updateWrapper, snapshot, "}");
 
-                        var jobject = JObject.Parse(snapshot);
-                        var snapshotSequence = jobject["Sequence"].Value<int>();
+                        var sequence = ResourceSingleQueue.GetSequenceFromStreamUpdate(update);
 
-                        if (snapshotSequence > resource.LastSequence)
+                        _logger.DebugFormat("Sequence={0} found in snapshot for fixtureId={1} which last sequence={2}", sequence, fixtureId, resource.LastSequence);
+
+                        if (sequence > resource.LastSequence)
                         {
-                            resource.PushValueToObserver(snapshot);
+                            _logger.InfoFormat("Sending snapshot as an update due to a missing update has been identified for fixtureId={0}", fixtureId);
+
+                            resource.PushValueToObserver(update);
                         }
                     });
         }

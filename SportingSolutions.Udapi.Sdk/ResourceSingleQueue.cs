@@ -65,7 +65,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             _observer = Observer.Create<string>(update =>
                 {
-                    _logger.DebugFormat("Stream update arrived to a resource with fixtureId={0}!", this.Id);
+                    _logger.DebugFormat("Stream update arrived to a resource with fixtureId={0}", this.Id);
 
                     LastMessageReceived = DateTime.Now;
 
@@ -92,23 +92,11 @@ namespace SportingSolutions.Udapi.Sdk
             StartEcho();
         }
 
-        private static int GetSequenceFromStreamUpdate(string update)
+        public static int GetSequenceFromStreamUpdate(string update)
         {
             var jobject = JObject.Parse(update);
 
-            int updateSequence;
-
-            try
-            {
-                updateSequence = jobject["Content"]["Sequence"].Value<int>();
-            }
-            catch (Exception)
-            {
-                // If coming from snapshot the Json's structure is different
-                updateSequence = jobject["Sequence"].Value<int>();
-            }
-
-            return updateSequence;
+            return jobject["Content"]["Sequence"].Value<int>();
         }
 
         internal void StartEcho()
