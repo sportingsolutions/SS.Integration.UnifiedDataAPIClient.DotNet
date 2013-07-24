@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -11,6 +12,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+using SportingSolutions.Udapi.Sdk.Extensions;
 using log4net;
 using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
@@ -18,6 +20,7 @@ using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
+using SportingSolutions.Udapi.Sdk.Clients;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -103,7 +106,6 @@ namespace SportingSolutions.Udapi.Sdk
 
             _subscribedResources.TryRemove(fixtureId, out resource);
 
-            resource.StopEcho();
         }
 
         /// <summary>
@@ -138,7 +140,28 @@ namespace SportingSolutions.Udapi.Sdk
                                                 x => GetMessage(),
                                                 Scheduler.Default);
             _updateStream = _updateStream.Publish();
+            QueueDetails qd = new QueueDetails();
+            qd.Host = _hostName;
+            qd.Password = _password;
+            qd.UserName = _userName;
+            qd.Port = _port;
+            qd.VirtualHost = _virtualHost;
+            EchoSender.StartEcho(PostEcho, qd );
         }
+
+        private static void PostEcho(StreamEcho x)
+        {
+            var theLink =
+                State.Links.First(
+                    restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo"
+                    && restLink.Href.Contains("batchecho"));
+
+            var theUrl = theLink.Href;
+            var stringStreamEcho = x.ToJson();
+            RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json", Headers, 3000);
+        }
+
+
 
         private static IFixtureUpdate GetMessage()
         {
@@ -208,20 +231,12 @@ namespace SportingSolutions.Udapi.Sdk
 
         private static void StopEcho(string fixtureId)
         {
-            var resource = _subscribedResources[fixtureId];
-
-            if (resource != null)
-            {
-                Task.Factory.StartNew(() => resource.StopEcho());
-            }
+            EchoSender.StopEcho();
         }
 
         private static void StopEcho(ResourceSingleQueue resource)
         {
-            if (resource != null)
-            {
-                Task.Factory.StartNew(() => resource.StopEcho());
-            }
+            EchoSender.StopEcho();
         }
 
         private static string ExtractMessage(object output, ref string fixtureId)
@@ -328,6 +343,8 @@ namespace SportingSolutions.Udapi.Sdk
             Thread.Sleep(5000);
 
             Reconnect();
+
+            //start echos
         }
 
         private static void HandleIndividualConnectionIssues(Exception exception)
@@ -437,8 +454,6 @@ namespace SportingSolutions.Udapi.Sdk
                             var consumerTag = BindQueueToConnection(queueName);
 
                             UpdateMapping(resource.Id, consumerTag);
-
-                            resource.StartEcho();
                         }
                     });
         }
@@ -482,5 +497,33 @@ namespace SportingSolutions.Udapi.Sdk
                 }
             }
         }
+
+
+        private static NameValueCollection _headers;
+        public static NameValueCollection Headers
+        { 
+            get { return _headers; }
+            set
+            {
+                if (_headers == null)
+                {
+                    _headers = value;
+                }
+            }
+        }
+
+        private static RestItem _state;
+        public static RestItem State
+        {
+            get { return _state; }
+            set
+            {
+                if (_state == null)
+                {
+                    _state = value;
+                }
+            }
+        }
+
     }
 }

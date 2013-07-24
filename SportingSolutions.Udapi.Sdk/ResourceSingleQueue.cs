@@ -86,10 +86,8 @@ namespace SportingSolutions.Udapi.Sdk
                             });
                 });
 
+            StreamSubscriber.Headers = this.Headers;
             StreamSubscriber.StartStream(this, _observer);
-
-            EchoSender.StartEcho(PostEcho, GetQueueDetails());
-            StartEcho();
         }
 
         public static int GetSequenceFromStreamUpdate(string update)
@@ -97,16 +95,6 @@ namespace SportingSolutions.Udapi.Sdk
             var jobject = JObject.Parse(update);
 
             return jobject["Content"]["Sequence"].Value<int>();
-        }
-
-        internal void StartEcho()
-        {
-            // TODO: implement a way to start echos for this subscriber
-        }
-
-        internal void StopEcho()
-        {
-            // TODO: implement a way to stop echos for this subscriber
         }
 
         private void PostEcho(StreamEcho x)

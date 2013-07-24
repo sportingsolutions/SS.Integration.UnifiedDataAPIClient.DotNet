@@ -27,6 +27,9 @@ namespace SportingSolutions.Udapi.Sdk
 
         internal Service(NameValueCollection headers, RestItem restItem):base(headers, restItem)
         {
+            StreamSubscriber.State =
+                FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list")
+                    .First(item => item.Name == "Echo");
             _logger.DebugFormat("Instantiated Service {0}",restItem.Name);
         }
 
@@ -35,10 +38,13 @@ namespace SportingSolutions.Udapi.Sdk
             get { return State.Name; }
         }
 
+
+
         public List<IFeature> GetFeatures()
         {
             _logger.InfoFormat("Get all available features from {0}",Name);
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list");
+
             return restItems.Select(restItem => new Feature(Headers, restItem)).Cast<IFeature>().ToList();
         }
 
