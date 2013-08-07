@@ -34,6 +34,14 @@ namespace SportingSolutions.Udapi.Sdk
         private static List<string> _receivedEchoes = new List<string>();
         private static IObservable<IList<string>> _echoesToValidate;
 
+        public static void StopEcho()
+        {
+            lock (_sync)
+            {
+                _echoTimer.Dispose();
+            }
+        }
+
         public static void StartEcho(Action<StreamEcho> postEcho, QueueDetails queueDetails)
         {
             lock (_sync)
@@ -83,8 +91,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             if (!sentEchoesInTheLastXs.All(x => receivedEchoes.Contains(x)))
             {
-                _logger.Warn(
-                    "Echo failed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                _logger.Warn("Echo failed!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             }
             else
             {
