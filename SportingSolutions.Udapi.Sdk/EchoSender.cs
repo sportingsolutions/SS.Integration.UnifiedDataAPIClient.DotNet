@@ -36,7 +36,6 @@ namespace SportingSolutions.Udapi.Sdk
 
         public static void StartEcho(Action<StreamEcho> postEcho, QueueDetails queueDetails)
         {
-
             lock (_sync)
             {
                 _queues.Add(queueDetails);
@@ -103,19 +102,13 @@ namespace SportingSolutions.Udapi.Sdk
 
             var split = message.Split(';');
 
-
-
             var lastRecievedEchoGuid = split[0];
             var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ",
                                                CultureInfo.InvariantCulture);
             var roundTripTime = DateTime.Now - timeSent;
 
             var roundMillis = roundTripTime.TotalMilliseconds;
-
-
-
         }
-
 
         internal static void SendEcho()
         {

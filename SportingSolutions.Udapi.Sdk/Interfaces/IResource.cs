@@ -31,8 +31,6 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         void UnPauseStreaming();
         void StopStreaming();
 
-        IObservable<string> GetStreamData();
-
         event EventHandler StreamConnected;
         event EventHandler StreamDisconnected;
         event EventHandler<StreamEventArgs> StreamEvent;

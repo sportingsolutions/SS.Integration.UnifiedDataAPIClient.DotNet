@@ -15,10 +15,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Linq;
+using System.Text;
+using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
-using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Model;
+using log4net;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -27,31 +30,71 @@ namespace SportingSolutions.Udapi.Sdk
         protected NameValueCollection Headers;
         protected readonly RestItem State;
 
-        internal Endpoint()
+        protected readonly IConnectClient _connectClient;
+
+        protected ILog _logger;
+
+        internal Endpoint(IConnectClient connectClient)
         {
-            
+            _connectClient = connectClient;
         }
 
-        internal Endpoint(NameValueCollection headers, RestItem restItem)
+        internal Endpoint(NameValueCollection headers, RestItem restItem, IConnectClient connectClient)
         {
             Headers = headers;
             State = restItem;
+            _connectClient = connectClient;
         }
 
-        protected IEnumerable<RestItem> FindRelationAndFollow(string relation)
+        protected IEnumerable<RestItem> FindRelationAndFollow(string relation, string errorHeading, StringBuilder loggingStringBuilder)
         {
-            return FindRelationAndFollowAsString(relation).FromJson<List<RestItem>>();
-        }
-
-        protected string FindRelationAndFollowAsString(string relation)
-        {
-            var result = "";
+            var stopwatch = new Stopwatch();
+            
+            IEnumerable<RestItem> result = new List<RestItem>();
             if (State != null)
             {
                 var theLink = State.Links.First(restLink => restLink.Relation == relation);
                 var theUrl = theLink.Href;
-                result = RestHelper.GetResponse(new Uri(theUrl), null, "GET", "application/json", Headers, 5000);
+
+                loggingStringBuilder.AppendFormat("Beginning call to url={0} \r\n",theUrl);
+                stopwatch.Start();
+                var response = _connectClient.Request<List<RestItem>>(new Uri(theUrl), Method.GET);
+
+                loggingStringBuilder.AppendFormat("took duration={0}ms\r\n", stopwatch.ElapsedMilliseconds);
+                if (response.ErrorException != null)
+                {
+                    RestErrorHelper.LogRestError(_logger, response, errorHeading);
+                    return result;
+                }
+
+                result = response.Data;
             }
+
+            stopwatch.Stop();
+            return result;
+        }
+
+        protected string FindRelationAndFollowAsString(string relation, string errorHeading, StringBuilder loggingStringBuilder)
+        {
+            var stopwatch = new Stopwatch();
+            var result = string.Empty;
+            if (State != null)
+            {
+                var theLink = State.Links.First(restLink => restLink.Relation == relation);
+                var theUrl = theLink.Href;
+
+                loggingStringBuilder.AppendFormat("Beginning call to url={0} \r\n", theUrl);
+                stopwatch.Start();
+                var response = _connectClient.Request(new Uri(theUrl), Method.GET);
+                loggingStringBuilder.AppendFormat("took duration={0}ms\r\n", stopwatch.ElapsedMilliseconds);
+                if (response.ErrorException != null || response.Content == null)
+                {
+                    RestErrorHelper.LogRestError(_logger, response, errorHeading);
+                    return result;
+                }
+                result = response.Content;
+            }
+            stopwatch.Stop();
             return result;
         }
     }

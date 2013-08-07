@@ -87,14 +87,12 @@ namespace SportingSolutions.Udapi.Sdk
             var message = deliveryArgs.Body;
             var fixtureStreamUpdate = new FixtureStreamUpdate() {Id = _mappingQueueToFixture[deliveryArgs.ConsumerTag]};
 
-            
-
             var messageString = Encoding.UTF8.GetString(message);
 
             var jobject = JObject.Parse(messageString);
             if (jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
             {
-             //   _logger.DebugFormat("Echo arrived for fixtureId={0}", fixtureStreamUpdate.Id);
+                _logger.DebugFormat("Echo arrived for fixtureId={0}", fixtureStreamUpdate.Id);
                 fixtureStreamUpdate.Message = jobject["Content"].Value<String>();
                 fixtureStreamUpdate.IsEcho = true;
             }

@@ -15,6 +15,8 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Text;
+using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
@@ -23,10 +25,9 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Service : Endpoint, IService
     {
-        private readonly ILog _logger = LogManager.GetLogger(typeof(Service).ToString());
-
-        internal Service(NameValueCollection headers, RestItem restItem):base(headers, restItem)
+        internal Service(NameValueCollection headers, RestItem restItem, IConnectClient connectClient):base(headers, restItem, connectClient)
         {
+            _logger = LogManager.GetLogger(typeof(Service).ToString());
             _logger.DebugFormat("Instantiated Service {0}",restItem.Name);
         }
 
@@ -37,16 +38,22 @@ namespace SportingSolutions.Udapi.Sdk
 
         public List<IFeature> GetFeatures()
         {
-            _logger.InfoFormat("Get all available features from {0}",Name);
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list");
-            return restItems.Select(restItem => new Feature(Headers, restItem)).Cast<IFeature>().ToList();
+            var loggingStringBuilder = new StringBuilder();
+            loggingStringBuilder.AppendFormat("Get all available features from {0} \r\n", Name);
+
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeatures Http Error", loggingStringBuilder);
+            _logger.Info(loggingStringBuilder);
+            return restItems.Select(restItem => new Feature(Headers, restItem, _connectClient)).Cast<IFeature>().ToList();
         }
 
         public IFeature GetFeature(string name)
         {
-            _logger.InfoFormat("Get {0} from {1}",name,Name);
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list");
-            return (from restItem in restItems where restItem.Name == name select new Feature(Headers, restItem)).FirstOrDefault();
+            var loggingStringBuilder = new StringBuilder();
+            loggingStringBuilder.AppendFormat("Get {0} from {1} \r\n", name, Name);
+
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeature Http Error",loggingStringBuilder);
+            _logger.Info(loggingStringBuilder);
+            return (from restItem in restItems where restItem.Name == name select new Feature(Headers, restItem,_connectClient)).FirstOrDefault();
         }
     }
 }

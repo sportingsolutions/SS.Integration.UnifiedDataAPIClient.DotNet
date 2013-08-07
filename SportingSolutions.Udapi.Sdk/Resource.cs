@@ -14,6 +14,7 @@
 
 using System;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -23,6 +24,7 @@ using System.Web;
 using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Extensions;
@@ -34,8 +36,6 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Resource : Endpoint, IResource, IDisposable, IStreamStatistics
     {
-        private readonly ILog _logger = LogManager.GetLogger(typeof(Resource).ToString());
-
         private bool _isStreaming;
         private readonly ManualResetEvent _pauseStream;
         private readonly AutoResetEvent _echoResetEvent;
@@ -63,10 +63,10 @@ namespace SportingSolutions.Udapi.Sdk
 
         private bool _isProcessingStreamEvent;
 
-
-        internal Resource(NameValueCollection headers, RestItem restItem)
-            : base(headers, restItem)
+        internal Resource(NameValueCollection headers, RestItem restItem, IConnectClient connectClient)
+            : base(headers, restItem, connectClient)
         {
+            _logger = LogManager.GetLogger(typeof(Resource).ToString());
             _logger.DebugFormat("Instantiated fixtureName=\"{0}\"", restItem.Name);
             _pauseStream = new ManualResetEvent(true);
             _echoResetEvent = new AutoResetEvent(false);
@@ -95,8 +95,12 @@ namespace SportingSolutions.Udapi.Sdk
 
         public string GetSnapshot()
         {
-            _logger.InfoFormat("Get Snapshot for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-            return FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/snapshot");
+            var loggingStringBuilder = new StringBuilder();
+            loggingStringBuilder.AppendFormat("Get Snapshot for fixtureName=\"{0}\" fixtureId={1} \r\n", Name, Id);
+
+            var result = FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/snapshot", "GetSnapshot Http Error", loggingStringBuilder);
+            _logger.Info(loggingStringBuilder);
+            return result;
         }
 
         public void StartStreaming()
@@ -197,7 +201,10 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 try
                 {
-                    var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp");
+                    var loggingStringBuilder = new StringBuilder();
+                    loggingStringBuilder.AppendFormat("Request Stream Info for fixtureName=\"{0}\" fixtureId={1} \r\n", Name, Id);
+                    var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp", "GetAmqpStream Http Error", loggingStringBuilder);
+                    _logger.Info(loggingStringBuilder);
                     var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
 
                     var amqpUri = new Uri(amqpLink.Href);
@@ -318,6 +325,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             var echoGuid = Guid.NewGuid().ToString();
 
+            var stopwatch = new Stopwatch();
             while (_isStreaming)
             {
                 var indexofSignal = WaitHandle.WaitAny(new[] { _echoTimerEvent, cancelToken.WaitHandle }, _echoSenderInterval);
@@ -348,11 +356,20 @@ namespace SportingSolutions.Udapi.Sdk
                             Queue = _queueName,
                             Message = echoGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
                         };
+                        
+                        stopwatch.Restart();
+                        Action<IRestResponse<object>> requestCallback = delegate(IRestResponse<object> response)
+                        {
+                            _logger.DebugFormat("Post Echo for fixtureName=\"{0}\" fixtureId={1} took duration={2}ms",Name,Id,stopwatch.ElapsedMilliseconds);
+                            if (response.ErrorException != null)
+                            {
+                                RestErrorHelper.LogRestError(_logger, response, string.Format("Echo Http Error fixtureName=\"{0}\" fixtureId={1}",Name,Id));
+                                return;
+                            }
+                            _logger.InfoFormat("Echo for fixtureName=\"{0}\" fixtureId={1} has been sent successfuly",Name, Id);
+                        };
 
-                        var stringStreamEcho = streamEcho.ToJson();
-
-                        RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json",
-                                               Headers, 3000);
+                        _connectClient.RequestAsync(new Uri(theUrl), Method.POST, streamEcho, requestCallback);
                     }
                 }
                 catch (Exception ex)
@@ -445,11 +462,6 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 Dispose();
             }
-        }
-
-        public IObservable<string> GetStreamData()
-        {
-            throw new NotImplementedException();
         }
 
         public event EventHandler StreamConnected;

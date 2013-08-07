@@ -13,7 +13,9 @@
 //limitations under the License.
 
 using System;
+using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Interfaces;
+using ICredentials = SportingSolutions.Udapi.Sdk.Interfaces.ICredentials;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -21,7 +23,8 @@ namespace SportingSolutions.Udapi.Sdk
     {
         public static ISession CreateSession(Uri serverUri, ICredentials credentials)
         {
-            return new Session(serverUri, credentials);
+            var connectClient = new ConnectClient(new Configuration(serverUri), new Clients.Credentials(credentials.UserName, credentials.Password));
+            return new Session(connectClient);
         }
     }
 }
