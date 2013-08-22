@@ -36,33 +36,32 @@ namespace SportingSolutions.Udapi.Sdk
 
         internal Session(IConnectClient connectClient) : base(connectClient)
         {
-            Headers = new NameValueCollection();
-            _logger = LogManager.GetLogger(typeof(Session).ToString());
+            Logger = LogManager.GetLogger(typeof(Session).ToString());
             GetRoot();
         }
 
         public IList<IService> GetServices()
         {
-            _logger.Info("Get all available services..");
+            Logger.Info("Get all available services..");
             if(_restItems == null)
             {
                 GetRoot();
             }
 
-            var result = _restItems.Select(serviceRestItem => new Service(Headers, serviceRestItem, _connectClient)).Cast<IService>().ToList();
+            var result = _restItems.Select(serviceRestItem => new Service(serviceRestItem, ConnectClient)).Cast<IService>().ToList();
             _restItems = null;
             return result;
         }
        
         public IService GetService(string name)
         {
-            _logger.InfoFormat("Get Service {0}",name);
+            Logger.InfoFormat("Get Service {0}",name);
             if (_restItems == null)
             {
                 GetRoot();
             }
 
-            var result = _restItems.Select(serviceRestItem => new Service(Headers, serviceRestItem, _connectClient)).FirstOrDefault(service => service.Name == name);
+            var result = _restItems.Select(serviceRestItem => new Service(serviceRestItem, ConnectClient)).FirstOrDefault(service => service.Name == name);
             _restItems = null;
             return result;
         }
@@ -85,13 +84,13 @@ namespace SportingSolutions.Udapi.Sdk
                         return new Uri(restLink.Href);
                     };
 
-                var getRootResponse = _connectClient.Login(loginRequired);
+                var getRootResponse = ConnectClient.Login(loginRequired);
                 messageStringBuilder.AppendFormat("GetRoot took {0}ms\r\n", stopwatch.ElapsedMilliseconds);
                 stopwatch.Restart();
 
                 if (getRootResponse.ErrorException != null || getRootResponse.Data == null || !getRootResponse.Data.Any())
                 {
-                    RestErrorHelper.LogRestError(_logger, getRootResponse, "GetRoot Http Error");
+                    RestErrorHelper.LogRestError(Logger, getRootResponse, "GetRoot Http Error");
                     return;
                 }
 
@@ -101,13 +100,13 @@ namespace SportingSolutions.Udapi.Sdk
             catch (WebException ex)
             {
                 var response = (HttpWebResponse) ex.Response;
-                _logger.Error("Get Root Web Exception",ex);
+                Logger.Error("Get Root Web Exception",ex);
             }
             catch (Exception ex)
             {
-                _logger.Error("Get Root Exception", ex);
+                Logger.Error("Get Root Exception", ex);
             }
-            _logger.Debug(messageStringBuilder);
+            Logger.Debug(messageStringBuilder);
             stopwatch.Stop();
         }
     }

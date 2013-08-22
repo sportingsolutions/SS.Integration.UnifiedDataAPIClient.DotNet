@@ -106,6 +106,7 @@
     <Compile Include="..\CommonAssemblyInfo.cs">
       <Link>Properties\CommonAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="AMQPSubscriber.cs" />
     <Compile Include="Clients\Configuration.cs" />
     <Compile Include="Clients\ConnectClient.cs" />
     <Compile Include="Clients\ConnectConverter.cs" />
@@ -116,6 +117,7 @@
     <Compile Include="Clients\RestErrorHelper.cs" />
     <Compile Include="Clients\RestHelper.cs" />
     <Compile Include="Credentials.cs" />
+    <Compile Include="EchoSender.cs" />
     <Compile Include="Endpoint.cs" />
     <Compile Include="Events\StreamEventArgs.cs" />
     <Compile Include="Exceptions\NotAuthenticatedException.cs" />
@@ -137,10 +139,12 @@
     <Compile Include="QueueDetails.cs" />
     <Compile Include="QueueingCustomConsumer.cs" />
     <Compile Include="Resource.cs" />
+    <Compile Include="ResourceSingleQueue.cs" />
     <Compile Include="Service.cs" />
     <Compile Include="Session.cs" />
     <Compile Include="SessionFactory.cs" />
     <Compile Include="Model\Summary.cs" />
+    <Compile Include="StreamSubscriber.cs" />
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />

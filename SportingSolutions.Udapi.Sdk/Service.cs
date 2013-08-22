@@ -12,6 +12,7 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
@@ -25,13 +26,10 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Service : Endpoint, IService
     {
-        internal Service(NameValueCollection headers, RestItem restItem, IConnectClient connectClient):base(headers, restItem, connectClient)
+        internal Service(RestItem restItem, IConnectClient connectClient):base(restItem, connectClient)
         {
-            _logger = LogManager.GetLogger(typeof(Service).ToString());
-            StreamSubscriber.State =
-                FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list")
-                    .First(item => item.Name == "Echo");
-            _logger.DebugFormat("Instantiated Service {0}",restItem.Name);
+            Logger = LogManager.GetLogger(typeof(Service).ToString());
+            Logger.DebugFormat("Instantiated Service {0}",restItem.Name);
         }
 
         public string Name
@@ -39,16 +37,14 @@ namespace SportingSolutions.Udapi.Sdk
             get { return State.Name; }
         }
 
-
-
         public List<IFeature> GetFeatures()
         {
             var loggingStringBuilder = new StringBuilder();
             loggingStringBuilder.AppendFormat("Get all available features from {0} \r\n", Name);
 
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeatures Http Error", loggingStringBuilder);
-            _logger.Info(loggingStringBuilder);
-            return restItems.Select(restItem => new Feature(Headers, restItem, _connectClient)).Cast<IFeature>().ToList();
+            Logger.Info(loggingStringBuilder);
+            return restItems.Select(restItem => new Feature(restItem, ConnectClient, GetEchoUri())).Cast<IFeature>().ToList();
         }
 
         public IFeature GetFeature(string name)
@@ -57,8 +53,8 @@ namespace SportingSolutions.Udapi.Sdk
             loggingStringBuilder.AppendFormat("Get {0} from {1} \r\n", name, Name);
 
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeature Http Error",loggingStringBuilder);
-            _logger.Info(loggingStringBuilder);
-            return (from restItem in restItems where restItem.Name == name select new Feature(Headers, restItem,_connectClient)).FirstOrDefault();
+            Logger.Info(loggingStringBuilder);
+            return (from restItem in restItems where restItem.Name == name select new Feature(restItem, ConnectClient, GetEchoUri())).FirstOrDefault();
         }
     }
 }

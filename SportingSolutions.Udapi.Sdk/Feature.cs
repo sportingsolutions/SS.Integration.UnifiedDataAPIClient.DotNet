@@ -12,6 +12,7 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
@@ -25,10 +26,13 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Feature : Endpoint, IFeature
     {
-        internal Feature(NameValueCollection headers, RestItem restItem, IConnectClient connectClient):base(headers, restItem, connectClient)
+        private Uri _echoUri;
+
+        internal Feature(RestItem restItem, IConnectClient connectClient, Uri echoUri):base(restItem, connectClient)
         {
-            _logger = LogManager.GetLogger(typeof(Feature).ToString());
-            _logger.DebugFormat("Instantiated Feature {0}", restItem.Name);
+            Logger = LogManager.GetLogger(typeof(Feature).ToString());
+            Logger.DebugFormat("Instantiated Feature {0}", restItem.Name);
+            _echoUri = echoUri;
         }
 
         public string Name
@@ -42,8 +46,8 @@ namespace SportingSolutions.Udapi.Sdk
             loggingStringBuilder.AppendFormat("Get all available resources from {0} \r\n", Name);
 
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResources Http Error", loggingStringBuilder);
-            _logger.Info(loggingStringBuilder);
-            return restItems.Select(restItem => new Resource(Headers, restItem, _connectClient)).Cast<IResource>().ToList();
+            Logger.Info(loggingStringBuilder);
+            return restItems.Select(restItem => AmqpSubscriber.Instance.CreateResource(restItem, ConnectClient, _echoUri)).ToList();
         }
 
         public IResource GetResource(string name)
@@ -52,8 +56,9 @@ namespace SportingSolutions.Udapi.Sdk
             loggingStringBuilder.AppendFormat("Get {0} from {1} \r\n", name, Name);
 
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResource Http Error", loggingStringBuilder);
-            _logger.Info(loggingStringBuilder);
-            return (from restItem in restItems where restItem.Name == name select new Resource(Headers, restItem, _connectClient)).FirstOrDefault();
+            Logger.Info(loggingStringBuilder);
+            return (from restItem in restItems where restItem.Name == name select AmqpSubscriber.Instance.CreateResource(restItem, ConnectClient, _echoUri)).FirstOrDefault();
         }
+
     }
 }

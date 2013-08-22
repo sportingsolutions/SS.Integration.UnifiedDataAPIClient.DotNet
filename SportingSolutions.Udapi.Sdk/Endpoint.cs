@@ -27,23 +27,39 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public abstract class Endpoint
     {
-        protected NameValueCollection Headers;
         protected readonly RestItem State;
 
-        protected readonly IConnectClient _connectClient;
+        protected readonly IConnectClient ConnectClient;
 
-        protected ILog _logger;
+        protected ILog Logger;
+
+        private Uri _echoUri;
 
         internal Endpoint(IConnectClient connectClient)
         {
-            _connectClient = connectClient;
+            ConnectClient = connectClient;
         }
 
-        internal Endpoint(NameValueCollection headers, RestItem restItem, IConnectClient connectClient)
+        internal Endpoint(RestItem restItem, IConnectClient connectClient)
         {
-            Headers = headers;
             State = restItem;
-            _connectClient = connectClient;
+            ConnectClient = connectClient;
+        }
+
+        protected Uri FindRelationUri(string relation)
+        {
+            var theLink = State.Links.First(restLink => restLink.Relation == relation);
+            var theUrl = theLink.Href;
+            return new Uri(theUrl);
+        }
+
+        protected Uri GetEchoUri()
+        {
+            if (_echoUri != null)
+            {
+                return _echoUri;
+            }
+            throw new Exception("Cannot find echo Uri");
         }
 
         protected IEnumerable<RestItem> FindRelationAndFollow(string relation, string errorHeading, StringBuilder loggingStringBuilder)
@@ -53,20 +69,24 @@ namespace SportingSolutions.Udapi.Sdk
             IEnumerable<RestItem> result = new List<RestItem>();
             if (State != null)
             {
-                var theLink = State.Links.First(restLink => restLink.Relation == relation);
-                var theUrl = theLink.Href;
+                var theUri = FindRelationUri(relation);
 
-                loggingStringBuilder.AppendFormat("Beginning call to url={0} \r\n",theUrl);
+                loggingStringBuilder.AppendFormat("Beginning call to url={0} \r\n",theUri);
                 stopwatch.Start();
-                var response = _connectClient.Request<List<RestItem>>(new Uri(theUrl), Method.GET);
+                var response = ConnectClient.Request<List<RestItem>>(theUri, Method.GET);
 
                 loggingStringBuilder.AppendFormat("took duration={0}ms\r\n", stopwatch.ElapsedMilliseconds);
                 if (response.ErrorException != null)
                 {
-                    RestErrorHelper.LogRestError(_logger, response, errorHeading);
+                    RestErrorHelper.LogRestError(Logger, response, errorHeading);
                     return result;
                 }
-
+                if (relation == "http://api.sportingsolutions.com/rels/features/list")
+                {
+                    var echoRestItem = (from restItem in response.Data where restItem.Name == "Echo" select restItem).FirstOrDefault();
+                    var theLink = echoRestItem.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
+                    _echoUri = new Uri(theLink.Href);
+                }
                 result = response.Data;
             }
 
@@ -80,16 +100,15 @@ namespace SportingSolutions.Udapi.Sdk
             var result = string.Empty;
             if (State != null)
             {
-                var theLink = State.Links.First(restLink => restLink.Relation == relation);
-                var theUrl = theLink.Href;
+                var theUri = FindRelationUri(relation);
 
-                loggingStringBuilder.AppendFormat("Beginning call to url={0} \r\n", theUrl);
+                loggingStringBuilder.AppendFormat("Beginning call to url={0} \r\n", theUri);
                 stopwatch.Start();
-                var response = _connectClient.Request(new Uri(theUrl), Method.GET);
+                var response = ConnectClient.Request(theUri, Method.GET);
                 loggingStringBuilder.AppendFormat("took duration={0}ms\r\n", stopwatch.ElapsedMilliseconds);
                 if (response.ErrorException != null || response.Content == null)
                 {
-                    RestErrorHelper.LogRestError(_logger, response, errorHeading);
+                    RestErrorHelper.LogRestError(Logger, response, errorHeading);
                     return result;
                 }
                 result = response.Content;
