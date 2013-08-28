@@ -50,7 +50,7 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 var theLink = State.Links.First(restLink => restLink.Relation == relation);
                 var theUrl = theLink.Href;
-                var response = RestHelper.GetResponse(new Uri(theUrl), null, "GET", "application/json", Headers, 5000);
+                var response = RestHelper.GetResponse(new Uri(theUrl), null, "GET", "application/json", Headers, 30000);
                 if (response != null)
                 {
                     result = response.Content;
