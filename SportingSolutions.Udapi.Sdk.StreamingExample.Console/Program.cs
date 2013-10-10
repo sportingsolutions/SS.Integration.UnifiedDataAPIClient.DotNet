@@ -16,6 +16,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.ServiceProcess;
+using System.Threading.Tasks;
 using log4net;
 
 namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
@@ -29,9 +30,13 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             var dir = fileInfo.DirectoryName;
             log4net.Config.XmlConfigurator.ConfigureAndWatch(new FileInfo(string.Format("{0}\\log4net.config", dir)));
             var logger = LogManager.GetLogger(typeof(Program).ToString());
+            
 
             try
             {
+                TaskScheduler.UnobservedTaskException += (sender, eventArgs) =>
+                    { logger.ErrorFormat("Uncought exception was thrown", eventArgs.Exception); };
+
                 var servicesToRun = new ServiceBase[] 
                 { 
                     new ExampleService() 
