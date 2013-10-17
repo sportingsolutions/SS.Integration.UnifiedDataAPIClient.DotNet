@@ -150,7 +150,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                     }
 
                     using (responseStream)
-                    using (var responseStreamReader = new StreamReader(responseStream, Encoding.Default))
+                    using (var responseStreamReader = new StreamReader(responseStream, Encoding.UTF8))
                     {
                         asyncState.ResponseContent = responseStreamReader.ReadToEnd();
                     }
