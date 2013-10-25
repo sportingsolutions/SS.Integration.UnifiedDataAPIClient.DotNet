@@ -20,6 +20,7 @@ using System.Net;
 using System.Text;
 using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
+using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
@@ -74,28 +75,17 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 stopwatch.Start();
 
-                LoginRequiredDelegate<List<RestItem>> loginRequired = delegate(IRestResponse<List<RestItem>> response)
-                {
-                    messageStringBuilder.Append("Login Required\r\n");
-
-                    var restLink = response.Data.SelectMany(restItem => restItem.Links)
-                                           .FirstOrDefault(
-                                               l => l.Relation == "http://api.sportingsolutions.com/rels/login");
-                    return new Uri(restLink.Href);
-                };
-
-                var getRootResponse = ConnectClient.Login(loginRequired);
+                var getRootResponse = ConnectClient.Login();
                 messageStringBuilder.AppendFormat("GetRoot took {0}ms\r\n", stopwatch.ElapsedMilliseconds);
                 stopwatch.Restart();
 
-                if (getRootResponse.ErrorException != null || getRootResponse.Data == null || !getRootResponse.Data.Any())
+                if (getRootResponse.ErrorException != null || getRootResponse.Content == null)
                 {
                     RestErrorHelper.LogRestError(Logger, getRootResponse, "GetRoot Http Error");
                     return;
                 }
 
-                _restItems = getRootResponse.Data;
-
+                _restItems = getRootResponse.Content.FromJson<List<RestItem>>();
             }
             catch (WebException ex)
             {
