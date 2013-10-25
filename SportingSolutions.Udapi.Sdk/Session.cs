@@ -18,8 +18,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text;
-using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
+using SportingSolutions.Udapi.Sdk.Exceptions;
 using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
@@ -82,19 +82,24 @@ namespace SportingSolutions.Udapi.Sdk
                 if (getRootResponse.ErrorException != null || getRootResponse.Content == null)
                 {
                     RestErrorHelper.LogRestError(Logger, getRootResponse, "GetRoot Http Error");
-                    return;
+                    throw new Exception("There has been a problem calling GetRoot", getRootResponse.ErrorException);
+                }
+
+                if (getRootResponse.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    throw new NotAuthenticatedException("UserName or password are incorrect");
                 }
 
                 _restItems = getRootResponse.Content.FromJson<List<RestItem>>();
             }
-            catch (WebException ex)
+            catch (NotAuthenticatedException)
             {
-                var response = (HttpWebResponse)ex.Response;
-                Logger.Error("Get Root Web Exception", ex);
+                throw;
             }
             catch (Exception ex)
             {
                 Logger.Error("Get Root Exception", ex);
+                throw;
             }
             Logger.Debug(messageStringBuilder);
             stopwatch.Stop();

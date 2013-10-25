@@ -51,9 +51,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         private bool _isReconnecting;
 
-        private bool _isProcessingStreamEvent;
         private string _lastSentGuid;
-
 
         internal Resource(RestItem restItem, IConnectClient connectClient)
             : base(restItem, connectClient)
@@ -114,10 +112,9 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _connectionFactory = new ConnectionFactory();
 
-
             var missedEchos = 0;
 
-            _maxRetries = 10;
+            _maxRetries = 5;
             _isStreaming = true;
 
             Reconnect();
@@ -153,12 +150,8 @@ namespace SportingSolutions.Udapi.Sdk
                             }
                             else
                             {
-                                _isProcessingStreamEvent = true;
-                                // if echo was sent and placed just after this message 
-                                // it might fail the time constraint
                                 isExpectingEcho = false;
                                 StreamEvent(this, new StreamEventArgs(messageString));
-                                _isProcessingStreamEvent = false;
                             }
                         }
                     }
@@ -214,8 +207,6 @@ namespace SportingSolutions.Udapi.Sdk
                 Logger.DebugFormat("Echo arrived but will be ignored since it's not expected. This may be due to earlier update clashing with echo");
             }
 
-            Logger.Info("Echo Arrived");
-
             var split = jobject["Content"].Value<String>().Split(';');
             var recievedEchoGuid = split[0];
             var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
@@ -233,7 +224,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
             else
             {
-                Logger.Error("Recieved Echo Messages from differerent client");
+                Logger.ErrorFormat("Recieved Echo Messages from differerent client for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
             }
         }
 
@@ -333,12 +324,13 @@ namespace SportingSolutions.Udapi.Sdk
                     _channel.BasicQos(0, 10, false);
                     success = true;
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     // give time for load balancer to notice the node is down
                     Thread.Sleep(500);
-                    Logger.WarnFormat("Failed to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id,
-                        _reconnectionsSinceLastMessage + 1);
+                    
+                    Logger.Warn(string.Format("Failed to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id,
+                        _reconnectionsSinceLastMessage + 1), ex);
                 }
                 finally
                 {
@@ -377,15 +369,13 @@ namespace SportingSolutions.Udapi.Sdk
                         Logger.WarnFormat("Post Echo for fixtureName=\"{0}\" fixtureId={1} had null response and took {2}ms", Name, Id, stopwatch.ElapsedMilliseconds);
                         return false;
                     }
-                    else if (response.ErrorException != null)
+                    if (response.ErrorException != null)
                     {
                         RestErrorHelper.LogRestError(Logger, response, string.Format("Echo Http Error fixtureName=\"{0}\" fixtureId={1} took {2}ms", Name, Id, stopwatch.ElapsedMilliseconds));
                         return false;
                     }
-                    else
-                    {
-                        Logger.DebugFormat("Post Echo for fixtureName=\"{0}\" fixtureId={1} took duration={2}ms", Name, Id, stopwatch.ElapsedMilliseconds);
-                    }
+                    
+                    Logger.DebugFormat("Post Echo for fixtureName=\"{0}\" fixtureId={1} took duration={2}ms", Name, Id, stopwatch.ElapsedMilliseconds);
                 }
             }
             catch (Exception ex)

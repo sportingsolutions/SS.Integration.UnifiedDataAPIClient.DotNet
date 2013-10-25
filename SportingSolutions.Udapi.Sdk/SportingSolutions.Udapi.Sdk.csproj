@@ -102,9 +102,7 @@
     <Compile Include="Clients\IConfiguration.cs" />
     <Compile Include="Clients\IConnectClient.cs" />
     <Compile Include="Clients\ICredentials.cs" />
-    <Compile Include="Clients\JsonSerializer.cs" />
     <Compile Include="Clients\RestErrorHelper.cs" />
-    <Compile Include="Clients\RestHelper.cs" />
     <Compile Include="Credentials.cs" />
     <Compile Include="Endpoint.cs" />
     <Compile Include="Events\StreamEventArgs.cs" />

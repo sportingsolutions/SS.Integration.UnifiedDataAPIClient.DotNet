@@ -67,7 +67,7 @@ namespace SportingSolutions.Udapi.Sdk
                 if (response.ErrorException != null)
                 {
                     RestErrorHelper.LogRestError(Logger, response, errorHeading);
-                    return result;
+                    throw new Exception(string.Format("Error calling {0}",theUri),response.ErrorException);
                 }
                 result = response.Data;
             }
@@ -91,7 +91,7 @@ namespace SportingSolutions.Udapi.Sdk
                 if (response.ErrorException != null || response.Content == null)
                 {
                     RestErrorHelper.LogRestError(Logger, response, errorHeading);
-                    return result;
+                    throw new Exception(string.Format("Error calling {0}", theUri), response.ErrorException);
                 }
                 result = response.Content;
             }
