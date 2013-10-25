@@ -19,67 +19,26 @@ using System.IO.Compression;
 using System.Net;
 using System.Net.Cache;
 using System.Text;
-using System.Threading;
+using SportingSolutions.Udapi.Sdk.Exceptions;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
     public static class RestHelper
     {
-        public static Response GetResponse(Uri url, string data, string httpMethod, string contentType,
-                                           NameValueCollection headers, int timeout = 30000, bool gzip = true)
-        {
-            // Create Request
-
-            var request = CreateRequest(url, data, httpMethod, contentType, headers, gzip);
-
-            // Invoke Async
-
-            var waitHandle = new ManualResetEvent(false);
-            var asyncRequest = new AsyncRequestState(request, waitHandle);
-            request.BeginGetResponse(AsyncResponse, asyncRequest);
-
-            // Wait for reponse or timeout
-
-            var success = waitHandle.WaitOne(timeout);
-
-            if (!success)
-            {
-                throw new TimeoutException("Web request did not complete in a timely fashion");
-            }
-
-            if (asyncRequest.UnexpectedException != null)
-            {
-                throw asyncRequest.UnexpectedException;
-            }
-
-            // Return response
-
-            return new Response
-                {
-                    StatusCode = asyncRequest.ResponseStatusCode,
-                    Content = asyncRequest.ResponseContent,
-                    Headers = asyncRequest.ResponseHeaders
-                };
-        }
-
-        private static HttpWebRequest CreateRequest(Uri url, string data, string httpMethod, string contentType,
-                                                    NameValueCollection headers, bool gzip)
+        private static HttpWebRequest CreateRequest(Uri url, string data, string httpMethod, string contentType, NameValueCollection headers, int timeout, bool gzip)
         {
             var request = WebRequest.Create(url);
 
             request.Method = httpMethod.ToUpper();
             request.ContentType = contentType;
+            request.Timeout = timeout;
             request.CachePolicy = new HttpRequestCachePolicy(HttpRequestCacheLevel.NoCacheNoStore);
 
             if (headers != null)
-            {
                 request.Headers.Add(headers);
-            }
 
             if (gzip)
-            {
                 request.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip");
-            }
 
             if (data != null)
             {
@@ -100,85 +59,95 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             return request as HttpWebRequest;
         }
 
-        private static void AsyncResponse(IAsyncResult result)
+        public static string GetResponseWithWebException(Uri url, string data, string httpMethod, string contentType, NameValueCollection headers, int timeout = 30000, bool gzip = true)
         {
-            var asyncState = (AsyncRequestState) result.AsyncState;
+            var request = CreateRequest(url, data, httpMethod, contentType, headers, timeout, gzip);
+
+            using (var response = request.GetResponse() as HttpWebResponse)
+            {
+                if (response == null)
+                    throw new NullReferenceException("Response was null");
+
+                //Get the response stream
+                var responseStream = response.GetResponseStream();
+
+                if (response.ContentEncoding.ToLower().Contains("gzip"))
+                    responseStream = new GZipStream(responseStream, CompressionMode.Decompress);
+
+                //Create response stream reader
+                if (responseStream == null)
+                    throw new NullReferenceException("Response Stream was null");
+
+                var responseStreamReader = new StreamReader(responseStream, Encoding.Default);
+                return responseStreamReader.ReadToEnd();
+            }
+        }
+
+        public static string GetResponse(Uri url, string data, string httpMethod, string contentType, NameValueCollection headers, int timeout = 30000, bool gzip = true)
+        {
+            try
+            {
+                return GetResponseWithWebException(url, data, httpMethod, contentType, headers, timeout, gzip);
+            }
+            catch (WebException ex)
+            {
+                using(var response = ex.Response)
+                {
+                    var httpResponse = (HttpWebResponse) response;
+                    if (httpResponse != null)
+                    {
+                        using (var rdata = httpResponse.GetResponseStream())
+                        {
+                            if (rdata != null)
+                            {
+                                var text = new StreamReader(rdata).ReadToEnd();
+                                if(httpResponse.StatusCode == HttpStatusCode.Unauthorized)
+                                {
+                                    throw new NotAuthenticatedException(text,ex);
+                                }
+                                else
+                                {
+                                    throw new Exception(text, ex);
+                                }
+                            }
+                            throw new Exception(ex.Message,ex);
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception(ex.Message, ex);
+                    }
+                }
+            }
+        }
+
+        public static string GetResponse(HttpWebResponse response)
+        {
+            var responseStream = response.GetResponseStream();
 
             try
             {
-                using (var response = asyncState.Request.EndGetResponse(result) as HttpWebResponse)
-                {
-                    ProcessWebResponse(asyncState, response);
-                }
-            }
-            catch (Exception ex)
-            {
-                var webException = ex as WebException;
+                if (responseStream == null)
+                    throw new NullReferenceException("Response Stream was null");
 
-                if (webException != null)
-                {
-                    using (var response = webException.Response as HttpWebResponse)
-                    {
-                        ProcessWebResponse(asyncState, response);
-                    }
-                }
-                else
-                {
-                    asyncState.UnexpectedException = ex;
-                }
+                if (response.ContentEncoding.ToLower().Contains("gzip"))
+                    responseStream = new GZipStream(responseStream, CompressionMode.Decompress);
+
+                var responseStreamReader = new StreamReader(responseStream, Encoding.Default);
+                return responseStreamReader.ReadToEnd();
             }
             finally
             {
-                asyncState.WaitHandle.Set();
-            }
-        }
-
-        private static void ProcessWebResponse(AsyncRequestState asyncState, HttpWebResponse response)
-        {
-            if (response != null)
-            {
-                asyncState.ResponseStatusCode = response.StatusCode;
-                asyncState.ResponseHeaders = response.Headers;
-
-                var responseStream = response.GetResponseStream();
-
                 if (responseStream != null)
-                {
-                    if (response.ContentEncoding.ToLower().Contains("gzip"))
-                    {
-                        responseStream = new GZipStream(responseStream, CompressionMode.Decompress);
-                    }
-
-                    using (responseStream)
-                    using (var responseStreamReader = new StreamReader(responseStream, Encoding.UTF8))
-                    {
-                        asyncState.ResponseContent = responseStreamReader.ReadToEnd();
-                    }
-                }
+                    responseStream.Dispose();
             }
+
         }
-    }
 
-    public class Response
-    {
-        public string Content { get; set; }
-        public HttpStatusCode StatusCode { get; set; }
-        public WebHeaderCollection Headers { get; set; }
-    }
-
-    internal class AsyncRequestState
-    {
-        internal AsyncRequestState(HttpWebRequest request, ManualResetEvent waitHandle)
+        public static HttpWebResponse GetResponseEx(Uri url, string data, string httpMethod, string contentType, NameValueCollection headers, int timeout = 30000, bool gzip = true)
         {
-            Request = request;
-            WaitHandle = waitHandle;
+            var request = CreateRequest(url, data, httpMethod, contentType, headers, timeout, gzip);
+            return request.GetResponse() as HttpWebResponse;
         }
-
-        internal HttpWebRequest Request { get; private set; }
-        internal ManualResetEvent WaitHandle { get; private set; }
-        internal Exception UnexpectedException { get; set; }
-        internal string ResponseContent { get; set; }
-        internal HttpStatusCode ResponseStatusCode { get; set; }
-        internal WebHeaderCollection ResponseHeaders { get; set; }
     }
 }

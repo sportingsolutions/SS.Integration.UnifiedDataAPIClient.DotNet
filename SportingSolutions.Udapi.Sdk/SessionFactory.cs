@@ -13,15 +13,57 @@
 //limitations under the License.
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Interfaces;
+using ICredentials = SportingSolutions.Udapi.Sdk.Interfaces.ICredentials;
 
 namespace SportingSolutions.Udapi.Sdk
 {
-    public static class SessionFactory
+    public class SessionFactory
     {
+        private static readonly object SessionFactoryLock = new object();
+        private static readonly object SessionLock = new object();
+        private static volatile SessionFactory _sessionFactory;
+
+        private readonly IDictionary<string,ISession> _sessions;
+
+        private SessionFactory()
+        {
+            _sessions = new ConcurrentDictionary<string, ISession>();
+        }
+
         public static ISession CreateSession(Uri serverUri, ICredentials credentials)
         {
-            return new Session(serverUri, credentials);
+            if (_sessionFactory == null)
+            {
+                lock (SessionFactoryLock)
+                {
+                    if (_sessionFactory == null)
+                    {
+                        _sessionFactory = new SessionFactory();
+                    }
+                }    
+            }
+            return _sessionFactory.GetSession(serverUri, credentials);
+        }
+
+        private ISession GetSession(Uri serverUri, ICredentials credentials)
+        {
+            lock (SessionLock)
+            {
+                ISession session = null;
+                var sessionExists = _sessions.TryGetValue(serverUri + credentials.UserName, out session);
+                if (!sessionExists)
+                {
+                    var connectClient = new ConnectClient(new Configuration(serverUri), new Clients.Credentials(credentials.UserName, credentials.Password));
+                    session = new Session(connectClient);
+                    _sessions.Add(serverUri + credentials.UserName, session);
+                }
+                return session;
+            }
         }
     }
 }

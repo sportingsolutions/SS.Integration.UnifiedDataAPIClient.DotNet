@@ -13,7 +13,7 @@
 //limitations under the License.
 
 using System;
-using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -23,9 +23,9 @@ using System.Web;
 using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
-using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
@@ -34,12 +34,8 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Resource : Endpoint, IResource, IDisposable, IStreamStatistics
     {
-        private readonly ILog _logger = LogManager.GetLogger(typeof(Resource).ToString());
-
         private bool _isStreaming;
         private readonly ManualResetEvent _pauseStream;
-        private readonly AutoResetEvent _echoResetEvent;
-        private readonly AutoResetEvent _echoTimerEvent;
 
         private IModel _channel;
         private IConnection _connection;
@@ -48,9 +44,6 @@ namespace SportingSolutions.Udapi.Sdk
         private string _queueName;
 
         private int _echoSenderInterval;
-        private int _echoMaxDelay;
-
-        private string _lastRecievedEchoGuid;
 
         private int _reconnectionsSinceLastMessage;
         private int _maxRetries;
@@ -58,20 +51,16 @@ namespace SportingSolutions.Udapi.Sdk
 
         private bool _isReconnecting;
 
-        private Task _echoTask;
-        private CancellationTokenSource _echoTokenSource;
-
         private bool _isProcessingStreamEvent;
         private string _lastSentGuid;
 
 
-        internal Resource(NameValueCollection headers, RestItem restItem)
-            : base(headers, restItem)
+        internal Resource(RestItem restItem, IConnectClient connectClient)
+            : base(restItem, connectClient)
         {
-            _logger.DebugFormat("Instantiated fixtureName=\"{0}\"", restItem.Name);
+            Logger = LogManager.GetLogger(typeof(Resource).ToString());
+            Logger.DebugFormat("Instantiated fixtureName=\"{0}\"", restItem.Name);
             _pauseStream = new ManualResetEvent(true);
-            _echoResetEvent = new AutoResetEvent(false);
-            _echoTimerEvent = new AutoResetEvent(true);
         }
 
         public string Id
@@ -96,8 +85,12 @@ namespace SportingSolutions.Udapi.Sdk
 
         public string GetSnapshot()
         {
-            _logger.InfoFormat("Get Snapshot for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-            return FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/snapshot");
+            var loggingStringBuilder = new StringBuilder();
+            loggingStringBuilder.AppendFormat("Get Snapshot for fixtureName=\"{0}\" fixtureId={1} \r\n", Name, Id);
+
+            var result = FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/snapshot", "GetSnapshot Http Error", loggingStringBuilder);
+            Logger.Info(loggingStringBuilder);
+            return result;
         }
 
         public void StartStreaming()
@@ -107,10 +100,9 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
-            _logger.InfoFormat("Starting stream for fixtureName=\"{0}\" fixtureId={1} with Echo Interval of {2}", Name, Id, echoInterval);
+            Logger.InfoFormat("Starting stream for fixtureName=\"{0}\" fixtureId={1} with Echo Interval of {2}", Name, Id, echoInterval);
 
             _echoSenderInterval = echoInterval;
-            _echoMaxDelay = echoMaxDelay;
 
             if (State != null)
             {
@@ -122,12 +114,15 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _connectionFactory = new ConnectionFactory();
 
+
+            var missedEchos = 0;
+
             _maxRetries = 10;
             _isStreaming = true;
 
             Reconnect();
 
-            _logger.InfoFormat("Initialised connection to Streaming Queue for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            Logger.InfoFormat("Initialised connection to Streaming Queue for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
             LastMessageReceived = DateTime.UtcNow;
 
@@ -141,7 +136,6 @@ namespace SportingSolutions.Udapi.Sdk
                     _pauseStream.WaitOne();
                     object output = null;
 
-                    //if (output != null)
                     if (_consumer.Queue.Dequeue(_echoSenderInterval, out output))
                     {
                         var deliveryArgs = (BasicDeliverEventArgs)output;
@@ -173,30 +167,37 @@ namespace SportingSolutions.Udapi.Sdk
                         // message didn't arrive in specified time period
                         if (isExpectingEcho)
                         {
-                            _logger.InfoFormat("No echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
-                            LastStreamDisconnect = DateTime.UtcNow;
-                            //reached timeout, no echo has arrived
-                            _isReconnecting = true;
-                            Reconnect();
-                            _isReconnecting = false;
-                            isExpectingEcho = false;
+                            missedEchos++;
+                            Logger.InfoFormat("No echo recieved for fixtureId={0} fixtureName=\"{1}\" missedEchos={2}", Id, Name, missedEchos);
+
+                            if (missedEchos > 3)
+                            {
+                                Logger.WarnFormat("Missed 3 echos reconnecting stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
+                                LastStreamDisconnect = DateTime.UtcNow;
+                                //reached timeout, no echo has arrived
+                                _isReconnecting = true;
+                                Reconnect();
+                                missedEchos = 0;
+                                _isReconnecting = false;
+                                isExpectingEcho = false;   
+                            }
                         }
                         else
                         {
-                            isExpectingEcho = SendEcho(_echoTokenSource.Token);
+                            isExpectingEcho = SendEcho();
                         }
                     }
                     _reconnectionsSinceLastMessage = 0;
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(string.Format("Lost connection to stream for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
+                    Logger.Error(string.Format("Lost connection to stream for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
                     LastStreamDisconnect = DateTime.UtcNow;
                     //connection lost
                     if (!_isReconnecting)
                     {
-                        StopEcho();
                         Reconnect();
+                        missedEchos = 0;
                     }
                     else
                     {
@@ -210,10 +211,10 @@ namespace SportingSolutions.Udapi.Sdk
         {
             if (!isExpectingEcho)
             {
-                _logger.DebugFormat("Echo arrived but will be ignored since it's not expected. This may be due to earlier update clashing with echo");
+                Logger.DebugFormat("Echo arrived but will be ignored since it's not expected. This may be due to earlier update clashing with echo");
             }
 
-            _logger.Info("Echo Arrived");
+            Logger.Info("Echo Arrived");
 
             var split = jobject["Content"].Value<String>().Split(';');
             var recievedEchoGuid = split[0];
@@ -228,17 +229,17 @@ namespace SportingSolutions.Udapi.Sdk
 
             if (_lastSentGuid == recievedEchoGuid)
             {
-                _logger.DebugFormat("Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
+                Logger.DebugFormat("Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
             }
             else
             {
-                _logger.Error("Recieved Echo Messages from differerent client");
+                Logger.Error("Recieved Echo Messages from differerent client");
             }
         }
 
         private void Reconnect()
         {
-            _logger.WarnFormat("Attempting to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id, _reconnectionsSinceLastMessage + 1);
+            Logger.WarnFormat("Attempting to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id, _reconnectionsSinceLastMessage + 1);
             var success = false;
             while (!success && _isStreaming)
             {
@@ -246,15 +247,16 @@ namespace SportingSolutions.Udapi.Sdk
                 {
                     if (_reconnectionsSinceLastMessage > _maxRetries)
                     {
-                        _logger.ErrorFormat("Failed to reconnect Stream for fixtureName=\"{0}\" fixtureId={1} ", Name,
+                        Logger.ErrorFormat("Failed to reconnect Stream for fixtureName=\"{0}\" fixtureId={1} ", Name,
                                             Id);
                         StopStreaming();
                         return;
                     }
 
-                    var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp");
-                    var amqpLink =
-                        restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
+                    var loggingStringBuilder = new StringBuilder();
+                    var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp", "GetAmqpStream Http Error", loggingStringBuilder);
+                    Logger.Info(loggingStringBuilder);
+                    var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
 
                     var amqpUri = new Uri(amqpLink.Href);
 
@@ -314,13 +316,11 @@ namespace SportingSolutions.Udapi.Sdk
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error(ex);
+                        Logger.Error(ex);
                     }
 
                     _connection = _connectionFactory.CreateConnection();
-                    _logger.InfoFormat("Successfully connected to Streaming Server for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-
-                    StartEcho();
+                    Logger.InfoFormat("Successfully connected to Streaming Server for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
                     if (StreamConnected != null)
                     {
@@ -332,14 +332,13 @@ namespace SportingSolutions.Udapi.Sdk
                     _channel.BasicConsume(_queueName, true, _consumer);
                     _channel.BasicQos(0, 10, false);
                     success = true;
-
                 }
                 catch (Exception)
                 {
                     // give time for load balancer to notice the node is down
                     Thread.Sleep(500);
-                    _logger.WarnFormat("Failed to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id,
-                        _reconnectionsSinceLastMessage);
+                    Logger.WarnFormat("Failed to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id,
+                        _reconnectionsSinceLastMessage + 1);
                 }
                 finally
                 {
@@ -348,52 +347,17 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        private void StartEcho()
-        {
-
-            //if (_echoTask == null || _echoTask.IsCanceled || _echoTask.IsCompleted)
-            //{
-            _echoTokenSource = new CancellationTokenSource();
-            var cancelToken = _echoTokenSource.Token;
-            _echoResetEvent.Reset();
-            _logger.InfoFormat("Starting echo for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-            //    _echoTask = Task.Factory.StartNew(() => SendEcho(cancelToken), cancelToken);
-            //}
-        }
-
-        private void StopEcho()
-        {
-            if (_echoTask != null)
-            {
-                _echoTokenSource.Cancel();
-            }
-        }
-
-        private bool SendEcho(CancellationToken cancelToken)
+        private bool SendEcho()
         {
             _lastSentGuid = Guid.NewGuid().ToString();
-
-            //while (_isStreaming)
-            //{
-
-
-            //var indexofSignal = WaitHandle.WaitAny(new[] { _echoTimerEvent, cancelToken.WaitHandle }, _echoSenderInterval);
-            //if (indexofSignal == 1)
-            //{
-            //    return;
-            //}
-
-            //if (cancelToken.IsCancellationRequested)
-            //{
-            //    return;
-            //}
-
-            if (_isProcessingStreamEvent) return true;
 
             try
             {
                 if (State != null)
                 {
+                    var stopwatch = new Stopwatch();
+                    stopwatch.Start();
+
                     var theLink =
                         State.Links.First(
                             restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
@@ -406,84 +370,48 @@ namespace SportingSolutions.Udapi.Sdk
                         Message = _lastSentGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
                     };
 
-                    var stringStreamEcho = streamEcho.ToJson();
+                    var response = ConnectClient.Request<object>(new Uri(theUrl), Method.POST, streamEcho);
 
-                    RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json",
-                                           Headers, 3000);
+                    if (response == null)
+                    {
+                        Logger.WarnFormat("Post Echo for fixtureName=\"{0}\" fixtureId={1} had null response and took {2}ms", Name, Id, stopwatch.ElapsedMilliseconds);
+                        return false;
+                    }
+                    else if (response.ErrorException != null)
+                    {
+                        RestErrorHelper.LogRestError(Logger, response, string.Format("Echo Http Error fixtureName=\"{0}\" fixtureId={1} took {2}ms", Name, Id, stopwatch.ElapsedMilliseconds));
+                        return false;
+                    }
+                    else
+                    {
+                        Logger.DebugFormat("Post Echo for fixtureName=\"{0}\" fixtureId={1} took duration={2}ms", Name, Id, stopwatch.ElapsedMilliseconds);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error(string.Format("Unable to post echo for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
+                Logger.Error(string.Format("Unable to post echo for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
                 return false;
             }
 
-            _logger.DebugFormat("Echo successfully sent for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
             return true;
-            //var waitHandleResult = WaitHandle.WaitAny(new[] { _echoResetEvent, cancelToken.WaitHandle }, _echoMaxDelay);
-
-            //var echoArrived = false;
-            //if (waitHandleResult == 0)
-            //{
-            //    echoArrived = true;
-            //}
-            //else if (waitHandleResult == 1)
-            //{
-            //    return;
-            //}
-            //_echoResetEvent.Reset();
-
-            //if (cancelToken.IsCancellationRequested)
-            //{
-            //    return;
-            //}
-
-            ////signal was recieved
-            //if (echoArrived)
-            //{
-            //    if (_lastSentGuid.Equals(_lastRecievedEchoGuid))
-            //    {
-            //        _logger.DebugFormat("Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
-            //    }
-            //    else
-            //    {
-            //        _logger.Error("Recieved Echo Messages from differerent client");
-            //    }
-            //}
-            //else
-            //{
-            //    if (!_isProcessingStreamEvent)
-            //    {
-                    
-            //        if (cancelToken.IsCancellationRequested)
-            //        {
-            //            return;
-            //        }
-            //    }
-            //}
-
-            ////}
-            _logger.DebugFormat("Echo successfully cancelled for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
         }
 
         public void PauseStreaming()
         {
-            _logger.InfoFormat("Streaming paused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            Logger.InfoFormat("Streaming paused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
             _pauseStream.Reset();
-            StopEcho();
         }
 
         public void UnPauseStreaming()
         {
-            _logger.InfoFormat("Streaming unpaused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            Logger.InfoFormat("Streaming unpaused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
             _pauseStream.Set();
-            StartEcho();
         }
 
         public void StopStreaming()
         {
             _isStreaming = false;
-            StopEcho();
             if (_consumer != null)
             {
                 try
@@ -492,7 +420,7 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(string.Format("Problem when stopping stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name), ex);
+                    Logger.Error(string.Format("Problem when stopping stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name), ex);
                     Dispose();
                 }
             }
@@ -509,7 +437,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void Dispose()
         {
-            _logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
             if (_channel != null)
             {
                 try
@@ -518,7 +446,7 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex);
+                    Logger.Error(ex);
                 }
                 _channel = null;
             }
@@ -533,12 +461,10 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex);
+                    Logger.Error(ex);
                 }
                 _connection = null;
             }
-
-            _echoTask = null;
 
             if (StreamDisconnected != null)
             {

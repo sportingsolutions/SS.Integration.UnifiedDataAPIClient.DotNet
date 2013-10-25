@@ -14,15 +14,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Text;
+using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
-using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
-using ICredentials = SportingSolutions.Udapi.Sdk.Interfaces.ICredentials;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -32,84 +32,82 @@ namespace SportingSolutions.Udapi.Sdk
     public class Session : Endpoint, ISession
     {
         private IList<RestItem> _restItems;
-        private readonly Uri _serverUri;
 
-        private ILog _logger = LogManager.GetLogger(typeof (Session).ToString());
-
-        public Session(Uri serverUri, ICredentials credentials)
+        internal Session(IConnectClient connectClient)
+            : base(connectClient)
         {
-            _serverUri = serverUri;
-            Headers = new NameValueCollection();
-            GetRoot(serverUri, credentials);
+            Logger = LogManager.GetLogger(typeof(Session).ToString());
+            GetRoot();
         }
 
         public IList<IService> GetServices()
         {
-            _logger.Info("Get all available services..");
-            if(_restItems == null)
+            Logger.Info("Get all available services..");
+            if (_restItems == null)
             {
-                GetRoot(_serverUri,null,false);
+                GetRoot();
             }
 
-            var result = _restItems.Select(serviceRestItem => new Service(Headers, serviceRestItem)).Cast<IService>().ToList();
+            var result = _restItems.Select(serviceRestItem => new Service(serviceRestItem, ConnectClient)).Cast<IService>().ToList();
             _restItems = null;
             return result;
         }
-       
+
         public IService GetService(string name)
         {
-            _logger.InfoFormat("Get Service {0}",name);
+            Logger.InfoFormat("Get Service {0}", name);
             if (_restItems == null)
             {
-                GetRoot(_serverUri, null, false);
+                GetRoot();
             }
 
-            var result = _restItems.Select(serviceRestItem => new Service(Headers, serviceRestItem)).FirstOrDefault(service => service.Name == name);
+            var result = _restItems.Select(serviceRestItem => new Service(serviceRestItem, ConnectClient)).FirstOrDefault(service => service.Name == name);
             _restItems = null;
             return result;
         }
 
-        private void GetRoot(Uri serverUri, ICredentials credentials, bool authenticate = true)
+        private void GetRoot()
         {
-            _logger.DebugFormat("Connecting to {0}",serverUri);
-
-            var response = RestHelper.GetResponse(serverUri, null, "GET", "application/json", Headers, 60000);
-
-            if (response != null)
+            var stopwatch = new Stopwatch();
+            var messageStringBuilder = new StringBuilder("Beginning Get Root Request");
+            try
             {
-                if (authenticate && response.StatusCode == HttpStatusCode.Unauthorized)
-                {
-                    _logger.Debug("Not authenticated logging on");
-                    var items = response.Content.FromJson<List<RestItem>>();
+                stopwatch.Start();
 
-                    var loginLink = items.SelectMany(restItem => restItem.Links).First(
-                        restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/login");
-                    var loginUrl = loginLink.Href;
-
-                    _restItems = Login(new Uri(loginUrl), credentials);
-                    _logger.Info("Logged in successfully");
-                }
-                else
+                LoginRequiredDelegate<List<RestItem>> loginRequired = delegate(IRestResponse<List<RestItem>> response)
                 {
-                    _logger.Info("Refreshing list of available services..");
-                    _restItems = response.Content.FromJson<List<RestItem>>();
+                    messageStringBuilder.Append("Login Required\r\n");
+
+                    var restLink = response.Data.SelectMany(restItem => restItem.Links)
+                                           .FirstOrDefault(
+                                               l => l.Relation == "http://api.sportingsolutions.com/rels/login");
+                    return new Uri(restLink.Href);
+                };
+
+                var getRootResponse = ConnectClient.Login(loginRequired);
+                messageStringBuilder.AppendFormat("GetRoot took {0}ms\r\n", stopwatch.ElapsedMilliseconds);
+                stopwatch.Restart();
+
+                if (getRootResponse.ErrorException != null || getRootResponse.Data == null || !getRootResponse.Data.Any())
+                {
+                    RestErrorHelper.LogRestError(Logger, getRootResponse, "GetRoot Http Error");
+                    return;
                 }
+
+                _restItems = getRootResponse.Data;
+
             }
-
-            if (_restItems == null)
+            catch (WebException ex)
             {
-                throw new Exception("Unable to connect. Please check the url and credentials");
+                var response = (HttpWebResponse)ex.Response;
+                Logger.Error("Get Root Web Exception", ex);
             }
-        }
-
-        private List<RestItem> Login(Uri serverUri, ICredentials credentials)
-        {
-            var headers = new NameValueCollection
-                              {{"X-Auth-User", credentials.UserName}, {"X-Auth-Key", credentials.Password}};
-
-            var response = RestHelper.GetResponse(serverUri, null, "POST", "application/json", headers);
-            Headers.Add("X-Auth-Token",response.Headers.Get("X-Auth-Token"));
-            return response.Content.FromJson<List<RestItem>>();
+            catch (Exception ex)
+            {
+                Logger.Error("Get Root Exception", ex);
+            }
+            Logger.Debug(messageStringBuilder);
+            stopwatch.Stop();
         }
     }
 }

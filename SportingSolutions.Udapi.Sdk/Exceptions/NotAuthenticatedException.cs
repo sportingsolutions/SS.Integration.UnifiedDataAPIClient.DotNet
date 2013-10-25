@@ -11,5 +11,10 @@ namespace SportingSolutions.Udapi.Sdk.Exceptions
         {
             
         }
+
+        public NotAuthenticatedException(string message) : base(message)
+        {
+             
+        }
     }
 }
