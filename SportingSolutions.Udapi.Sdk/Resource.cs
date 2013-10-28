@@ -53,6 +53,8 @@ namespace SportingSolutions.Udapi.Sdk
 
         private string _lastSentGuid;
 
+        private CancellationTokenSource _cancellationTokenSource;
+
         internal Resource(RestItem restItem, IConnectClient connectClient)
             : base(restItem, connectClient)
         {
@@ -104,11 +106,14 @@ namespace SportingSolutions.Udapi.Sdk
 
             if (State != null)
             {
-                Task.Factory.StartNew(StreamData, TaskCreationOptions.LongRunning);
+                _cancellationTokenSource = new CancellationTokenSource();
+                var cancellationToken = _cancellationTokenSource.Token;
+                var streamTask = Task.Factory.StartNew(() => StreamData(cancellationToken), cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                streamTask.ContinueWith(t => Logger.InfoFormat("Stream cancelled for fixtureName=\"{0}\" fixtureId={1}", Name, Id), TaskContinuationOptions.OnlyOnCanceled);
             }
         }
 
-        private void StreamData()
+        private void StreamData(CancellationToken cancellationToken)
         {
             _connectionFactory = new ConnectionFactory();
 
@@ -126,7 +131,7 @@ namespace SportingSolutions.Udapi.Sdk
             _consumer.QueueCancelled += Dispose;
             bool isExpectingEcho = false;
 
-            while (_isStreaming)
+            while (_isStreaming && !cancellationToken.IsCancellationRequested)
             {
                 try
                 {
@@ -135,6 +140,11 @@ namespace SportingSolutions.Udapi.Sdk
 
                     if (_consumer.Queue.Dequeue(_echoSenderInterval, out output))
                     {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                        }
+
                         var deliveryArgs = (BasicDeliverEventArgs)output;
                         var message = deliveryArgs.Body;
                         if (StreamEvent != null)
@@ -157,6 +167,10 @@ namespace SportingSolutions.Udapi.Sdk
                     }
                     else
                     {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                        }
                         // message didn't arrive in specified time period
                         if (isExpectingEcho)
                         {
@@ -184,19 +198,26 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error(string.Format("Lost connection to stream for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
-                    LastStreamDisconnect = DateTime.UtcNow;
-                    //connection lost
-                    if (!_isReconnecting)
+                    if (!cancellationToken.IsCancellationRequested || _isStreaming)
                     {
-                        Reconnect();
-                        missedEchos = 0;
-                    }
-                    else
-                    {
-                        Thread.Sleep(1000);
+                        Logger.Error(string.Format("Lost connection to stream for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
+                        LastStreamDisconnect = DateTime.UtcNow;
+                        //connection lost
+                        if (!_isReconnecting)
+                        {
+                            Reconnect();
+                            missedEchos = 0;
+                        }
+                        else
+                        {
+                            Thread.Sleep(1000);
+                        }   
                     }
                 }
+            }
+            if (cancellationToken.IsCancellationRequested)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
             }
         }
 
@@ -362,7 +383,7 @@ namespace SportingSolutions.Udapi.Sdk
                         Message = _lastSentGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
                     };
 
-                    var response = ConnectClient.Request<object>(new Uri(theUrl), Method.POST, streamEcho);
+                    var response = ConnectClient.Request<object>(new Uri(theUrl), Method.POST, streamEcho,7000);
 
                     if (response == null)
                     {
@@ -402,6 +423,7 @@ namespace SportingSolutions.Udapi.Sdk
         public void StopStreaming()
         {
             _isStreaming = false;
+            _cancellationTokenSource.Cancel();
             if (_consumer != null)
             {
                 try
@@ -440,6 +462,9 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 _channel = null;
             }
+
+            Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+
             if (_connection != null)
             {
                 try
@@ -455,6 +480,8 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 _connection = null;
             }
+
+            Logger.InfoFormat("Streaming Connection Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
             if (StreamDisconnected != null)
             {
