@@ -383,7 +383,7 @@ namespace SportingSolutions.Udapi.Sdk
                         Message = _lastSentGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
                     };
 
-                    var response = ConnectClient.Request<object>(new Uri(theUrl), Method.POST, streamEcho,7000);
+                    var response = ConnectClient.Request(new Uri(theUrl), Method.POST, streamEcho,"application/json", 7000);
 
                     if (response == null)
                     {
@@ -395,7 +395,7 @@ namespace SportingSolutions.Udapi.Sdk
                         RestErrorHelper.LogRestError(Logger, response, string.Format("Echo Http Error fixtureName=\"{0}\" fixtureId={1} took {2}ms", Name, Id, stopwatch.ElapsedMilliseconds));
                         return false;
                     }
-                    
+                  
                     Logger.DebugFormat("Post Echo for fixtureName=\"{0}\" fixtureId={1} took duration={2}ms", Name, Id, stopwatch.ElapsedMilliseconds);
                 }
             }

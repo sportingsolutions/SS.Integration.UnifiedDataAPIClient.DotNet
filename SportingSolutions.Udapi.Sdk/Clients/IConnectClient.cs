@@ -22,6 +22,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         IRestResponse Login();
 
         IRestResponse<T> Request<T>(Uri uri, Method method) where T : new();
+        IRestResponse Request(Uri uri, Method method, object body, string contentType, int timeout);
         IRestResponse Request(Uri uri, Method method);
         IRestResponse<T> Request<T>(Uri uri, Method method, int timeout) where T : new();
         IRestResponse<T> Request<T>(Uri uri, Method method, object body) where T : new();

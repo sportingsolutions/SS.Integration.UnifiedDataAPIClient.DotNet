@@ -66,7 +66,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             return restClient;
         }
 
-        private static IRestRequest CreateRequest(Uri uri, Method method, object body, string contentType, int timeout)
+        private IRestRequest CreateRequest(Uri uri, Method method, object body, string contentType, int timeout)
         {
             IRestRequest request = new RestRequest(uri, method);
             request.Resource = uri.ToString();
