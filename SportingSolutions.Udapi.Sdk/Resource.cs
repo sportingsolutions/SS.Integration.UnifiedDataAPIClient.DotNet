@@ -55,11 +55,14 @@ namespace SportingSolutions.Udapi.Sdk
 
         private CancellationTokenSource _cancellationTokenSource;
 
-        internal Resource(RestItem restItem, IConnectClient connectClient)
+        private EchoSender _echoSender;
+
+        internal Resource(RestItem restItem, IConnectClient connectClient, EchoSender echoSender)
             : base(restItem, connectClient)
         {
             Logger = LogManager.GetLogger(typeof(Resource).ToString());
             Logger.DebugFormat("Instantiated fixtureName=\"{0}\"", restItem.Name);
+            _echoSender = echoSender;
             _pauseStream = new ManualResetEvent(true);
         }
 
@@ -129,7 +132,7 @@ namespace SportingSolutions.Udapi.Sdk
             LastMessageReceived = DateTime.UtcNow;
 
             _consumer.QueueCancelled += Dispose;
-            bool isExpectingEcho = false;
+            bool isExpectingEcho = true;
 
             while (_isStreaming && !cancellationToken.IsCancellationRequested)
             {
@@ -156,11 +159,11 @@ namespace SportingSolutions.Udapi.Sdk
                             if (jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
                             {
                                 ProcessEcho(jobject,isExpectingEcho);
-                                isExpectingEcho = false;
+                              //  isExpectingEcho = false;
                             }
                             else
                             {
-                                isExpectingEcho = false;
+                              //  isExpectingEcho = false;
                                 StreamEvent(this, new StreamEventArgs(messageString));
                             }
                         }
@@ -186,12 +189,12 @@ namespace SportingSolutions.Udapi.Sdk
                                 Reconnect();
                                 missedEchos = 0;
                                 _isReconnecting = false;
-                                isExpectingEcho = false;   
+                               // isExpectingEcho = false;   
                             }
                         }
                         else
                         {
-                            isExpectingEcho = SendEcho();
+                           // isExpectingEcho = SendEcho();
                         }
                     }
                     _reconnectionsSinceLastMessage = 0;
@@ -239,14 +242,14 @@ namespace SportingSolutions.Udapi.Sdk
 
             //signal was recieved
 
-            if (_lastSentGuid == recievedEchoGuid)
-            {
+           // if (_lastSentGuid == recievedEchoGuid)
+           // {
                 Logger.DebugFormat("Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
-            }
-            else
-            {
-                Logger.ErrorFormat("Recieved Echo Messages from differerent client for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
-            }
+           // }
+           // else
+            //{
+            //    Logger.ErrorFormat("Recieved Echo Messages from differerent client for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
+         //   }
         }
 
         private void Reconnect()
@@ -344,6 +347,8 @@ namespace SportingSolutions.Udapi.Sdk
                     _channel.BasicConsume(_queueName, true, _consumer);
                     _channel.BasicQos(0, 10, false);
                     success = true;
+
+                    _echoSender.StartEcho(_virtualHost);
                 }
                 catch (Exception ex)
                 {

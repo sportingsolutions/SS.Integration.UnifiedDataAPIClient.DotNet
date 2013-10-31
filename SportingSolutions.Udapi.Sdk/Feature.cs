@@ -44,7 +44,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResources Http Error", loggingStringBuilder);
             Logger.Info(loggingStringBuilder);
-            return restItems.Select(restItem => new Resource(restItem, ConnectClient)).Cast<IResource>().ToList();
+            return restItems.Select(restItem => EchoSender.Instance.CreateResource(restItem, ConnectClient)).Cast<IResource>().ToList();
         }
 
         public IResource GetResource(string name)
@@ -54,7 +54,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResource Http Error", loggingStringBuilder);
             Logger.Info(loggingStringBuilder);
-            return (from restItem in restItems where restItem.Name == name select new Resource(restItem, ConnectClient)).FirstOrDefault();
+            return (from restItem in restItems where restItem.Name == name select EchoSender.Instance.CreateResource(restItem, ConnectClient)).FirstOrDefault();
         }
 
     }
