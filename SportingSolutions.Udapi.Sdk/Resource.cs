@@ -51,11 +51,9 @@ namespace SportingSolutions.Udapi.Sdk
 
         private bool _isReconnecting;
 
-        private string _lastSentGuid;
-
         private CancellationTokenSource _cancellationTokenSource;
 
-        private EchoSender _echoSender;
+        private readonly EchoSender _echoSender;
 
         internal Resource(RestItem restItem, IConnectClient connectClient, EchoSender echoSender)
             : base(restItem, connectClient)
@@ -132,7 +130,6 @@ namespace SportingSolutions.Udapi.Sdk
             LastMessageReceived = DateTime.UtcNow;
 
             _consumer.QueueCancelled += Dispose;
-            bool isExpectingEcho = true;
 
             while (_isStreaming && !cancellationToken.IsCancellationRequested)
             {
@@ -141,7 +138,7 @@ namespace SportingSolutions.Udapi.Sdk
                     _pauseStream.WaitOne();
                     object output = null;
 
-                    if (_consumer.Queue.Dequeue(_echoSenderInterval, out output))
+                    if (_consumer.Queue.Dequeue(_echoSenderInterval + 3000, out output))
                     {
                         if (cancellationToken.IsCancellationRequested)
                         {
@@ -153,17 +150,16 @@ namespace SportingSolutions.Udapi.Sdk
                         if (StreamEvent != null)
                         {
                             LastMessageReceived = DateTime.UtcNow;
+                            missedEchos = 0;
 
                             var messageString = Encoding.UTF8.GetString(message);
                             var jobject = JObject.Parse(messageString);
                             if (jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
                             {
-                                ProcessEcho(jobject,isExpectingEcho);
-                              //  isExpectingEcho = false;
+                                ProcessEcho(jobject);
                             }
                             else
                             {
-                              //  isExpectingEcho = false;
                                 StreamEvent(this, new StreamEventArgs(messageString));
                             }
                         }
@@ -175,26 +171,19 @@ namespace SportingSolutions.Udapi.Sdk
                             cancellationToken.ThrowIfCancellationRequested();
                         }
                         // message didn't arrive in specified time period
-                        if (isExpectingEcho)
-                        {
-                            missedEchos++;
-                            Logger.InfoFormat("No echo recieved for fixtureId={0} fixtureName=\"{1}\" missedEchos={2}", Id, Name, missedEchos);
+                        
+                        missedEchos++;
+                        Logger.InfoFormat("No echo recieved for fixtureId={0} fixtureName=\"{1}\" missedEchos={2}", Id, Name, missedEchos);
 
-                            if (missedEchos > 3)
-                            {
-                                Logger.WarnFormat("Missed 3 echos reconnecting stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
-                                LastStreamDisconnect = DateTime.UtcNow;
-                                //reached timeout, no echo has arrived
-                                _isReconnecting = true;
-                                Reconnect();
-                                missedEchos = 0;
-                                _isReconnecting = false;
-                               // isExpectingEcho = false;   
-                            }
-                        }
-                        else
+                        if (missedEchos > 3)
                         {
-                           // isExpectingEcho = SendEcho();
+                            Logger.WarnFormat("Missed 3 echos reconnecting stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
+                            LastStreamDisconnect = DateTime.UtcNow;
+                            //reached timeout, no echo has arrived
+                            _isReconnecting = true;
+                            Reconnect();
+                            missedEchos = 0;
+                            _isReconnecting = false;
                         }
                     }
                     _reconnectionsSinceLastMessage = 0;
@@ -224,15 +213,9 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        private void ProcessEcho(JObject jobject,bool isExpectingEcho)
+        private void ProcessEcho(JObject jobject)
         {
-            if (!isExpectingEcho)
-            {
-                Logger.DebugFormat("Echo arrived but will be ignored since it's not expected. This may be due to earlier update clashing with echo");
-            }
-
             var split = jobject["Content"].Value<String>().Split(';');
-            var recievedEchoGuid = split[0];
             var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
             var roundTripTime = DateTime.Now - timeSent;
 
@@ -240,16 +223,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             EchoRoundTripInMilliseconds = roundMillis;
 
-            //signal was recieved
-
-           // if (_lastSentGuid == recievedEchoGuid)
-           // {
-                Logger.DebugFormat("Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
-           // }
-           // else
-            //{
-            //    Logger.ErrorFormat("Recieved Echo Messages from differerent client for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
-         //   }
+            Logger.DebugFormat("Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
         }
 
         private void Reconnect()
@@ -348,7 +322,7 @@ namespace SportingSolutions.Udapi.Sdk
                     _channel.BasicQos(0, 10, false);
                     success = true;
 
-                    _echoSender.StartEcho(_virtualHost);
+                    _echoSender.StartEcho(_virtualHost, _echoSenderInterval);
                 }
                 catch (Exception ex)
                 {
@@ -363,54 +337,6 @@ namespace SportingSolutions.Udapi.Sdk
                     _reconnectionsSinceLastMessage++;
                 }
             }
-        }
-
-        private bool SendEcho()
-        {
-            _lastSentGuid = Guid.NewGuid().ToString();
-
-            try
-            {
-                if (State != null)
-                {
-                    var stopwatch = new Stopwatch();
-                    stopwatch.Start();
-
-                    var theLink =
-                        State.Links.First(
-                            restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
-                    var theUrl = theLink.Href;
-
-                    var streamEcho = new StreamEcho
-                    {
-                        Host = _virtualHost,
-                        Queue = _queueName,
-                        Message = _lastSentGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                    };
-
-                    var response = ConnectClient.Request(new Uri(theUrl), Method.POST, streamEcho,"application/json", 7000);
-
-                    if (response == null)
-                    {
-                        Logger.WarnFormat("Post Echo for fixtureName=\"{0}\" fixtureId={1} had null response and took {2}ms", Name, Id, stopwatch.ElapsedMilliseconds);
-                        return false;
-                    }
-                    if (response.ErrorException != null)
-                    {
-                        RestErrorHelper.LogRestError(Logger, response, string.Format("Echo Http Error fixtureName=\"{0}\" fixtureId={1} took {2}ms", Name, Id, stopwatch.ElapsedMilliseconds));
-                        return false;
-                    }
-                  
-                    Logger.DebugFormat("Post Echo for fixtureName=\"{0}\" fixtureId={1} took duration={2}ms", Name, Id, stopwatch.ElapsedMilliseconds);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(string.Format("Unable to post echo for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
-                return false;
-            }
-
-            return true;
         }
 
         public void PauseStreaming()

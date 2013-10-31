@@ -69,14 +69,14 @@ namespace SportingSolutions.Udapi.Sdk
             return resource;
         }
 
-        public void StartEcho(string virtualHost)
+        public void StartEcho(string virtualHost, int echoInterval)
         {
             lock (InitSync)
             {
                 if (_echoTimer == null)
                 {
                     _virtualHost = virtualHost;
-                    _echoTimer = new Timer(x => SendEcho(), null, 0, 5000);
+                    _echoTimer = new Timer(x => SendEcho(), null, 0, echoInterval);
                 }
             }
         }
@@ -93,7 +93,6 @@ namespace SportingSolutions.Udapi.Sdk
                 var streamEcho = new StreamEcho
                 {
                     Host = _virtualHost,
-                    Queue = "123",
                     Message = _lastSentGuid.ToString() + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
                 };
 

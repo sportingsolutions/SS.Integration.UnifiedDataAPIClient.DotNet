@@ -29,6 +29,8 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
     public class ConnectClient : IConnectClient
     {
+        private static readonly object sysLock = new object();
+
         private readonly IConfiguration _configuration;
         private readonly ICredentials _credentials;
 
@@ -172,21 +174,40 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         public IRestResponse Request(Uri uri, Method method, object body, string contentType, int timeout)
         {
             var request = CreateRequest(uri, method, body, contentType, timeout);
+            
             var client = CreateClient();
+            var oldAuth = client.DefaultParameters.FirstOrDefault(x => x.Name == XAuthToken);
+
             var response = client.Execute(request);
             
             if (response != null && response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 RestErrorHelper.LogRestError(Logger,response,string.Format("Unauthenticated when using authToken={0}",_xAuthTokenParameter != null ? _xAuthTokenParameter.Value : String.Empty));
-                if (Authenticate(response))
+                
+                var authenticated = false;
+                lock (sysLock)
+                {
+
+                    if (_xAuthTokenParameter == null || oldAuth == _xAuthTokenParameter)
+                    {
+                        authenticated = Authenticate(response);
+                    }
+                    else
+                    {
+                        authenticated = true;
+                    }
+                }
+
+                if (authenticated)
                 {
                     request = CreateRequest(uri, method, body, contentType, timeout);
-                    response = CreateClient().Execute(request);    
+                    response = CreateClient().Execute(request);
                 }
                 else
                 {
-                    throw new NotAuthenticatedException(string.Format("Not Authenticated for url={0}",uri));
+                    throw new NotAuthenticatedException(string.Format("Not Authenticated for url={0}", uri));
                 }
+                
             }
 
             return response;

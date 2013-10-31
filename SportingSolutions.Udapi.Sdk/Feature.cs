@@ -44,7 +44,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResources Http Error", loggingStringBuilder);
             Logger.Info(loggingStringBuilder);
-            return restItems.Select(restItem => EchoSender.Instance.CreateResource(restItem, ConnectClient)).Cast<IResource>().ToList();
+            return restItems.Select(restItem => EchoSender.Instance.CreateResource(restItem, ConnectClient)).ToList();
         }
 
         public IResource GetResource(string name)
