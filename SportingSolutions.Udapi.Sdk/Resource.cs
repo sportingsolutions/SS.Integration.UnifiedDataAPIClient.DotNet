@@ -13,7 +13,6 @@
 //limitations under the License.
 
 using System;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -23,7 +22,6 @@ using System.Web;
 using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
@@ -38,7 +36,6 @@ namespace SportingSolutions.Udapi.Sdk
         private readonly ManualResetEvent _pauseStream;
 
         private IModel _channel;
-        private IConnection _connection;
         private QueueingCustomConsumer _consumer;
         private string _virtualHost;
         private string _queueName;
@@ -47,20 +44,19 @@ namespace SportingSolutions.Udapi.Sdk
 
         private int _reconnectionsSinceLastMessage;
         private int _maxRetries;
-        private ConnectionFactory _connectionFactory;
 
         private bool _isReconnecting;
 
         private CancellationTokenSource _cancellationTokenSource;
 
-        private readonly EchoSender _echoSender;
+        private readonly StreamController _streamController;
 
-        internal Resource(RestItem restItem, IConnectClient connectClient, EchoSender echoSender)
+        internal Resource(RestItem restItem, IConnectClient connectClient, StreamController streamController)
             : base(restItem, connectClient)
         {
             Logger = LogManager.GetLogger(typeof(Resource).ToString());
             Logger.DebugFormat("Instantiated fixtureName=\"{0}\"", restItem.Name);
-            _echoSender = echoSender;
+            _streamController = streamController;
             _pauseStream = new ManualResetEvent(true);
         }
 
@@ -116,8 +112,6 @@ namespace SportingSolutions.Udapi.Sdk
 
         private void StreamData(CancellationToken cancellationToken)
         {
-            _connectionFactory = new ConnectionFactory();
-
             var missedEchos = 0;
 
             _maxRetries = 5;
@@ -137,6 +131,11 @@ namespace SportingSolutions.Udapi.Sdk
                 {
                     _pauseStream.WaitOne();
                     object output = null;
+
+                    if (_channel == null || !_channel.IsOpen)
+                    {
+                        throw new Exception("Channel is closed");    
+                    }
 
                     if (_consumer.Queue.Dequeue(_echoSenderInterval + 3000, out output))
                     {
@@ -249,20 +248,14 @@ namespace SportingSolutions.Udapi.Sdk
 
                     var amqpUri = new Uri(amqpLink.Href);
 
-                    _connectionFactory.RequestedHeartbeat = 5;
-
                     var host = amqpUri.Host;
-                    if (!String.IsNullOrEmpty(host))
-                    {
-                        _connectionFactory.HostName = host;
-                    }
+                    
                     var port = amqpUri.Port;
-                    if (port != -1)
-                    {
-                        _connectionFactory.Port = port;
-                    }
+                    
                     var userInfo = amqpUri.UserInfo;
                     userInfo = HttpUtility.UrlDecode(userInfo);
+                    var user = string.Empty;
+                    var password = string.Empty;
                     if (!String.IsNullOrEmpty(userInfo))
                     {
                         var userPass = userInfo.Split(':');
@@ -270,10 +263,11 @@ namespace SportingSolutions.Udapi.Sdk
                         {
                             throw new ArgumentException(string.Format("Bad user info in AMQP URI: {0}", userInfo));
                         }
-                        _connectionFactory.UserName = userPass[0];
+                        user = userPass[0];
+                       
                         if (userPass.Length == 2)
                         {
-                            _connectionFactory.Password = userPass[1];
+                            password = userPass[1];
                         }
                     }
                     _queueName = "";
@@ -282,8 +276,6 @@ namespace SportingSolutions.Udapi.Sdk
                     {
                         _queueName = path.Substring(path.IndexOf('/', 1) + 1);
                         _virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
-
-                        _connectionFactory.VirtualHost = "/" + _virtualHost;
                     }
 
                     if (_channel != null)
@@ -292,37 +284,20 @@ namespace SportingSolutions.Udapi.Sdk
                         _channel = null;
                     }
 
-                    try
-                    {
-                        if (_connection != null)
-                        {
-                            if (_connection.IsOpen)
-                            {
-                                _connection.Close();
-                            }
-                            _connection = null;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error(ex);
-                    }
-
-                    _connection = _connectionFactory.CreateConnection();
-                    Logger.InfoFormat("Successfully connected to Streaming Server for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+                    _channel = _streamController.GetStreamChannel(host, port, user, password, _virtualHost);
 
                     if (StreamConnected != null)
                     {
                         StreamConnected(this, new EventArgs());
                     }
 
-                    _channel = _connection.CreateModel();
                     _consumer = new QueueingCustomConsumer(_channel);
                     _channel.BasicConsume(_queueName, true, _consumer);
                     _channel.BasicQos(0, 10, false);
+                    _channel.ModelShutdown += ChannelModelShutdown;
                     success = true;
 
-                    _echoSender.StartEcho(_virtualHost, _echoSenderInterval);
+                    _streamController.StartEcho(_virtualHost, _echoSenderInterval);
                 }
                 catch (Exception ex)
                 {
@@ -337,6 +312,15 @@ namespace SportingSolutions.Udapi.Sdk
                     _reconnectionsSinceLastMessage++;
                 }
             }
+        }
+
+        private void ChannelModelShutdown(IModel model, ShutdownEventArgs reason)
+        {
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendFormat("There has been a streaming channel failure for fixtureName=\"{0}\" fixtureId={1}", Name, Id).AppendLine();
+            stringBuilder.Append(reason);
+
+            Logger.Error(stringBuilder.ToString());
         }
 
         public void PauseStreaming()
@@ -385,6 +369,7 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 try
                 {
+                    _channel.Dispose();
                     _channel.Close();
                 }
                 catch (Exception ex)
@@ -395,24 +380,6 @@ namespace SportingSolutions.Udapi.Sdk
             }
 
             Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-
-            if (_connection != null)
-            {
-                try
-                {
-                    if (_connection.IsOpen)
-                    {
-                        _connection.Close();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error(ex);
-                }
-                _connection = null;
-            }
-
-            Logger.InfoFormat("Streaming Connection Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
             if (StreamDisconnected != null)
             {

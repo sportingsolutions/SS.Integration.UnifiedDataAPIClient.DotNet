@@ -1,7 +1,24 @@
-﻿using System;
+﻿//Copyright 2012 Spin Services Limited
+
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+
+//    http://www.apache.org/licenses/LICENSE-2.0
+
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
+
+using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Threading;
+using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Interfaces;
@@ -10,13 +27,14 @@ using log4net;
 
 namespace SportingSolutions.Udapi.Sdk
 {
-    public sealed class EchoSender
+    public sealed class StreamController
     {
         private readonly ILog _logger;
 
-        private static volatile EchoSender _instance;
+        private static volatile StreamController _instance;
         private static readonly object SyncRoot = new Object();
         private static readonly object InitSync = new Object();
+        private static readonly object ConnectSync = new Object();
 
         private IConnectClient _connectClient;
 
@@ -25,12 +43,16 @@ namespace SportingSolutions.Udapi.Sdk
         private Guid _lastSentGuid;
         private string _virtualHost;
 
-        private EchoSender()
+        private ConnectionFactory _connectionFactory;
+        private IConnection _streamConnection;
+
+        private StreamController()
         {
-            _logger = LogManager.GetLogger(typeof(EchoSender));
+            _logger = LogManager.GetLogger(typeof(StreamController));
+            _connectionFactory = new ConnectionFactory();
         }
 
-        public static EchoSender Instance
+        public static StreamController Instance
         {
             get
             {
@@ -40,7 +62,7 @@ namespace SportingSolutions.Udapi.Sdk
                     {
                         if (_instance == null)
                         {
-                            _instance = new EchoSender();
+                            _instance = new StreamController();
                         }
                     }
                 }
@@ -67,6 +89,57 @@ namespace SportingSolutions.Udapi.Sdk
             var resource = new Resource(resourceRestItem, connectClient, this);
             
             return resource;
+        }
+
+        public IModel GetStreamChannel(string host, int port, string user, string password, string virtualHost)
+        {
+            IModel channel = null;
+            lock (ConnectSync)
+            {
+                if (_streamConnection == null || !_streamConnection.IsOpen)
+                {
+                    _connectionFactory = new ConnectionFactory();
+                    _connectionFactory.RequestedHeartbeat = 5;
+                    _connectionFactory.HostName = host;
+                    _connectionFactory.Port = port;
+                    _connectionFactory.UserName = user;
+                    _connectionFactory.Password = password;
+                    _connectionFactory.VirtualHost = "/" + virtualHost;
+
+                    TryToConnect();    
+                }
+                channel = _streamConnection.CreateModel();
+
+            }
+            return channel;
+        }
+
+        private void TryToConnect()
+        {
+            while (_streamConnection == null || !_streamConnection.IsOpen)
+            {
+                try
+                {
+                    _streamConnection = _connectionFactory.CreateConnection();
+                    _streamConnection.ConnectionShutdown += StreamConnectionConnectionShutdown;
+                    _logger.Info("Successfully connected to Streaming Server");
+                }
+                catch (BrokerUnreachableException buex)
+                {
+                    _logger.Error("Unable to connect to streaming server...Retrying", buex);
+                    Thread.Sleep(100);
+                }
+            }
+        }
+
+        private void StreamConnectionConnectionShutdown(IConnection connection, ShutdownEventArgs reason)
+        {
+            var stringBuilder = new StringBuilder();
+            stringBuilder.Append("There has been a streaming connection failure").AppendLine();
+            stringBuilder.Append(reason);
+            
+            _logger.Error(stringBuilder.ToString());
+            TryToConnect();
         }
 
         public void StartEcho(string virtualHost, int echoInterval)
