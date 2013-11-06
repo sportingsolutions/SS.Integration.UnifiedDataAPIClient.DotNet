@@ -43,7 +43,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         {
             _settings = settings ?? Settings.Instance;
             _logger = LogManager.GetLogger(typeof(GTPService).ToString());
-            _sportsList = new List<string> {"Football"};
+            _sportsList = new List<string> {"Volleyball"};
             _listeners = new ConcurrentDictionary<string, StreamListener>();
             _activeFixtures = new ConcurrentDictionary<string, bool>();
             _fixtureManager = new FixtureManager("Command.txt");

@@ -146,18 +146,20 @@ namespace SportingSolutions.Udapi.Sdk
 
                         var deliveryArgs = (BasicDeliverEventArgs)output;
                         var message = deliveryArgs.Body;
-                        if (StreamEvent != null)
-                        {
-                            LastMessageReceived = DateTime.UtcNow;
-                            missedEchos = 0;
+                        
+                        LastMessageReceived = DateTime.UtcNow;
+                        missedEchos = 0; 
+                        _reconnectionsSinceLastMessage = 0;
 
-                            var messageString = Encoding.UTF8.GetString(message);
-                            var jobject = JObject.Parse(messageString);
-                            if (jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
-                            {
-                                ProcessEcho(jobject);
-                            }
-                            else
+                        var messageString = Encoding.UTF8.GetString(message);
+                        var jobject = JObject.Parse(messageString);
+                        if (jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
+                        {
+                            ProcessEcho(jobject);
+                        }
+                        else
+                        {
+                            if (StreamEvent != null)
                             {
                                 StreamEvent(this, new StreamEventArgs(messageString));
                             }
@@ -185,7 +187,6 @@ namespace SportingSolutions.Udapi.Sdk
                             _isReconnecting = false;
                         }
                     }
-                    _reconnectionsSinceLastMessage = 0;
                 }
                 catch (Exception ex)
                 {
