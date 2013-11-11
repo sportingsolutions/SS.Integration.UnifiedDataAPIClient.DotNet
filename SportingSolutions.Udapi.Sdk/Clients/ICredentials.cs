@@ -12,20 +12,11 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-using System;
-
-namespace SportingSolutions.Udapi.Sdk.Exceptions
+namespace SportingSolutions.Udapi.Sdk.Clients
 {
-    public class NotAuthenticatedException : Exception
+    public interface ICredentials
     {
-        public NotAuthenticatedException(string message, Exception innerException):base(message,innerException)
-        {
-            
-        }
-
-        public NotAuthenticatedException(string message) : base(message)
-        {
-             
-        }
+        string ApiUser { get; }
+        string ApiKey { get; }
     }
 }

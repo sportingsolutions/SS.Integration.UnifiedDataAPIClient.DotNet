@@ -14,18 +14,23 @@
 
 using System;
 
-namespace SportingSolutions.Udapi.Sdk.Exceptions
+namespace SportingSolutions.Udapi.Sdk.Clients
 {
-    public class NotAuthenticatedException : Exception
+    public class Credentials : ICredentials
     {
-        public NotAuthenticatedException(string message, Exception innerException):base(message,innerException)
+        private readonly string _apiUser;
+        private readonly string _apiKey;
+
+        public Credentials(string apiUser, string apiKey)
         {
-            
+            if (string.IsNullOrEmpty(apiUser)) throw new ArgumentNullException("apiUser");
+            if (string.IsNullOrEmpty(apiKey)) throw new ArgumentNullException("apiKey");
+
+            _apiUser = apiUser;
+            _apiKey = apiKey;
         }
 
-        public NotAuthenticatedException(string message) : base(message)
-        {
-             
-        }
+        public string ApiUser { get { return _apiUser; } }
+        public string ApiKey { get { return _apiKey; } }
     }
 }

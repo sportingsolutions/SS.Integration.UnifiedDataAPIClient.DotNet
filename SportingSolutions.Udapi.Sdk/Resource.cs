@@ -13,7 +13,6 @@
 //limitations under the License.
 
 using System;
-using System.Collections.Specialized;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -25,7 +24,6 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
-using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
@@ -34,43 +32,32 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Resource : Endpoint, IResource, IDisposable, IStreamStatistics
     {
-        private readonly ILog _logger = LogManager.GetLogger(typeof(Resource).ToString());
-
         private bool _isStreaming;
         private readonly ManualResetEvent _pauseStream;
-        private readonly AutoResetEvent _echoResetEvent;
-        private readonly AutoResetEvent _echoTimerEvent;
 
         private IModel _channel;
-        private IConnection _connection;
         private QueueingCustomConsumer _consumer;
         private string _virtualHost;
         private string _queueName;
 
         private int _echoSenderInterval;
-        private int _echoMaxDelay;
-        
-        private string _lastRecievedEchoGuid;
 
-        private int _disconnections;
+        private int _reconnectionsSinceLastMessage;
         private int _maxRetries;
-        private ConnectionFactory _connectionFactory;
-        
+
         private bool _isReconnecting;
 
-        private Task _echoTask;
-        private CancellationTokenSource _echoTokenSource;
+        private CancellationTokenSource _cancellationTokenSource;
 
-        private bool _isProcessingStreamEvent;
+        private readonly StreamController _streamController;
 
-
-        internal Resource(NameValueCollection headers, RestItem restItem)
-            : base(headers, restItem)
+        internal Resource(RestItem restItem, IConnectClient connectClient, StreamController streamController)
+            : base(restItem, connectClient)
         {
-            _logger.DebugFormat("Instantiated fixtureName=\"{0}\"", restItem.Name);
+            Logger = LogManager.GetLogger(typeof(Resource).ToString());
+            Logger.DebugFormat("Instantiated fixtureName=\"{0}\"", restItem.Name);
+            _streamController = streamController;
             _pauseStream = new ManualResetEvent(true);
-            _echoResetEvent = new AutoResetEvent(false);
-            _echoTimerEvent = new AutoResetEvent(true);
         }
 
         public string Id
@@ -95,127 +82,181 @@ namespace SportingSolutions.Udapi.Sdk
 
         public string GetSnapshot()
         {
-            _logger.InfoFormat("Get Snapshot for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-            return FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/snapshot");
+            var loggingStringBuilder = new StringBuilder();
+            loggingStringBuilder.AppendFormat("Get Snapshot for fixtureName=\"{0}\" fixtureId={1} \r\n", Name, Id);
+
+            var result = FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/snapshot", "GetSnapshot Http Error", loggingStringBuilder);
+            Logger.Info(loggingStringBuilder);
+            return result;
         }
 
         public void StartStreaming()
         {
-            StartStreaming(10000,3000);
+            StartStreaming(10000, 3000);
         }
 
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
-            _logger.InfoFormat("Starting stream for fixtureName=\"{0}\" fixtureId={1} with Echo Interval of {2}",Name, Id, echoInterval);
+            Logger.InfoFormat("Starting stream for fixtureName=\"{0}\" fixtureId={1} with Echo Interval of {2}", Name, Id, echoInterval);
 
             _echoSenderInterval = echoInterval;
-            _echoMaxDelay = echoMaxDelay;
 
             if (State != null)
             {
-                Task.Factory.StartNew(StreamData,TaskCreationOptions.LongRunning);
+                _cancellationTokenSource = new CancellationTokenSource();
+                var cancellationToken = _cancellationTokenSource.Token;
+                var streamTask = Task.Factory.StartNew(() => StreamData(cancellationToken), cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                streamTask.ContinueWith(t => Logger.InfoFormat("Stream cancelled for fixtureName=\"{0}\" fixtureId={1}", Name, Id), TaskContinuationOptions.OnlyOnCanceled);
             }
         }
 
-        private void StreamData()
+        private void StreamData(CancellationToken cancellationToken)
         {
-            _connectionFactory = new ConnectionFactory();
+            var missedEchos = 0;
 
-            _maxRetries = 10;
-            _disconnections = 0;
-
+            _maxRetries = 5;
             _isStreaming = true;
 
             Reconnect();
-            
-            _logger.InfoFormat("Initialised connection to Streaming Queue for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
-            
+            Logger.InfoFormat("Initialised connection to Streaming Queue for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+
+            LastMessageReceived = DateTime.UtcNow;
+
             _consumer.QueueCancelled += Dispose;
 
-            while (_isStreaming)
+            while (_isStreaming && !cancellationToken.IsCancellationRequested)
             {
                 try
                 {
                     _pauseStream.WaitOne();
-                    var output = _consumer.Queue.Dequeue();
-                    if (output != null)
+                    object output = null;
+
+                    if (_channel == null || !_channel.IsOpen)
                     {
+                        throw new Exception("Channel is closed");    
+                    }
+
+                    if (_consumer.Queue.Dequeue(_echoSenderInterval + 3000, out output))
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                        }
+
                         var deliveryArgs = (BasicDeliverEventArgs)output;
                         var message = deliveryArgs.Body;
-                        if (StreamEvent != null)
+                        
+                        LastMessageReceived = DateTime.UtcNow;
+                        missedEchos = 0; 
+                        _reconnectionsSinceLastMessage = 0;
+
+                        var messageString = Encoding.UTF8.GetString(message);
+                        var jobject = JObject.Parse(messageString);
+                        if (jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
                         {
-                            LastMessageReceived = DateTime.UtcNow;
-
-                            var messageString = Encoding.UTF8.GetString(message);
-                            var jobject = JObject.Parse(messageString);
-                            if(jobject["Relation"].Value<string>() == "http://api.sportingsolutions.com/rels/stream/echo")
+                            ProcessEcho(jobject);
+                        }
+                        else
+                        {
+                            if (StreamEvent != null)
                             {
-                                var split = jobject["Content"].Value<String>().Split(';');
-                                _lastRecievedEchoGuid = split[0];
-                                var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
-                                var roundTripTime = DateTime.Now - timeSent;
-
-                                var roundMillis = roundTripTime.TotalMilliseconds;
-
-                                EchoRoundTripInMilliseconds = roundMillis;
-                                _echoResetEvent.Set();
-                            }
-                            else
-                            {
-                                _isProcessingStreamEvent = true;      
                                 StreamEvent(this, new StreamEventArgs(messageString));
-                                _isProcessingStreamEvent = false;
                             }
                         }
                     }
-                    _disconnections = 0;
-                }
-                catch(Exception ex)
-                {
-                    _logger.Error(string.Format("Lost connection to stream for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
-                    LastStreamDisconnect = DateTime.UtcNow;
-                    //connection lost
-                    if(!_isReconnecting)
-                    {
-                        StopEcho();
-                        Reconnect();   
-                    }
                     else
                     {
-                        Thread.Sleep(1000);
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                        }
+                        // message didn't arrive in specified time period
+                        
+                        missedEchos++;
+                        Logger.InfoFormat("No echo recieved for fixtureId={0} fixtureName=\"{1}\" missedEchos={2}", Id, Name, missedEchos);
+
+                        if (missedEchos > 3)
+                        {
+                            Logger.WarnFormat("Missed 3 echos reconnecting stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
+                            LastStreamDisconnect = DateTime.UtcNow;
+                            //reached timeout, no echo has arrived
+                            _isReconnecting = true;
+                            Reconnect();
+                            missedEchos = 0;
+                            _isReconnecting = false;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (!cancellationToken.IsCancellationRequested || _isStreaming)
+                    {
+                        Logger.Error(string.Format("Lost connection to stream for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
+                        LastStreamDisconnect = DateTime.UtcNow;
+                        //connection lost
+                        if (!_isReconnecting)
+                        {
+                            Reconnect();
+                            missedEchos = 0;
+                        }
+                        else
+                        {
+                            Thread.Sleep(1000);
+                        }   
                     }
                 }
             }
+            if (cancellationToken.IsCancellationRequested)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+        }
+
+        private void ProcessEcho(JObject jobject)
+        {
+            var split = jobject["Content"].Value<String>().Split(';');
+            var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
+            var roundTripTime = DateTime.Now - timeSent;
+
+            var roundMillis = roundTripTime.TotalMilliseconds;
+
+            EchoRoundTripInMilliseconds = roundMillis;
+
+            Logger.DebugFormat("Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
         }
 
         private void Reconnect()
         {
-            _logger.WarnFormat("Attempting to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}",Name,Id,_disconnections+1);
+            Logger.WarnFormat("Attempting to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id, _reconnectionsSinceLastMessage + 1);
             var success = false;
             while (!success && _isStreaming)
             {
                 try
                 {
-                    var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp");
+                    if (_reconnectionsSinceLastMessage > _maxRetries)
+                    {
+                        Logger.ErrorFormat("Failed to reconnect Stream for fixtureName=\"{0}\" fixtureId={1} ", Name,
+                                            Id);
+                        StopStreaming();
+                        return;
+                    }
+
+                    var loggingStringBuilder = new StringBuilder();
+                    var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp", "GetAmqpStream Http Error", loggingStringBuilder);
+                    Logger.Info(loggingStringBuilder);
                     var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
 
                     var amqpUri = new Uri(amqpLink.Href);
 
-                    _connectionFactory.RequestedHeartbeat = 5;
-
                     var host = amqpUri.Host;
-                    if (!String.IsNullOrEmpty(host))
-                    {
-                        _connectionFactory.HostName = host;
-                    }
+                    
                     var port = amqpUri.Port;
-                    if (port != -1)
-                    {
-                        _connectionFactory.Port = port;
-                    }
+                    
                     var userInfo = amqpUri.UserInfo;
                     userInfo = HttpUtility.UrlDecode(userInfo);
+                    var user = string.Empty;
+                    var password = string.Empty;
                     if (!String.IsNullOrEmpty(userInfo))
                     {
                         var userPass = userInfo.Split(':');
@@ -223,10 +264,11 @@ namespace SportingSolutions.Udapi.Sdk
                         {
                             throw new ArgumentException(string.Format("Bad user info in AMQP URI: {0}", userInfo));
                         }
-                        _connectionFactory.UserName = userPass[0];
+                        user = userPass[0];
+                       
                         if (userPass.Length == 2)
                         {
-                            _connectionFactory.Password = userPass[1];
+                            password = userPass[1];
                         }
                     }
                     _queueName = "";
@@ -235,8 +277,6 @@ namespace SportingSolutions.Udapi.Sdk
                     {
                         _queueName = path.Substring(path.IndexOf('/', 1) + 1);
                         _virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
-
-                        _connectionFactory.VirtualHost = "/" + _virtualHost;
                     }
 
                     if (_channel != null)
@@ -245,190 +285,61 @@ namespace SportingSolutions.Udapi.Sdk
                         _channel = null;
                     }
 
-                    try
-                    {
-                        if (_connection != null)
-                        {
-                            if (_connection.IsOpen)
-                            {
-                                _connection.Close();
-                            }
-                            _connection = null;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error(ex);
-                    }
+                    _channel = _streamController.GetStreamChannel(host, port, user, password, _virtualHost);
 
-                    _connection = _connectionFactory.CreateConnection();
-                    _logger.InfoFormat("Successfully connected to Streaming Server for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-                    
-                    StartEcho();
- 
                     if (StreamConnected != null)
                     {
                         StreamConnected(this, new EventArgs());
                     }
 
-                    _channel = _connection.CreateModel();
                     _consumer = new QueueingCustomConsumer(_channel);
                     _channel.BasicConsume(_queueName, true, _consumer);
                     _channel.BasicQos(0, 10, false);
+                    _channel.ModelShutdown += ChannelModelShutdown;
                     success = true;
-                }
-                catch(Exception)
-                {
-                    if (_disconnections > _maxRetries)
-                    {
-                        _logger.ErrorFormat("Failed to reconnect Stream for fixtureName=\"{0}\" fixtureId={1} ",Name, Id);
-                        StopStreaming();
-                    }
-                    else
-                    {
-                        // give time for load balancer to notice the node is down
-                        Thread.Sleep(500);
-                        _disconnections++;
-                        _logger.WarnFormat("Failed to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id, _disconnections);      
-                    }
-                }
-            }
-        }
 
-        private void StartEcho()
-        {
-            if (_echoTask == null)
-            {
-                _echoTokenSource = new CancellationTokenSource();
-                var cancelToken = _echoTokenSource.Token;
-                _echoResetEvent.Reset();
-                _echoTask = Task.Factory.StartNew(() => SendEcho(cancelToken), cancelToken);
-            }
-        }
-        
-        private void StopEcho()
-        {
-            if (_echoTask != null)
-            {
-                _echoTokenSource.Cancel();
-            }
-        }
-
-        private void SendEcho(CancellationToken cancelToken)
-        {
-            var echoGuid = Guid.NewGuid().ToString();
-
-            while (_isStreaming)
-            {
-                var indexofSignal = WaitHandle.WaitAny(new[] { _echoTimerEvent, cancelToken.WaitHandle }, _echoSenderInterval);
-                if (indexofSignal == 1)
-                {
-                    return;
-                }
-
-                if (cancelToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                if (_isProcessingStreamEvent) continue;
-
-                try
-                {
-                    if (State != null)
-                    {
-                        var theLink =
-                            State.Links.First(
-                                restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/echo");
-                        var theUrl = theLink.Href;
-
-                        var streamEcho = new StreamEcho
-                        {
-                            Host = _virtualHost,
-                            Queue = _queueName,
-                            Message = echoGuid + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                        };
-
-                        var stringStreamEcho = streamEcho.ToJson();
-
-                        RestHelper.GetResponse(new Uri(theUrl), stringStreamEcho, "POST", "application/json",
-                                               Headers, 3000);
-                    }
+                    _streamController.StartEcho(_virtualHost, _echoSenderInterval);
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(string.Format("Unable to post echo for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
+                    // give time for load balancer to notice the node is down
+                    Thread.Sleep(500);
+                    
+                    Logger.Warn(string.Format("Failed to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id,
+                        _reconnectionsSinceLastMessage + 1), ex);
                 }
-
-                var waitHandleResult = WaitHandle.WaitAny(new[] { _echoResetEvent, cancelToken.WaitHandle }, _echoMaxDelay);
-                var echoArrived = false;
-                if (waitHandleResult == 0)
+                finally
                 {
-                    echoArrived = true;
-                }
-                else if (waitHandleResult == 1)
-                {
-                    return;
-                }
-                _echoResetEvent.Reset();
-
-                if (cancelToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                //signal was recieved
-                if (echoArrived)
-                {
-                    if (echoGuid.Equals(_lastRecievedEchoGuid))
-                    {
-                        _logger.DebugFormat("Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
-                    }
-                    else
-                    {
-                        _logger.Error("Recieved Echo Messages from differerent client");
-                    }
-                }
-                else
-                {
-                    if (!_isProcessingStreamEvent)
-                    {
-                        _logger.InfoFormat("No echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
-                        LastStreamDisconnect = DateTime.UtcNow;
-                        //reached timeout, no echo has arrived
-                        _isReconnecting = true;
-                        Reconnect();
-
-                        _echoTimerEvent.Set();
-                        _isReconnecting = false;
-                        if (cancelToken.IsCancellationRequested)
-                        {
-                            return;
-                        }
-                    }
+                    _reconnectionsSinceLastMessage++;
                 }
             }
-            _logger.DebugFormat("Echo successfully cancelled for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
+        }
+
+        private void ChannelModelShutdown(IModel model, ShutdownEventArgs reason)
+        {
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendFormat("There has been a streaming channel failure for fixtureName=\"{0}\" fixtureId={1}", Name, Id).AppendLine();
+            stringBuilder.Append(reason);
+
+            Logger.Error(stringBuilder.ToString());
         }
 
         public void PauseStreaming()
         {
-            _logger.InfoFormat("Streaming paused for fixtureName=\"{0}\" fixtureId={1}",Name, Id);
+            Logger.InfoFormat("Streaming paused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
             _pauseStream.Reset();
-            StopEcho();
         }
 
         public void UnPauseStreaming()
         {
-            _logger.InfoFormat("Streaming unpaused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            Logger.InfoFormat("Streaming unpaused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
             _pauseStream.Set();
-            StartEcho();
         }
 
         public void StopStreaming()
         {
             _isStreaming = false;
-            StopEcho();
+            _cancellationTokenSource.Cancel();
             if (_consumer != null)
             {
                 try
@@ -437,7 +348,7 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(string.Format("Problem when stopping stream for fixtureId={0} fixtureName=\"{1}\"",Id, Name),ex);
+                    Logger.Error(string.Format("Problem when stopping stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name), ex);
                     Dispose();
                 }
             }
@@ -454,37 +365,23 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void Dispose()
         {
-            _logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-            if(_channel != null)
+            Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            if (_channel != null)
             {
                 try
                 {
+                    _channel.Dispose();
                     _channel.Close();
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex);
+                    Logger.Error(ex);
                 }
                 _channel = null;
             }
-            if(_connection != null)
-            {
-                try
-                {
-                    if (_connection.IsOpen)
-                    {
-                        _connection.Close();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(ex);
-                }
-                _connection = null;
-            }
-            
-            _echoTask = null;
-            
+
+            Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+
             if (StreamDisconnected != null)
             {
                 StreamDisconnected(this, new EventArgs());

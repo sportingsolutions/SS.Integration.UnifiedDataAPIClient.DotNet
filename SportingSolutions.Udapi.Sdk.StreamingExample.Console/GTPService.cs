@@ -37,13 +37,16 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         private readonly ConcurrentDictionary<string, StreamListener> _listeners;
         private readonly ConcurrentDictionary<string, bool> _activeFixtures;
 
+        private FixtureManager _fixtureManager;
+
         public GTPService(ISettings settings = null)
         {
             _settings = settings ?? Settings.Instance;
             _logger = LogManager.GetLogger(typeof(GTPService).ToString());
-            _sportsList = new List<string> {"Tennis"};
+            _sportsList = new List<string> {"Volleyball"};
             _listeners = new ConcurrentDictionary<string, StreamListener>();
             _activeFixtures = new ConcurrentDictionary<string, bool>();
+            _fixtureManager = new FixtureManager("Command.txt");
         }
 
         public void Start()
@@ -65,34 +68,39 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 
         private void TimerEvent(IService theService)
         {
+            if (FixtureController.IsAddingItems)
+                return;
+
             try
             {
-                foreach (var sport in _sportsList)
-                {
-                    var theFeature = theService.GetFeature(sport);
-                    if (theFeature != null)
-                    {
-                        _logger.InfoFormat("Get the list of available fixtures for {0} from GTP", sport);
-                        var fixtures = theFeature.GetResources();
+                FixtureController.BeginAddingItems();
+                Parallel.ForEach(_sportsList, new ParallelOptions {MaxDegreeOfParallelism = 10},
+                                 sport =>
+                                     {
+                                         var theFeature = theService.GetFeature(sport);
+                                        if (theFeature != null)
+                                        {
+                                            _logger.InfoFormat("Get the list of available fixtures for {0} from GTP", sport);
+                                            var fixtures = theFeature.GetResources();
 
-                        var fixturesDic = fixtures.ToDictionary(x => x.Id);
+                                            var fixturesDic = fixtures.ToDictionary(x => x.Id);
 
-                        if (fixtures != null && fixtures.Count > 0)
-                        {
-                            var tmpSport = sport;
-                            Parallel.ForEach(fixtures, new ParallelOptions { MaxDegreeOfParallelism = 10 },
-                                                fixture => ProcessFixture(fixture, tmpSport));
-                        }
-                        else
-                        {
-                            _logger.InfoFormat("There are currently no {0} fixtures in UDAPI", sport);
-                        }
-                    }
-                    else
-                    {
-                        _logger.InfoFormat("Cannot find {0} in UDAPI....", sport);
-                    }
-                } 
+                                            if (fixtures != null && fixtures.Count > 0)
+                                            {
+                                                var tmpSport = sport;
+                                                Parallel.ForEach(fixtures, new ParallelOptions { MaxDegreeOfParallelism = 10 },
+                                                                    fixture => ProcessFixture(fixture, tmpSport));
+                                            }
+                                            else
+                                            {
+                                                _logger.InfoFormat("There are currently no {0} fixtures in UDAPI", sport);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            _logger.InfoFormat("Cannot find {0} in UDAPI....", sport);
+                                        }
+                                     });
             }
             catch (AggregateException aggex)
             {
@@ -105,16 +113,18 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             {
                 _logger.Error(ex);
             }
+            finally
+            {
+                FixtureController.FinishAddingItems();
+            }
         }
 
         private void ProcessFixture(IResource fixture, string sport)
         {
-            if (!_activeFixtures.ContainsKey(fixture.Id) && !_listeners.ContainsKey(fixture.Id))
+            if (!FixtureController.Contains(fixture.Id))
             {
                 try
                 {
-                    _activeFixtures.TryAdd(fixture.Id, true);
-
                     var matchStatus = 0;
                     var matchSequence = 0;
                     if (fixture.Content != null)
@@ -146,8 +156,16 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 
                         //process the snapshot here and push it into the client system
 
-                        var streamListener = new StreamListener(fixture, epoch, sport);
-                        _listeners.TryAdd(fixture.Id, streamListener);
+                        try
+                        {
+                            FixtureController.AddListener(fixture.Id, () => new StreamListener(fixture, epoch, sport));
+                        }
+                        catch (Exception)
+                        {
+                            _logger.ErrorFormat("sport=\"{0}\" : fixtureName=\"{1}\" - Unable to stream fixture", sport, fixture.Name);
+                            throw;
+                        }
+                        
                     }
                     else
                     {
@@ -158,12 +176,38 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                 {
                     _logger.Error(string.Format("Fixture {0} id {1} There is a problem processing this fixture", fixture.Name, fixture.Id), ex);
                 }
-                
-                bool y;
-                _activeFixtures.TryRemove(fixture.Id, out y);
             }
             else
             {
+                bool isMatchOver = FixtureController.Contains(fixture.Id) && FixtureController.GetItem(fixture.Id).FixtureEnded;
+
+                if (isMatchOver)
+                {
+                    if (FixtureController.Contains(fixture.Id))
+                    {
+                        FixtureController.RemoveFixture(fixture.Id);
+                        _logger.InfoFormat("fixtureName=\"{0}\" fixtureId={1} is over.", fixture.Name, fixture.Id);
+                    }
+                }
+                else
+                {
+                    if (FixtureController.Contains(fixture.Id))
+                    {
+                        var lastMessageReceived = FixtureController.GetLastMessageReceived(fixture.Id);
+                        var now = DateTime.UtcNow;
+                        var delay = now - lastMessageReceived;
+                        if (delay.TotalMilliseconds >= Convert.ToDouble(_settings.EchoInterval * 3))
+                        {
+                            _logger.WarnFormat("fixtureName=\"{0}\" fixtureId={1} has not received a message in messageDelay={2} ms Restarting fixture", fixture.Name, fixture.Id, delay.TotalMilliseconds);
+                            FixtureController.RestartFixture(fixture.Id);
+                        }
+                        else
+                        {
+                            _logger.WarnFormat("fixtureName=\"{0}\" fixtureId={1} last received a message messageDelay={2} ms", fixture.Name, fixture.Id, delay.TotalMilliseconds);
+                        }
+                    }
+                    _logger.InfoFormat("fixtureName=\"{0}\" fixtureId={1} is currently being processed", fixture.Name, fixture.Id);
+                }
                 _logger.InfoFormat("Fixture {0} id {1} is currently being processed", fixture.Name, fixture.Id);
                 if (_listeners.ContainsKey(fixture.Id))
                 {

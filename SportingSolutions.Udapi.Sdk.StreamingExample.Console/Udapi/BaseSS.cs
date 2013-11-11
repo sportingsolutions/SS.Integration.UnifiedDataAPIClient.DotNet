@@ -172,7 +172,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
                     }
                     else
                     {
-                        _logger.WarnFormat("Failed to successfully execute Sporting Solutions method on attempt {0}. Stack Trace:{1}", counter, ex.StackTrace);
+                        _logger.Warn(string.Format("Failed to successfully execute Sporting Solutions method on attempt {0}.", counter), ex);
                     }
                 }
 

@@ -14,18 +14,13 @@
 
 using System;
 
-namespace SportingSolutions.Udapi.Sdk.Exceptions
+namespace SportingSolutions.Udapi.Sdk.Clients
 {
-    public class NotAuthenticatedException : Exception
+    public interface IConfiguration
     {
-        public NotAuthenticatedException(string message, Exception innerException):base(message,innerException)
-        {
-            
-        }
-
-        public NotAuthenticatedException(string message) : base(message)
-        {
-             
-        }
+        Uri BaseUrl { get; }
+        string ContentType { get; }
+        int Timeout { get; }
+        bool Compression { get; }
     }
 }
