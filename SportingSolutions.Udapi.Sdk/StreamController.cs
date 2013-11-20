@@ -86,7 +86,7 @@ namespace SportingSolutions.Udapi.Sdk
                 _echoUri = new Uri(theUrl);
             }
 
-            var resource = new Resource(resourceRestItem, connectClient, this);
+            var resource = new Resource(resourceRestItem, connectClient, this, _echoUri);
             
             return resource;
         }
@@ -104,12 +104,11 @@ namespace SportingSolutions.Udapi.Sdk
                     _connectionFactory.Port = port;
                     _connectionFactory.UserName = user;
                     _connectionFactory.Password = password;
-                    _connectionFactory.VirtualHost = "/" + virtualHost;
+                    _connectionFactory.VirtualHost = virtualHost;
 
                     TryToConnect();    
                 }
                 channel = _streamConnection.CreateModel();
-
             }
             return channel;
         }
@@ -142,53 +141,53 @@ namespace SportingSolutions.Udapi.Sdk
             TryToConnect();
         }
 
-        public void StartEcho(string virtualHost, int echoInterval)
-        {
-            lock (InitSync)
-            {
-                if (_echoTimer == null)
-                {
-                    _virtualHost = virtualHost;
-                    _echoTimer = new Timer(x => SendEcho(), null, 0, echoInterval);
-                }
-            }
-        }
+        //public void StartEcho(string virtualHost, int echoInterval)
+        //{
+        //    lock (InitSync)
+        //    {
+        //        if (_echoTimer == null)
+        //        {
+        //            _virtualHost = virtualHost;
+        //            _echoTimer = new Timer(x => SendEcho(), null, 0, echoInterval);
+        //        }
+        //    }
+        //}
 
-        private void SendEcho()
-        {
-            try
-            {
-                _lastSentGuid = Guid.NewGuid();
+        //private void SendEcho()
+        //{
+        //    try
+        //    {
+        //        _lastSentGuid = Guid.NewGuid();
 
-                var stopwatch = new Stopwatch();
-                stopwatch.Start();
+        //        var stopwatch = new Stopwatch();
+        //        stopwatch.Start();
 
-                var streamEcho = new StreamEcho
-                {
-                    Host = _virtualHost,
-                    Message = _lastSentGuid.ToString() + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                };
+        //        var streamEcho = new StreamEcho
+        //        {
+        //            Host = _virtualHost,
+        //            Message = _lastSentGuid.ToString() + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        //        };
 
-                var response = _connectClient.Request(_echoUri, Method.POST, streamEcho, "application/json", 3000);
+        //        var response = _connectClient.Request(_echoUri, Method.POST, streamEcho, "application/json", 3000);
 
-                if (response == null)
-                {
-                    _logger.WarnFormat("Post Echo had null response and took duration={0}ms", stopwatch.ElapsedMilliseconds);
+        //        if (response == null)
+        //        {
+        //            _logger.WarnFormat("Post Echo had null response and took duration={0}ms", stopwatch.ElapsedMilliseconds);
 
-                }
-                else if (response.ErrorException != null)
-                {
-                    RestErrorHelper.LogRestError(_logger, response, string.Format("Echo Http Error took {0}ms", stopwatch.ElapsedMilliseconds));
-                }
-                else
-                {
-                    _logger.DebugFormat("Post Echo took duration={0}ms", stopwatch.ElapsedMilliseconds);   
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error("Unable to post echo",ex);
-            }
-        }
+        //        }
+        //        else if (response.ErrorException != null)
+        //        {
+        //            RestErrorHelper.LogRestError(_logger, response, string.Format("Echo Http Error took {0}ms", stopwatch.ElapsedMilliseconds));
+        //        }
+        //        else
+        //        {
+        //            _logger.DebugFormat("Post Echo took duration={0}ms", stopwatch.ElapsedMilliseconds);   
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.Error("Unable to post echo",ex);
+        //    }
+        //}
     }
 }
