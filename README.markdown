@@ -1,4 +1,3 @@
-
 This is the master repository for the Sporting Solutions Unified Data API Client for the .Net Framework.
 The SDK provides an easy to use interface into the Sporting Solutions Unified Data API.  
 
@@ -47,5 +46,6 @@ theEvent.StreamEvent += (sender, args) => System.Console.WriteLine(args.Update);
 theEvent.StreamDisconnected += (sender, args) => System.Console.WriteLine("Stream Disconnected");
 
 theEvent.StartStreaming();
+System.Console.ReadLine();
 ```
 
