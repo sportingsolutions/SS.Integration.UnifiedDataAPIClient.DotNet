@@ -42,5 +42,6 @@ theEvent.StreamEvent += (sender, args) => System.Console.WriteLine(args.Update);
 theEvent.StreamDisconnected += (sender, args) => System.Console.WriteLine("Stream Disconnected");
 
 theEvent.StartStreaming();
+System.Console.ReadLine();
 ```
 
