@@ -130,7 +130,7 @@ namespace SportingSolutions.Udapi.Sdk
                 try
                 {
                     _pauseStream.WaitOne();
-                    object output = null;
+                    BasicDeliverEventArgs output = null;
 
                     if (_channel == null || !_channel.IsOpen)
                     {
@@ -144,7 +144,7 @@ namespace SportingSolutions.Udapi.Sdk
                             cancellationToken.ThrowIfCancellationRequested();
                         }
 
-                        var deliveryArgs = (BasicDeliverEventArgs)output;
+                        var deliveryArgs = output;
                         var message = deliveryArgs.Body;
                         
                         LastMessageReceived = DateTime.UtcNow;
