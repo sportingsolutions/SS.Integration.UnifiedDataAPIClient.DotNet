@@ -1,6 +1,6 @@
 ﻿namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
-    internal interface IMessageUpdate
+    public interface IMessageUpdate
     {
         string Id { get; set; }
         string Message { get; set; }

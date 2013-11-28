@@ -32,16 +32,13 @@ namespace SportingSolutions.Udapi.Sdk
         private readonly ILog _logger;
 
         private static volatile StreamController _instance;
-        private static readonly object SyncRoot = new Object();
         private static readonly object InitSync = new Object();
+        private static readonly object SyncRoot = new Object();
         private static readonly object ConnectSync = new Object();
 
+        private IEchoController _echoController;
         private IConnectClient _connectClient;
-
-        private Timer _echoTimer;
         private Uri _echoUri;
-        private Guid _lastSentGuid;
-        private string _virtualHost;
 
         private ConnectionFactory _connectionFactory;
         private IConnection _streamConnection;
@@ -79,15 +76,13 @@ namespace SportingSolutions.Udapi.Sdk
 
             if (_echoUri == null)
             {
-                var theLink =
-                        resourceRestItem.Links.First(
-                            restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/batchecho");
+                var theLink = resourceRestItem.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/batchecho");
                 var theUrl = theLink.Href;
                 _echoUri = new Uri(theUrl);
             }
 
-            var resource = new Resource(resourceRestItem, connectClient, this, _echoUri);
-            
+            var resource = new Resource(resourceRestItem, connectClient, this);
+
             return resource;
         }
 
@@ -98,16 +93,19 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 if (_streamConnection == null || !_streamConnection.IsOpen)
                 {
-                    _connectionFactory = new ConnectionFactory();
-                    _connectionFactory.RequestedHeartbeat = 5;
-                    _connectionFactory.HostName = host;
-                    _connectionFactory.Port = port;
-                    _connectionFactory.UserName = user;
-                    _connectionFactory.Password = password;
-                    _connectionFactory.VirtualHost = virtualHost;
+                    _connectionFactory = new ConnectionFactory
+                                             {
+                                                 RequestedHeartbeat = 5,
+                                                 HostName = host,
+                                                 Port = port,
+                                                 UserName = user,
+                                                 Password = password,
+                                                 VirtualHost = virtualHost
+                                             };
 
-                    TryToConnect();    
+                    TryToConnect();
                 }
+
                 channel = _streamConnection.CreateModel();
             }
             return channel;
@@ -136,58 +134,21 @@ namespace SportingSolutions.Udapi.Sdk
             var stringBuilder = new StringBuilder();
             stringBuilder.Append("There has been a streaming connection failure").AppendLine();
             stringBuilder.Append(reason);
-            
+
             _logger.Error(stringBuilder.ToString());
             TryToConnect();
         }
 
-        //public void StartEcho(string virtualHost, int echoInterval)
-        //{
-        //    lock (InitSync)
-        //    {
-        //        if (_echoTimer == null)
-        //        {
-        //            _virtualHost = virtualHost;
-        //            _echoTimer = new Timer(x => SendEcho(), null, 0, echoInterval);
-        //        }
-        //    }
-        //}
-
-        //private void SendEcho()
-        //{
-        //    try
-        //    {
-        //        _lastSentGuid = Guid.NewGuid();
-
-        //        var stopwatch = new Stopwatch();
-        //        stopwatch.Start();
-
-        //        var streamEcho = new StreamEcho
-        //        {
-        //            Host = _virtualHost,
-        //            Message = _lastSentGuid.ToString() + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-        //        };
-
-        //        var response = _connectClient.Request(_echoUri, Method.POST, streamEcho, "application/json", 3000);
-
-        //        if (response == null)
-        //        {
-        //            _logger.WarnFormat("Post Echo had null response and took duration={0}ms", stopwatch.ElapsedMilliseconds);
-
-        //        }
-        //        else if (response.ErrorException != null)
-        //        {
-        //            RestErrorHelper.LogRestError(_logger, response, string.Format("Echo Http Error took {0}ms", stopwatch.ElapsedMilliseconds));
-        //        }
-        //        else
-        //        {
-        //            _logger.DebugFormat("Post Echo took duration={0}ms", stopwatch.ElapsedMilliseconds);   
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.Error("Unable to post echo",ex);
-        //    }
-        //}
+        public void StartEcho(string virtualHost, int echoInterval)
+        {
+            lock (InitSync)
+            {
+                if (_echoController == null)
+                {
+                    _echoController = new EchoController(_connectClient, _echoUri);
+                    _echoController.StartEchos(virtualHost, echoInterval);
+                }
+            }
+        }
     }
 }

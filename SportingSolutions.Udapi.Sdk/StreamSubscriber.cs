@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
@@ -23,29 +24,36 @@ namespace SportingSolutions.Udapi.Sdk
 
         private static readonly ILog Logger;
 
-        private static bool _shouldStream = false;
-        private static IObservable<IMessageUpdate> _updateStream;
-
         private static QueueingCustomConsumer _consumer;
         private static ConnectionFactory _connectionFactory;
         private static IConnection _connection;
         private static readonly QueueDetails QueueDetails;
         private static IModel _channel;
 
+        private static IObservable<IMessageUpdate> _updateStream;
+        //private static IObservable<IMessageUpdate> _echoStream;
+
         private static readonly ConcurrentDictionary<string, string> MappingQueueToFixture;
         private static readonly ConcurrentDictionary<string, IDisposable> Subscriptions;
+        private static readonly ConcurrentDictionary<string, IDisposable> EchoSubscriptions;
+
         private static readonly ConcurrentDictionary<string, Resource> SubscribedResources;
+
+        private static readonly Stopwatch StopWatch = new Stopwatch();
+        private static int _numberMessages = 0;
 
         static StreamSubscriber()
         {
+            StopWatch.Start();
             Logger = LogManager.GetLogger(typeof(StreamController));
             QueueDetails = new QueueDetails();
             MappingQueueToFixture = new ConcurrentDictionary<string, string>();
             Subscriptions = new ConcurrentDictionary<string, IDisposable>();
+            EchoSubscriptions = new ConcurrentDictionary<string, IDisposable>();
             SubscribedResources = new ConcurrentDictionary<string, Resource>();
         }
 
-        public static void SubscribeStream(Resource resource, IObserver<string> streamObserver)
+        public static void StartStream(Resource resource)
         {
             var fixtureId = resource.Id;
             var queue = resource.GetQueueDetails();
@@ -53,13 +61,16 @@ namespace SportingSolutions.Udapi.Sdk
             // Bind the queue name to the fixture id
             SetupStream(resource, queue);
 
-            //Generate update stream with inifinite elements 
-            GenerateUpdateStreamItems();
+            // Generate update stream with inifinite elements 
+            if (_updateStream == null)
+            {
+                _updateStream = GenerateUpdateStreamItems();
+            }
 
             // Subscribe observer to specific messages by fixture Id
             var subscription = _updateStream.Where(update => update != null && update.Id == fixtureId && !update.IsEcho)
                                             .Select(update => update.Message).ObserveOn(Scheduler.Default)
-                                            .Subscribe(streamObserver);
+                                            .Subscribe(resource.StreamObserver);
 
             // Store the subscription (IDisposable) objects so we can stop streaming later on
             Subscriptions.AddOrUpdate(fixtureId, subscription, (s, d) => subscription);
@@ -67,10 +78,65 @@ namespace SportingSolutions.Udapi.Sdk
             // Store the subscribed resources 
             SubscribedResources.AddOrUpdate(fixtureId, resource, (s, d) => resource);
 
-            StartEmittingItems();
+            // Start pushing the values of the update stream
+            StartEmittingItems(_updateStream);
 
-            //Start echos
-            resource.StartEchos(queue.VirtualHost, 10000);
+            //Start pushing values of the echo stream
+            StartEchoStream(resource);
+
+            //Start sending echo requests
+            StreamController.Instance.StartEcho(queue.VirtualHost, 20000);
+        }
+
+        public static void StopStream(string fixtureId)
+        {
+            IDisposable subscription;
+
+            if (Subscriptions.TryRemove(fixtureId, out subscription))
+            {
+                subscription.Dispose();
+            }
+
+            if (EchoSubscriptions.TryRemove(fixtureId, out subscription))
+            {
+                subscription.Dispose();
+            }
+
+            Resource resource;
+            SubscribedResources.TryRemove(fixtureId, out resource);
+
+            _channel.QueueDelete(resource.QueueName);
+        }
+
+        public static void StartEchoStream(Resource resource)
+        {
+            lock (InitSync)
+            {
+                //if (_echoStream == null)
+                //{
+                //    _echoStream = Observable.Generate(true, b => true, b => true, b => GetMessage(), Scheduler.Default);
+                //    _echoStream = _echoStream.Publish();
+                //}
+
+                // Subscribe observer to specific messages by fixture Id
+                var subscription = _updateStream.Where(update => update != null && update.Id == resource.Id && update.IsEcho)
+                                   .Select(update => update.Message).ObserveOn(Scheduler.Default)
+                                   .Subscribe(resource.EchoObserver);
+               
+                // Store the subscription (IDisposable) objects so we can stop streaming later on
+                EchoSubscriptions.AddOrUpdate(resource.Id, subscription, (s, d) => subscription);
+
+                // Connect the subscriber
+                var connectableObservable = _updateStream as IConnectableObservable<IMessageUpdate>;
+
+                if (connectableObservable != null)
+                {
+                    connectableObservable.Connect();
+                }
+
+                // Store the subscribed resources 
+                SubscribedResources.AddOrUpdate(resource.Id, resource, (s, d) => resource);
+            }
         }
 
         private static void SetupStream(Resource resource, QueueDetails queue)
@@ -97,7 +163,7 @@ namespace SportingSolutions.Udapi.Sdk
                         QueueDetails.Port = queue.Port;
                         QueueDetails.UserName = queue.UserName;
                         QueueDetails.Password = queue.Password;
-                        QueueDetails.VirtualHost = queue.VirtualHost;
+                        QueueDetails.VirtualHost = "/" + queue.VirtualHost;
 
                         InitializeConnection();
                     }
@@ -129,26 +195,23 @@ namespace SportingSolutions.Udapi.Sdk
 
             _connection = _connectionFactory.CreateConnection();
 
-            _channel = StreamController.Instance.GetStreamChannel(QueueDetails.Host, QueueDetails.Port, QueueDetails.UserName, QueueDetails.Password, QueueDetails.VirtualHost);
+            _channel = StreamController.Instance.GetStreamChannel(QueueDetails.Host, QueueDetails.Port, QueueDetails.UserName, QueueDetails.Password, QueueDetails.VirtualHost);     
             _consumer = new QueueingCustomConsumer(_channel);
             _channel.BasicQos(0, 10, false);
         }
 
-        private static void GenerateUpdateStreamItems()
+        private static IObservable<IMessageUpdate> GenerateUpdateStreamItems()
         {
-            if (_updateStream == null)
-            {
-                _shouldStream = true;
-                _updateStream = Observable.Generate(_shouldStream, b => _shouldStream, b => _shouldStream, b => GetMessage(),
-                                                    Scheduler.Default);
-                _updateStream = _updateStream.Publish();
-            }
+            var updateStream = Observable.Generate(true, b => true, b => true, b => GetMessage(), Scheduler.Default);
+            updateStream = updateStream.Publish();
+
+            return updateStream;
         }
 
-        private static void StartEmittingItems()
+        private static void StartEmittingItems(IObservable<IMessageUpdate> updateStream)
         {
-            // Connect the subscriber
-            var connectableObservable = _updateStream as IConnectableObservable<IMessageUpdate>;
+            //Connect the subscriber
+            var connectableObservable = updateStream as IConnectableObservable<IMessageUpdate>;
 
             if (connectableObservable != null)
             {
@@ -166,8 +229,8 @@ namespace SportingSolutions.Udapi.Sdk
                 try
                 {
                     var output = _consumer.Queue.Dequeue();
-
                     var message = ExtractMessage(output, ref fixtureId, _consumer);
+
                     streamMessageUpdate = new MessageUpdate { Id = fixtureId };
 
                     var jobject = JObject.Parse(message);
@@ -176,13 +239,12 @@ namespace SportingSolutions.Udapi.Sdk
                     {
                         streamMessageUpdate.Message = jobject["Content"].Value<String>();
                         streamMessageUpdate.IsEcho = true;
-                        //IncrementPerformanceCounter.IncreaseCounter("Udapi SDK Received Echos");
                     }
 
                     else
                     {
-                        Logger.DebugFormat("Update arrived for fixtureId={0}", fixtureId);
                         streamMessageUpdate.Message = message;
+                        streamMessageUpdate.IsEcho = false;
                     }
                 }
                 catch (EndOfStreamException ex)
@@ -206,33 +268,17 @@ namespace SportingSolutions.Udapi.Sdk
                 }
             }
 
-            return streamMessageUpdate;          
+            return streamMessageUpdate;
         }
 
-        private static string ExtractMessage(object output, ref string fixtureId, QueueingCustomConsumer consumer)
+        public static string ExtractMessage(object output, ref string fixtureId, QueueingCustomConsumer consumer)
         {
             var deliveryArgs = (BasicDeliverEventArgs)output;
             var message = deliveryArgs.Body;
 
-            fixtureId = MappingQueueToFixture[consumer.ConsumerTag];
+            fixtureId = MappingQueueToFixture[deliveryArgs.ConsumerTag];
 
             return Encoding.UTF8.GetString(message);
-        }
-
-        public static void StopStream(string fixtureId)
-        {
-            IDisposable subscription;
-
-            if (Subscriptions.TryRemove(fixtureId, out subscription))
-            {
-                subscription.Dispose();
-            }
-
-            Resource resource;
-
-            SubscribedResources.TryRemove(fixtureId, out resource);
-
-            resource.StopEcho();
         }
     }
 }

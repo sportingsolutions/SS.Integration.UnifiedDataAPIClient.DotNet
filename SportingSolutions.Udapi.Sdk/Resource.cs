@@ -13,17 +13,12 @@
 //limitations under the License.
 
 using System;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Web;
 using Newtonsoft.Json.Linq;
-using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
-using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
@@ -35,39 +30,41 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Resource : Endpoint, IResource, IDisposable, IStreamStatistics
     {
-        private bool _isStreaming;
         private readonly ManualResetEvent _pauseStream;
-        private bool _isStreamStopped;
-        private IModel _channel;
+
+        public IObserver<string> StreamObserver;
+        public IObserver<string> EchoObserver;
+
         public event EventHandler StreamConnected;
         public event EventHandler StreamDisconnected;
         public event EventHandler<StreamEventArgs> StreamEvent;
         public event EventHandler StreamSynchronizationError;
-        private IObserver<string> _streamObserver;
-        public readonly EchoController EchoController;
 
-        internal Resource(RestItem restItem, IConnectClient connectClient, StreamController streamController, Uri echoUri)
+        private readonly StreamController _streamController;
+
+        internal Resource(RestItem restItem, IConnectClient connectClient, StreamController streamController)
             : base(restItem, connectClient)
         {
             Logger = LogManager.GetLogger(typeof(Resource).ToString());
             Logger.DebugFormat("Instantiated fixtureName=\"{0}\"", restItem.Name);
+            _streamController = streamController;
             _pauseStream = new ManualResetEvent(true);
-            EchoController = new EchoController(ConnectClient, echoUri);
         }
 
         public string Id
         {
             get { return State.Content.Id; }
         }
-
         public string Name
         {
             get { return State.Name; }
         }
+        public string QueueName { get; set; }
 
         public DateTime LastMessageReceived { get; private set; }
         public DateTime LastStreamDisconnect { get; private set; }
-        public bool IsStreamActive { get { return _isStreaming; } }
+        public bool IsStreamActive { get; set; }
+
         public double EchoRoundTripInMilliseconds { get; private set; }
 
         public Summary Content
@@ -92,18 +89,52 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
-            _streamObserver = Observer.Create<string>(ProcessMessage);
-            StreamSubscriber.SubscribeStream(this, _streamObserver);
+            IsStreamActive = true;
+
+            StreamObserver = Observer.Create<string>(ProcessMessage);
+            EchoObserver = Observer.Create<string>(ProcessEcho);
+
+            StreamSubscriber.StartStream(this);
+        }
+
+        private void ProcessEcho(string echo)
+        {
+            if (IsStreamActive)
+            {
+                Logger.DebugFormat("Thread: {2} - Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name, Thread.CurrentThread.ManagedThreadId);
+
+                var split = echo.Split(';');
+                var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
+                var roundTripTime = DateTime.Now - timeSent;
+
+                var roundMillis = roundTripTime.TotalMilliseconds;
+
+                EchoRoundTripInMilliseconds = roundMillis;
+
+                LastMessageReceived = DateTime.Now;
+            }
         }
 
         private void ProcessMessage(string message)
         {
-            Logger.DebugFormat("Stream message arrived to a resource with fixtureId={0}", this.Id);
-
-            if (StreamEvent != null)
+            if (IsStreamActive)
             {
-                StreamEvent(this, new StreamEventArgs(message));
+                Logger.DebugFormat("Thread: {2} - Stream message arrived for fixtureId={0} fixtureName=\"{1}\"", Id, Name, Thread.CurrentThread.ManagedThreadId);
+
+                if (StreamEvent != null)
+                {
+                    StreamEvent(this, new StreamEventArgs(message));
+                }
+
+                LastMessageReceived = DateTime.Now;
             }
+        }
+
+        public static int GetSequenceFromStreamUpdate(string update)
+        {
+            var jobject = JObject.Parse(update);
+
+            return jobject["Content"]["Sequence"].Value<int>();
         }
 
         public void PauseStreaming()
@@ -120,63 +151,32 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StopStreaming()
         {
-            Logger.InfoFormat("Stopping streaming for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-
-            if (!_isStreamStopped)
+            try
             {
-                _isStreaming = false;
-                _isStreamStopped = true;
+                Logger.InfoFormat("Stopping streaming for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
-                StreamSubscriber.StopStream(this.Id);
-
-                if (StreamDisconnected != null)
+                if (IsStreamActive)
                 {
-                    StreamDisconnected(this, EventArgs.Empty);
+                    IsStreamActive = false;
+
+                    StreamSubscriber.StopStream(this.Id);
+
+                    if (StreamDisconnected != null)
+                    {
+                        StreamDisconnected(this, EventArgs.Empty);
+                    }
                 }
             }
-            //_isStreaming = false;
-            //_cancellationTokenSource.Cancel();
-            //if (_consumer != null)
-            //{
-            //    try
-            //    {
-            //        _channel.BasicCancel(_consumer.ConsumerTag);
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        Logger.Error(string.Format("Problem when stopping stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name), ex);
-            //        Dispose();
-            //    }
-            //}
-            //else
-            //{
-            //    Dispose();
-            //}
+            catch (Exception ex)
+            {
+                Logger.Error(string.Format("Problem when stopping stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name), ex);
+                Dispose();
+            }
         }
 
         public void Dispose()
         {
-            Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-            if (_channel != null)
-            {
-                try
-                {
-                    _channel.Dispose();
-                    _channel.Close();
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error(ex);
-                }
-                _channel = null;
-            }
-
-            Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-
-            if (StreamDisconnected != null)
-            {
-                StreamDisconnected(this, new EventArgs());
-            }
+            StopStreaming();
         }
 
         public QueueDetails GetQueueDetails()
@@ -212,7 +212,7 @@ namespace SportingSolutions.Udapi.Sdk
                 queueDetails.Name = path.Substring(path.IndexOf('/', 1) + 1);
                 var virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
 
-                queueDetails.VirtualHost = "/" + virtualHost;
+                queueDetails.VirtualHost = virtualHost;
             }
 
             var port = amqpUri.Port;
@@ -221,88 +221,9 @@ namespace SportingSolutions.Udapi.Sdk
                 queueDetails.Port = port;
             }
 
+            QueueName = queueDetails.Name;
+
             return queueDetails;
-        }
-
-        public void StartEchos(string virtualHost, int echoInterval)
-        {
-            EchoController.StartEchos(virtualHost, echoInterval);
-        }
-
-        public void StopEcho()
-        {
-            EchoController.StopEchos();
-        }
-    }
-
-    public class EchoController
-    {
-        private readonly ILog _logger;
-        private static readonly object InitSync = new Object();
-        private Timer _echoTimer;
-        private Guid _lastSentGuid;
-        private readonly IConnectClient _connectClient;
-        private readonly Uri _echoUri;
-
-        public EchoController(IConnectClient connectClient, Uri echoUri)
-        {
-            _logger = LogManager.GetLogger(typeof(EchoController));          
-            _connectClient = connectClient;
-            _echoUri = echoUri;
-        }
-
-        public void StartEchos(string virtualHost, int echoInterval)
-        {
-            lock (InitSync)
-            {
-                if (_echoTimer == null)
-                {
-                    _echoTimer = new Timer(x => SendEcho(_echoUri, virtualHost), null, 0, echoInterval);
-                }
-            }
-        }
-
-        public void StopEchos()
-        {
-            _echoTimer.Dispose();
-            _echoTimer = null;
-        }
-
-        private void SendEcho(Uri echoUri, string virtualHost)
-        {
-            try
-            {
-                _lastSentGuid = Guid.NewGuid();
-
-                var stopwatch = new Stopwatch();
-                stopwatch.Start();
-
-                var streamEcho = new StreamEcho
-                {
-                    Host = virtualHost,
-                    Message = _lastSentGuid.ToString() + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                };
-
-                var response = _connectClient.Request(echoUri, Method.POST, streamEcho, "application/json", 3000);
-
-                if (response == null)
-                {
-                    _logger.WarnFormat("Post Echo had null response and took duration={0}ms", stopwatch.ElapsedMilliseconds);
-
-                }
-                else if (response.ErrorException != null)
-                {
-                    RestErrorHelper.LogRestError(_logger, response, string.Format("Echo Http Error took {0}ms", stopwatch.ElapsedMilliseconds));
-                }
-                else
-                {
-                    _logger.DebugFormat("Post Echo took duration={0}ms", stopwatch.ElapsedMilliseconds);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Error("Unable to post echo", ex);
-            }
         }
     }
 }

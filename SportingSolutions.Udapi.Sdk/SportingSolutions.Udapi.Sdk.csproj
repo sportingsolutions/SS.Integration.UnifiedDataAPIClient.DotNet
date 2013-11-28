@@ -116,6 +116,8 @@
     <Compile Include="Clients\ICredentials.cs" />
     <Compile Include="Clients\RestErrorHelper.cs" />
     <Compile Include="Credentials.cs" />
+    <Compile Include="EchoController.cs" />
+    <Compile Include="Interfaces\IEchoController.cs" />
     <Compile Include="Interfaces\IMessageUpdate.cs" />
     <Compile Include="Model\MessageUpdate.cs" />
     <Compile Include="QueueDetails.cs" />

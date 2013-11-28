@@ -15,7 +15,6 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using SportingSolutions.Udapi.Sdk.Events;
