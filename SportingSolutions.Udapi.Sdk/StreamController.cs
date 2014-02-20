@@ -99,7 +99,7 @@ namespace SportingSolutions.Udapi.Sdk
                 if (_streamConnection == null || !_streamConnection.IsOpen)
                 {
                     _connectionFactory = new ConnectionFactory();
-                    _connectionFactory.RequestedHeartbeat = 5;
+                    _connectionFactory.RequestedHeartbeat = 15;
                     _connectionFactory.HostName = host;
                     _connectionFactory.Port = port;
                     _connectionFactory.UserName = user;

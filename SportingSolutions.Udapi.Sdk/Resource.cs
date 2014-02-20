@@ -181,13 +181,7 @@ namespace SportingSolutions.Udapi.Sdk
                             Logger.WarnFormat("Missed 3 echos disconnecting stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
                             LastStreamDisconnect = DateTime.UtcNow;
                             //reached timeout, no echo has arrived
-                            
                             StopStreaming();
-
-                            //_isReconnecting = true;
-                            //Reconnect();
-                            //missedEchos = 0;
-                            //_isReconnecting = false;
                         }
                     }
                 }
@@ -199,18 +193,6 @@ namespace SportingSolutions.Udapi.Sdk
                         LastStreamDisconnect = DateTime.UtcNow;
 
                         _isStreaming = false;
-                        //StopStreaming();
-
-                        //connection lost
-                        //if (!_isReconnecting)
-                        //{
-                        //    Reconnect();
-                        //    missedEchos = 0;
-                        //}
-                        //else
-                        //{
-                        //    Thread.Sleep(1000);
-                        //}   
                     }
                 }
             }
