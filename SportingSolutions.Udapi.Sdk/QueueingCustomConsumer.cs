@@ -31,15 +31,21 @@ namespace SportingSolutions.Udapi.Sdk
         {
             base.HandleBasicCancel(consumerTag);
             _logger.Debug("HandleBasicCancel");
+            ExecuteQueueCancelled();
         }
 
         public override void HandleBasicCancelOk(string consumerTag)
         {
             base.HandleBasicCancelOk(consumerTag);
             _logger.Debug("HandleBasicCancelOk");
+            ExecuteQueueCancelled();
+        }
+
+        private void ExecuteQueueCancelled()
+        {
             if (QueueCancelled != null)
             {
-                QueueCancelled();    
+                QueueCancelled();
             }
             else
             {

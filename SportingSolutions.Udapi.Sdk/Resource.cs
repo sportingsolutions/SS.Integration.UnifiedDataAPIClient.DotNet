@@ -45,8 +45,6 @@ namespace SportingSolutions.Udapi.Sdk
         private int _reconnectionsSinceLastMessage;
         private int _maxRetries;
 
-        private bool _isReconnecting;
-
         private CancellationTokenSource _cancellationTokenSource;
 
         private readonly StreamController _streamController;
@@ -178,13 +176,10 @@ namespace SportingSolutions.Udapi.Sdk
 
                         if (missedEchos > 3)
                         {
-                            Logger.WarnFormat("Missed 3 echos reconnecting stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
+                            Logger.WarnFormat("Missed 3 echos disconnecting stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
                             LastStreamDisconnect = DateTime.UtcNow;
                             //reached timeout, no echo has arrived
-                            _isReconnecting = true;
-                            Reconnect();
-                            missedEchos = 0;
-                            _isReconnecting = false;
+                            StopStreaming();
                         }
                     }
                 }
@@ -194,16 +189,8 @@ namespace SportingSolutions.Udapi.Sdk
                     {
                         Logger.Error(string.Format("Lost connection to stream for fixtureName=\"{0}\" fixtureId={1}", Name, Id), ex);
                         LastStreamDisconnect = DateTime.UtcNow;
-                        //connection lost
-                        if (!_isReconnecting)
-                        {
-                            Reconnect();
-                            missedEchos = 0;
-                        }
-                        else
-                        {
-                            Thread.Sleep(1000);
-                        }   
+
+                        _isStreaming = false;
                     }
                 }
             }
@@ -318,10 +305,10 @@ namespace SportingSolutions.Udapi.Sdk
         private void ChannelModelShutdown(IModel model, ShutdownEventArgs reason)
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendFormat("There has been a streaming channel failure for fixtureName=\"{0}\" fixtureId={1}", Name, Id).AppendLine();
+            stringBuilder.AppendFormat("Channel is shutdown for fixtureName=\"{0}\" fixtureId={1}", Name, Id).AppendLine();
             stringBuilder.Append(reason);
-
-            Logger.Error(stringBuilder.ToString());
+           
+            Logger.Info(stringBuilder.ToString());
         }
 
         public void PauseStreaming()
@@ -338,6 +325,8 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StopStreaming()
         {
+            Logger.DebugFormat("Streaming stop requested for fixtureId={0}",Id);
+
             _isStreaming = false;
             _cancellationTokenSource.Cancel();
             if (_consumer != null)
@@ -365,27 +354,33 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void Dispose()
         {
-            Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-            if (_channel != null)
-            {
-                try
+            Task.Factory.StartNew(() =>
                 {
-                    _channel.Dispose();
-                    _channel.Close();
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error(ex);
-                }
-                _channel = null;
-            }
+                    Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+                    if (_channel != null)
+                    {
+                        try
+                        {
+                            if (_channel.IsOpen)
+                                _channel.Close();
+                            _channel.Dispose();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error(ex);
+                        }
+                        _channel = null;
+                    }
 
-            Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+                    Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
-            if (StreamDisconnected != null)
-            {
-                StreamDisconnected(this, new EventArgs());
-            }
+                }).ContinueWith(x =>
+                    {
+                        if (StreamDisconnected != null)
+                        {
+                            StreamDisconnected(this, new EventArgs());
+                        }                        
+                    });
         }
     }
 }
