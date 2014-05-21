@@ -45,6 +45,8 @@ namespace SportingSolutions.Udapi.Sdk
         private int _reconnectionsSinceLastMessage;
         private int _maxRetries;
 
+        private bool _isShutdown;
+
         private CancellationTokenSource _cancellationTokenSource;
 
         private readonly StreamController _streamController;
@@ -284,7 +286,7 @@ namespace SportingSolutions.Udapi.Sdk
                     _channel.BasicQos(0, 10, false);
                     _channel.ModelShutdown += ChannelModelShutdown;
                     success = true;
-
+                    _isShutdown = false;
                     _streamController.StartEcho(_virtualHost, _echoSenderInterval);
                 }
                 catch (Exception ex)
@@ -309,6 +311,7 @@ namespace SportingSolutions.Udapi.Sdk
             stringBuilder.Append(reason);
            
             Logger.Info(stringBuilder.ToString());
+            Dispose();
         }
 
         public void PauseStreaming()
@@ -354,7 +357,10 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void Dispose()
         {
-            Task.Factory.StartNew(() =>
+            if (!_isShutdown)
+            {
+                _isShutdown = true;
+                Task.Factory.StartNew(() =>
                 {
                     Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
                     if (_channel != null)
@@ -375,12 +381,14 @@ namespace SportingSolutions.Udapi.Sdk
                     Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
                 }).ContinueWith(x =>
+                {
+                    if (StreamDisconnected != null)
                     {
-                        if (StreamDisconnected != null)
-                        {
-                            StreamDisconnected(this, new EventArgs());
-                        }                        
-                    });
+                        StreamDisconnected(this, new EventArgs());
+                    }
+                });
+            }
+            
         }
     }
 }

@@ -27,13 +27,21 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             {
                 var stringBuilder = new StringBuilder(errorHeading).AppendLine();
 
+                if (restResponse.ResponseUri != null)
+                {
+                    stringBuilder.AppendFormat("Uri={0}", restResponse.ResponseUri.ToString()).AppendLine();
+                }
+
                 if (restResponse.Request != null)
                 {
+                    if (restResponse.ResponseUri == null)
+                    {
+                        stringBuilder.AppendFormat("Uri={0}", restResponse.Request.Resource).AppendLine();
+                    }
                     stringBuilder.AppendFormat("Request.Method={0}", restResponse.Request.Method).AppendLine();
                     stringBuilder.AppendFormat("Request.TimeOut={0}", restResponse.Request.Timeout).AppendLine();
                 }
 
-                stringBuilder.AppendFormat("Uri={0}", restResponse.ResponseUri != null ? restResponse.ResponseUri.ToString() : restResponse.Request.Resource).AppendLine();
                 stringBuilder.AppendFormat("ResponseStatus={0}", restResponse.ResponseStatus).AppendLine();
 
                 if (restResponse.StatusCode != 0)
