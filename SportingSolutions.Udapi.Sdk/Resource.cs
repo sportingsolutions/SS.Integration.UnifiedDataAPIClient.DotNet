@@ -159,9 +159,14 @@ namespace SportingSolutions.Udapi.Sdk
                         }
                         else
                         {
+                            Logger.DebugFormat("Update arrived for fixtureId={0} fixtureName={1}",Id, Name);
                             if (StreamEvent != null)
                             {
                                 StreamEvent(this, new StreamEventArgs(messageString));
+                            }
+                            else
+                            {
+                                Logger.DebugFormat("No event handler attached to StreamEvent for fixtureId={0} fixtureName={1}", Id, Name);   
                             }
                         }
                     }

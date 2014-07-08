@@ -14,8 +14,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using RestSharp;
 using RestSharp.Deserializers;
 using SportingSolutions.Udapi.Sdk.Exceptions;
@@ -42,6 +44,8 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
         private ILog Logger;
 
+        private int _connectionClosedRetryAttempts = 3;
+
         public ConnectClient(IConfiguration configuration, ICredentials credentials)
         {
             if (configuration == null) throw new ArgumentNullException("configuration");
@@ -58,7 +62,6 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             var restClient = new RestClient();
           
             restClient.ClearHandlers();
-            restClient.AddHandler("application/xml", new XmlDeserializer());
             restClient.AddHandler("*", new ConnectConverter(_configuration.ContentType));
 
             if (_xAuthTokenParameter != null)
@@ -173,43 +176,69 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
         public IRestResponse Request(Uri uri, Method method, object body, string contentType, int timeout)
         {
-            var request = CreateRequest(uri, method, body, contentType, timeout);
-            
-            var client = CreateClient();
-            var oldAuth = client.DefaultParameters.FirstOrDefault(x => x.Name == XAuthToken);
-
-            var response = client.Execute(request);
-            
-            if (response != null && response.StatusCode == HttpStatusCode.Unauthorized)
+            var connectionClosedRetryCounter = 0;
+            IRestResponse response = null;
+            while (connectionClosedRetryCounter < _connectionClosedRetryAttempts)
             {
-                RestErrorHelper.LogRestError(Logger,response,string.Format("Unauthenticated when using authToken={0}",_xAuthTokenParameter != null ? _xAuthTokenParameter.Value : String.Empty));
-                
-                var authenticated = false;
-                lock (sysLock)
-                {
+                var request = CreateRequest(uri, method, body, contentType, timeout);
 
-                    if (_xAuthTokenParameter == null || oldAuth == _xAuthTokenParameter)
+                var client = CreateClient();
+                var oldAuth = client.DefaultParameters.FirstOrDefault(x => x.Name == XAuthToken);
+
+                response = client.Execute(request);
+
+                if (response.ResponseStatus == ResponseStatus.Error &&
+                    response.ErrorException is WebException &&
+                    response.ErrorException.InnerException is IOException &&
+                    response.ErrorException.InnerException.InnerException is SocketException)
+                {
+                    //retry
+                    connectionClosedRetryCounter++;
+                    RestErrorHelper.LogRestWarn(Logger, response, "Request failed due underlying connection closed");
+                    continue;
+                }
+                
+                if (response != null && response.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    RestErrorHelper.LogRestWarn(Logger, response, string.Format("Unauthenticated when using authToken={0}", _xAuthTokenParameter != null ? _xAuthTokenParameter.Value : String.Empty));
+
+                    var authenticated = false;
+                    lock (sysLock)
                     {
-                        authenticated = Authenticate(response);
+
+                        if (_xAuthTokenParameter == null || oldAuth == _xAuthTokenParameter)
+                        {
+                            authenticated = Authenticate(response);
+                        }
+                        else
+                        {
+                            authenticated = true;
+                        }
+                    }
+
+                    if (authenticated)
+                    {
+                        request = CreateRequest(uri, method, body, contentType, timeout);
+                        response = CreateClient().Execute(request);
+
+                        if (response.ResponseStatus == ResponseStatus.Error &&
+                            response.ErrorException is WebException &&
+                            response.ErrorException.InnerException is IOException &&
+                            response.ErrorException.InnerException.InnerException is SocketException)
+                        {
+                            //retry
+                            connectionClosedRetryCounter++;
+                            RestErrorHelper.LogRestWarn(Logger, response, "Request failed due underlying connection closed");
+                            continue; 
+                        }
                     }
                     else
                     {
-                        authenticated = true;
+                        throw new NotAuthenticatedException(string.Format("Not Authenticated for url={0}", uri));
                     }
                 }
-
-                if (authenticated)
-                {
-                    request = CreateRequest(uri, method, body, contentType, timeout);
-                    response = CreateClient().Execute(request);
-                }
-                else
-                {
-                    throw new NotAuthenticatedException(string.Format("Not Authenticated for url={0}", uri));
-                }
-                
+                connectionClosedRetryCounter = _connectionClosedRetryAttempts;
             }
-
             return response;
         }
 
