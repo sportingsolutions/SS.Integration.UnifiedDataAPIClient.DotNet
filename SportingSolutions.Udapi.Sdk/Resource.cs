@@ -15,6 +15,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,6 +51,11 @@ namespace SportingSolutions.Udapi.Sdk
         private CancellationTokenSource _cancellationTokenSource;
 
         private readonly StreamController _streamController;
+
+        public event EventHandler StreamConnected;
+        public event EventHandler StreamDisconnected;
+        public event EventHandler<StreamEventArgs> StreamEvent;
+        public event EventHandler StreamSynchronizationError;
 
         internal Resource(RestItem restItem, IConnectClient connectClient, StreamController streamController)
             : base(restItem, connectClient)
@@ -162,7 +168,7 @@ namespace SportingSolutions.Udapi.Sdk
                             Logger.DebugFormat("Update arrived for fixtureId={0} fixtureName={1}",Id, Name);
                             if (StreamEvent != null)
                             {
-                                StreamEvent(this, new StreamEventArgs(messageString));
+                                HandleExceptionAndLog(() => StreamEvent(this, new StreamEventArgs(messageString)),"Error occured when processing StreamEvent event");
                             }
                             else
                             {
@@ -283,7 +289,7 @@ namespace SportingSolutions.Udapi.Sdk
 
                     if (StreamConnected != null)
                     {
-                        StreamConnected(this, new EventArgs());
+                        HandleExceptionAndLog(() => StreamConnected(this, new EventArgs()),"Error occured when executing StreamConnected event");
                     }
 
                     _consumer = new QueueingCustomConsumer(_channel);
@@ -355,10 +361,17 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        public event EventHandler StreamConnected;
-        public event EventHandler StreamDisconnected;
-        public event EventHandler<StreamEventArgs> StreamEvent;
-        public event EventHandler StreamSynchronizationError;
+        private void HandleExceptionAndLog(Action expressionToExecute,string message = null)
+        {
+            try
+            {
+                expressionToExecute();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(string.Format("{0} {1} {2}",this,message,ex));
+            }
+        }
 
         public void Dispose()
         {
@@ -389,11 +402,16 @@ namespace SportingSolutions.Udapi.Sdk
                 {
                     if (StreamDisconnected != null)
                     {
-                        StreamDisconnected(this, new EventArgs());
+                        HandleExceptionAndLog(() => StreamDisconnected(this, new EventArgs()),"Error occured when processing StreamDisconnected event");
                     }
                 });
             }
             
+        }
+
+        public override string ToString()
+        {
+            return string.Format("Resource fixtureId={0} fixtureName=\"{1}\"", Id, Name);
         }
     }
 }
