@@ -6,7 +6,6 @@ using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
-using System.Threading;
 using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -85,7 +84,7 @@ namespace SportingSolutions.Udapi.Sdk
             StartEchoStream(resource);
 
             //Start sending echo requests
-            StreamController.Instance.StartEcho(queue.VirtualHost, 20000);
+            StreamController.Instance.StartEcho(queue.VirtualHost, 10000);
         }
 
         public static void StopStream(string fixtureId)
@@ -112,12 +111,6 @@ namespace SportingSolutions.Udapi.Sdk
         {
             lock (InitSync)
             {
-                //if (_echoStream == null)
-                //{
-                //    _echoStream = Observable.Generate(true, b => true, b => true, b => GetMessage(), Scheduler.Default);
-                //    _echoStream = _echoStream.Publish();
-                //}
-
                 // Subscribe observer to specific messages by fixture Id
                 var subscription = _updateStream.Where(update => update != null && update.Id == resource.Id && update.IsEcho)
                                    .Select(update => update.Message).ObserveOn(Scheduler.Default)
@@ -195,9 +188,29 @@ namespace SportingSolutions.Udapi.Sdk
 
             _connection = _connectionFactory.CreateConnection();
 
-            _channel = StreamController.Instance.GetStreamChannel(QueueDetails.Host, QueueDetails.Port, QueueDetails.UserName, QueueDetails.Password, QueueDetails.VirtualHost);     
+            _channel = StreamController.Instance.GetStreamChannel(QueueDetails.Host, QueueDetails.Port, QueueDetails.UserName, QueueDetails.Password, QueueDetails.VirtualHost);
+            _channel.ModelShutdown += _channel_ModelShutdown;
             _consumer = new QueueingCustomConsumer(_channel);
+            _consumer.QueueCancelled += QueueCancelled;
+            _consumer.QueueCancelledUnexpectedly += QueueCancelledUnexpectedly;
             _channel.BasicQos(0, 10, false);
+        }
+
+        static void _channel_ModelShutdown(IModel model, ShutdownEventArgs reason)
+        {
+            throw new NotImplementedException();
+        }
+
+        private static void QueueCancelledUnexpectedly(string consumerTag)
+        {
+            var fixtureId = MappingQueueToFixture[consumerTag];
+            var resource = SubscribedResources[fixtureId];
+            resource.RaiseStreamDisconnected();
+        }
+
+        private static void QueueCancelled(string r)
+        {
+            var xxx = r;
         }
 
         private static IObservable<IMessageUpdate> GenerateUpdateStreamItems()

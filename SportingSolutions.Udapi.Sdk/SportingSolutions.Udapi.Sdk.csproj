@@ -107,6 +107,7 @@
     <Compile Include="..\CommonAssemblyInfo.cs">
       <Link>Properties\CommonAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="BlockingQueue.cs" />
     <Compile Include="Clients\Configuration.cs" />
     <Compile Include="Clients\ConnectClient.cs" />
     <Compile Include="Clients\ConnectConverter.cs" />
@@ -121,6 +122,7 @@
     <Compile Include="Interfaces\IMessageUpdate.cs" />
     <Compile Include="Model\MessageUpdate.cs" />
     <Compile Include="QueueDetails.cs" />
+    <Compile Include="RabbitMqConsumer.cs" />
     <Compile Include="StreamController.cs" />
     <Compile Include="Endpoint.cs" />
     <Compile Include="Events\StreamEventArgs.cs" />

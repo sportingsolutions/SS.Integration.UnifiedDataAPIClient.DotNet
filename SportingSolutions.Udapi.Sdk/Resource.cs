@@ -159,7 +159,7 @@ namespace SportingSolutions.Udapi.Sdk
                 {
                     IsStreamActive = false;
 
-                    StreamSubscriber.StopStream(this.Id);
+                    StreamSubscriber.StopStream(Id);
 
                     if (StreamDisconnected != null)
                     {
@@ -171,6 +171,15 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 Logger.Error(string.Format("Problem when stopping stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name), ex);
                 Dispose();
+            }
+        }
+
+        internal void RaiseStreamDisconnected()
+        {
+            if (StreamDisconnected != null)
+            {
+                IsStreamActive = false;
+                StreamDisconnected(this, EventArgs.Empty);
             }
         }
 

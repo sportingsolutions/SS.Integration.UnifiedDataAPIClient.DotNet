@@ -13,13 +13,11 @@
 //limitations under the License.
 
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
-using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;

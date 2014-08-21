@@ -24,13 +24,18 @@ namespace SportingSolutions.Udapi.Sdk
 
         public QueueingCustomConsumer(IModel model) : base(model)
         {
-
+            
         }
 
         public override void HandleBasicCancel(string consumerTag)
         {
-            base.HandleBasicCancel(consumerTag);
+            //base.HandleBasicCancel(consumerTag);
             _logger.Debug("HandleBasicCancel");
+
+            if (QueueCancelledUnexpectedly != null)
+            {
+                QueueCancelledUnexpectedly(consumerTag);
+            }
         }
 
         public override void HandleBasicCancelOk(string consumerTag)
@@ -39,7 +44,7 @@ namespace SportingSolutions.Udapi.Sdk
             _logger.Debug("HandleBasicCancelOk");
             if (QueueCancelled != null)
             {
-                QueueCancelled();    
+                QueueCancelled(consumerTag);
             }
             else
             {
@@ -47,7 +52,8 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        public event Action QueueCancelled;
+        public event Action<string> QueueCancelledUnexpectedly;
+        public event Action<string> QueueCancelled;
 
     }
 }
