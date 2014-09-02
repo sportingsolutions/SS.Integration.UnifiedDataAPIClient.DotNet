@@ -51,6 +51,8 @@ namespace SportingSolutions.Udapi.Sdk
         private CancellationTokenSource _cancellationTokenSource;
 
         private readonly StreamController _streamController;
+        private Task _streamTask;
+
 
         public event EventHandler StreamConnected;
         public event EventHandler StreamDisconnected;
@@ -103,17 +105,24 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
+            if (State == null)
+            {
+                throw new NullReferenceException("Can't start streaming! State was null on Resource (no details are available due to lack of state)");
+            }
+
+            if (_streamTask != null && !_streamTask.IsCompleted)
+                throw new Exception(string.Format("Requested start streaming while already streaming {0}", this));
+
             Logger.InfoFormat("Starting stream for fixtureName=\"{0}\" fixtureId={1} with Echo Interval of {2}", Name, Id, echoInterval);
 
             _echoSenderInterval = echoInterval;
+            
+            _isShutdown = false;
+            _cancellationTokenSource = new CancellationTokenSource();
+            var cancellationToken = _cancellationTokenSource.Token;
+            _streamTask = Task.Factory.StartNew(() => StreamData(cancellationToken), cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            _streamTask.ContinueWith(t => Logger.InfoFormat("Stream cancelled for fixtureName=\"{0}\" fixtureId={1}", Name, Id), TaskContinuationOptions.OnlyOnCanceled);
 
-            if (State != null)
-            {
-                _cancellationTokenSource = new CancellationTokenSource();
-                var cancellationToken = _cancellationTokenSource.Token;
-                var streamTask = Task.Factory.StartNew(() => StreamData(cancellationToken), cancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-                streamTask.ContinueWith(t => Logger.InfoFormat("Stream cancelled for fixtureName=\"{0}\" fixtureId={1}", Name, Id), TaskContinuationOptions.OnlyOnCanceled);
-            }
         }
 
         private void StreamData(CancellationToken cancellationToken)
@@ -131,7 +140,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             _consumer.QueueCancelled += Dispose;
 
-            while (_isStreaming && !cancellationToken.IsCancellationRequested)
+            while (_isStreaming && !cancellationToken.IsCancellationRequested && !_isShutdown)
             {
                 try
                 {
@@ -140,7 +149,12 @@ namespace SportingSolutions.Udapi.Sdk
 
                     if (_channel == null || !_channel.IsOpen)
                     {
-                        throw new Exception("Channel is closed");    
+                        throw new Exception("Channel is closed");
+                    }
+
+                    if (StreamConnected != null)
+                    {
+                        HandleExceptionAndLog(() => StreamConnected(this, new EventArgs()), "Error occured when executing StreamConnected event");
                     }
 
                     if (_consumer.Queue.Dequeue(_echoSenderInterval + 3000, out output))
@@ -152,9 +166,9 @@ namespace SportingSolutions.Udapi.Sdk
 
                         var deliveryArgs = output;
                         var message = deliveryArgs.Body;
-                        
+
                         LastMessageReceived = DateTime.UtcNow;
-                        missedEchos = 0; 
+                        missedEchos = 0;
                         _reconnectionsSinceLastMessage = 0;
 
                         var messageString = Encoding.UTF8.GetString(message);
@@ -165,14 +179,14 @@ namespace SportingSolutions.Udapi.Sdk
                         }
                         else
                         {
-                            Logger.DebugFormat("Update arrived for fixtureId={0} fixtureName={1}",Id, Name);
+                            Logger.DebugFormat("Update arrived for fixtureId={0} fixtureName={1}", Id, Name);
                             if (StreamEvent != null)
                             {
-                                HandleExceptionAndLog(() => StreamEvent(this, new StreamEventArgs(messageString)),"Error occured when processing StreamEvent event");
+                                HandleExceptionAndLog(() => StreamEvent(this, new StreamEventArgs(messageString)), "Error occured when processing StreamEvent event");
                             }
                             else
                             {
-                                Logger.DebugFormat("No event handler attached to StreamEvent for fixtureId={0} fixtureName={1}", Id, Name);   
+                                Logger.DebugFormat("No event handler attached to StreamEvent for fixtureId={0} fixtureName={1}", Id, Name);
                             }
                         }
                     }
@@ -183,7 +197,7 @@ namespace SportingSolutions.Udapi.Sdk
                             cancellationToken.ThrowIfCancellationRequested();
                         }
                         // message didn't arrive in specified time period
-                        
+
                         missedEchos++;
                         Logger.InfoFormat("No echo recieved for fixtureId={0} fixtureName=\"{1}\" missedEchos={2}", Id, Name, missedEchos);
 
@@ -230,7 +244,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             Logger.WarnFormat("Attempting to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id, _reconnectionsSinceLastMessage + 1);
             var success = false;
-            while (!success && _isStreaming)
+            while (!success && _isStreaming && !_isShutdown)
             {
                 try
                 {
@@ -242,6 +256,12 @@ namespace SportingSolutions.Udapi.Sdk
                         return;
                     }
 
+                    if (_isShutdown)
+                    {
+                        Logger.InfoFormat("Stream is shutting down for: {0}, reconnect will be cancelled. ", this);
+                        return;
+                    }
+
                     var loggingStringBuilder = new StringBuilder();
                     var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp", "GetAmqpStream Http Error", loggingStringBuilder);
                     Logger.Info(loggingStringBuilder);
@@ -250,9 +270,9 @@ namespace SportingSolutions.Udapi.Sdk
                     var amqpUri = new Uri(amqpLink.Href);
 
                     var host = amqpUri.Host;
-                    
+
                     var port = amqpUri.Port;
-                    
+
                     var userInfo = amqpUri.UserInfo;
                     userInfo = HttpUtility.UrlDecode(userInfo);
                     var user = string.Empty;
@@ -265,7 +285,7 @@ namespace SportingSolutions.Udapi.Sdk
                             throw new ArgumentException(string.Format("Bad user info in AMQP URI: {0}", userInfo));
                         }
                         user = userPass[0];
-                       
+
                         if (userPass.Length == 2)
                         {
                             password = userPass[1];
@@ -287,11 +307,6 @@ namespace SportingSolutions.Udapi.Sdk
 
                     _channel = _streamController.GetStreamChannel(host, port, user, password, _virtualHost);
 
-                    if (StreamConnected != null)
-                    {
-                        HandleExceptionAndLog(() => StreamConnected(this, new EventArgs()),"Error occured when executing StreamConnected event");
-                    }
-
                     _consumer = new QueueingCustomConsumer(_channel);
                     _channel.BasicConsume(_queueName, true, _consumer);
                     _channel.BasicQos(0, 10, false);
@@ -304,7 +319,7 @@ namespace SportingSolutions.Udapi.Sdk
                 {
                     // give time for load balancer to notice the node is down
                     Thread.Sleep(500);
-                    
+
                     Logger.Warn(string.Format("Failed to reconnect stream for fixtureName=\"{0}\" fixtureId={1}, Attempt {2}", Name, Id,
                         _reconnectionsSinceLastMessage + 1), ex);
                 }
@@ -320,7 +335,7 @@ namespace SportingSolutions.Udapi.Sdk
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendFormat("Channel is shutdown for fixtureName=\"{0}\" fixtureId={1}", Name, Id).AppendLine();
             stringBuilder.Append(reason);
-           
+
             Logger.Info(stringBuilder.ToString());
             Dispose();
         }
@@ -339,9 +354,10 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StopStreaming()
         {
-            Logger.DebugFormat("Streaming stop requested for fixtureId={0}",Id);
-
             _isStreaming = false;
+
+            Logger.DebugFormat("Streaming stop requested for fixtureId={0}", Id);
+
             _cancellationTokenSource.Cancel();
             if (_consumer != null)
             {
@@ -361,7 +377,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        private void HandleExceptionAndLog(Action expressionToExecute,string message = null)
+        private void HandleExceptionAndLog(Action expressionToExecute, string message = null)
         {
             try
             {
@@ -369,12 +385,14 @@ namespace SportingSolutions.Udapi.Sdk
             }
             catch (Exception ex)
             {
-                Logger.Error(string.Format("{0} {1} {2}",this,message,ex));
+                Logger.Error(string.Format("{0} {1} {2}", this, message, ex));
             }
         }
 
         public void Dispose()
         {
+            _isStreaming = false;
+
             if (!_isShutdown)
             {
                 _isShutdown = true;
@@ -402,11 +420,12 @@ namespace SportingSolutions.Udapi.Sdk
                 {
                     if (StreamDisconnected != null)
                     {
-                        HandleExceptionAndLog(() => StreamDisconnected(this, new EventArgs()),"Error occured when processing StreamDisconnected event");
+                        HandleExceptionAndLog(() => StreamDisconnected(this, new EventArgs()), "Error occured when processing StreamDisconnected event");
                     }
                 });
             }
-            
+
+
         }
 
         public override string ToString()
