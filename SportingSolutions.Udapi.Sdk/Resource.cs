@@ -137,8 +137,12 @@ namespace SportingSolutions.Udapi.Sdk
             Logger.InfoFormat("Initialised connection to Streaming Queue for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
             LastMessageReceived = DateTime.UtcNow;
-
             _consumer.QueueCancelled += Dispose;
+
+            if (StreamConnected != null)
+            {
+                HandleExceptionAndLog(() => StreamConnected(this, new EventArgs()), "Error occured when executing StreamConnected event");
+            }
 
             while (_isStreaming && !cancellationToken.IsCancellationRequested && !_isShutdown)
             {
@@ -151,12 +155,7 @@ namespace SportingSolutions.Udapi.Sdk
                     {
                         throw new Exception("Channel is closed");
                     }
-
-                    if (StreamConnected != null)
-                    {
-                        HandleExceptionAndLog(() => StreamConnected(this, new EventArgs()), "Error occured when executing StreamConnected event");
-                    }
-
+                    
                     if (_consumer.Queue.Dequeue(_echoSenderInterval + 3000, out output))
                     {
                         if (cancellationToken.IsCancellationRequested)
