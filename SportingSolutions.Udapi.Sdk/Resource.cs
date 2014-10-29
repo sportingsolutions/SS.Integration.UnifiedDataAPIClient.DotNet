@@ -395,6 +395,16 @@ namespace SportingSolutions.Udapi.Sdk
             if (!_isShutdown)
             {
                 _isShutdown = true;
+
+                Task.Factory.StartNew(() =>
+                {
+                    if (StreamDisconnected != null)
+                    {
+                        HandleExceptionAndLog(() => StreamDisconnected(this, new EventArgs()),
+                            "Error occured when processing StreamDisconnected event");
+                    }
+                });
+                
                 Task.Factory.StartNew(() =>
                 {
                     Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
@@ -408,23 +418,15 @@ namespace SportingSolutions.Udapi.Sdk
                         }
                         catch (Exception ex)
                         {
-                            Logger.Error(ex);
+                            Logger.ErrorFormat("Error occured while disposing {0} : {1}",this, ex);
                         }
                         _channel = null;
                     }
 
                     Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
-                }).ContinueWith(x =>
-                {
-                    if (StreamDisconnected != null)
-                    {
-                        HandleExceptionAndLog(() => StreamDisconnected(this, new EventArgs()), "Error occured when processing StreamDisconnected event");
-                    }
                 });
             }
-
-
         }
 
         public override string ToString()
