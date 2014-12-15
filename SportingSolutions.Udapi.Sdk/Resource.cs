@@ -220,9 +220,14 @@ namespace SportingSolutions.Udapi.Sdk
                     }
                 }
             }
+            
             if (cancellationToken.IsCancellationRequested)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+            }
+            else
+            {
+                Logger.WarnFormat("Streaming interrupted {0}, IsShutDown={1} IsStreaming={2}",this,_isShutdown,_isStreaming);
             }
         }
 
