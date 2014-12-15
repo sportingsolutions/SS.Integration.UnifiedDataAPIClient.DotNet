@@ -52,8 +52,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         private readonly StreamController _streamController;
         private Task _streamTask;
-
-
+        
         public event EventHandler StreamConnected;
         public event EventHandler StreamDisconnected;
         public event EventHandler<StreamEventArgs> StreamEvent;
@@ -109,14 +108,14 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 throw new NullReferenceException("Can't start streaming! State was null on Resource (no details are available due to lack of state)");
             }
-
+            
             if (_streamTask != null && !_streamTask.IsCompleted)
                 throw new Exception(string.Format("Requested start streaming while already streaming {0}", this));
 
             Logger.InfoFormat("Starting stream for fixtureName=\"{0}\" fixtureId={1} with Echo Interval of {2}", Name, Id, echoInterval);
 
             _echoSenderInterval = echoInterval;
-            
+
             _isShutdown = false;
             _cancellationTokenSource = new CancellationTokenSource();
             var cancellationToken = _cancellationTokenSource.Token;
@@ -155,7 +154,7 @@ namespace SportingSolutions.Udapi.Sdk
                     {
                         throw new Exception("Channel is closed");
                     }
-                    
+
                     if (_consumer.Queue.Dequeue(_echoSenderInterval + 3000, out output))
                     {
                         if (cancellationToken.IsCancellationRequested)
@@ -220,14 +219,14 @@ namespace SportingSolutions.Udapi.Sdk
                     }
                 }
             }
-            
+
             if (cancellationToken.IsCancellationRequested)
             {
                 cancellationToken.ThrowIfCancellationRequested();
             }
             else
             {
-                Logger.WarnFormat("Streaming interrupted {0}, IsShutDown={1} IsStreaming={2}",this,_isShutdown,_isStreaming);
+                Logger.WarnFormat("Streaming interrupted {0}, IsShutDown={1} IsStreaming={2}", this, _isShutdown, _isStreaming);
             }
         }
 
@@ -303,13 +302,16 @@ namespace SportingSolutions.Udapi.Sdk
                         _virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
                     }
 
-                    if (_channel != null)
+                    lock (this)
                     {
-                        _channel.Close();
-                        _channel = null;
-                    }
+                        if (_channel != null)
+                        {
+                            _channel.Close();
+                            _channel = null;
+                        }
 
-                    _channel = _streamController.GetStreamChannel(host, port, user, password, _virtualHost);
+                        _channel = _streamController.GetStreamChannel(host, port, user, password, _virtualHost);
+                    }
 
                     _consumer = new QueueingCustomConsumer(_channel);
                     _channel.BasicConsume(_queueName, true, _consumer);
@@ -397,42 +399,57 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _isStreaming = false;
 
-            if (!_isShutdown)
+            if (_isShutdown)
             {
-                _isShutdown = true;
+                Logger.WarnFormat("Dispose is already in progress {0}", this);
+                return;
+            }
 
-                Task.Factory.StartNew(() =>
+            _isShutdown = true;
+
+            Task.Factory.StartNew(() =>
+            {
+                if (StreamDisconnected != null)
                 {
-                    if (StreamDisconnected != null)
-                    {
-                        HandleExceptionAndLog(() => StreamDisconnected(this, new EventArgs()),
-                            "Error occured when processing StreamDisconnected event");
-                    }
-                });
-                
+                    HandleExceptionAndLog(() => StreamDisconnected(this, new EventArgs()),
+                        "Error occured when processing StreamDisconnected event");
+                }
+            });
+
+            IModel channel = null;
+
+            lock (this)
+            {
+                if (_channel != null)
+                {
+                    channel = _channel;
+                    _channel = null;
+                }
+            }
+
+            if (channel != null)
+            {
                 Task.Factory.StartNew(() =>
                 {
                     Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-                    if (_channel != null)
+
+                    try
                     {
-                        try
-                        {
-                            if (_channel.IsOpen)
-                                _channel.Close();
-                            _channel.Dispose();
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.ErrorFormat("Error occured while disposing {0} : {1}",this, ex);
-                        }
-                        _channel = null;
+                        if (channel.IsOpen)
+                            channel.Close();
+                        channel.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.ErrorFormat("Error occured while disposing {0} : {1}", this, ex);
                     }
 
-                    Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
 
+                    Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
                 });
             }
         }
+
 
         public override string ToString()
         {
