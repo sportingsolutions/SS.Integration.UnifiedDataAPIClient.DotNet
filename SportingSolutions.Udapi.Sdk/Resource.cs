@@ -425,28 +425,30 @@ namespace SportingSolutions.Udapi.Sdk
                     channel = _channel;
                     _channel = null;
                 }
-            }
 
-            if (channel != null)
-            {
-                Task.Factory.StartNew(() =>
+
+                if (channel != null)
                 {
-                    Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-
-                    try
+                    //we are not awaiting this task as it's background clean up
+                    Task.Factory.StartNew(() =>
                     {
-                        if (channel.IsOpen)
-                            channel.Close();
-                        channel.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.ErrorFormat("Error occured while disposing {0} : {1}", this, ex);
-                    }
+                        Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+
+                        try
+                        {
+                            if (channel.IsOpen)
+                                channel.Close();
+                            channel.Dispose();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.ErrorFormat("Error occured while disposing {0} : {1}", this, ex);
+                        }
 
 
-                    Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-                });
+                        Logger.InfoFormat("Streaming Channel Closed for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+                    });
+                }
             }
         }
 
