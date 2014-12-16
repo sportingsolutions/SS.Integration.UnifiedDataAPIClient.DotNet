@@ -52,7 +52,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         private readonly StreamController _streamController;
         private Task _streamTask;
-        
+
         public event EventHandler StreamConnected;
         public event EventHandler StreamDisconnected;
         public event EventHandler<StreamEventArgs> StreamEvent;
@@ -108,7 +108,7 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 throw new NullReferenceException("Can't start streaming! State was null on Resource (no details are available due to lack of state)");
             }
-            
+
             if (_streamTask != null && !_streamTask.IsCompleted)
                 throw new Exception(string.Format("Requested start streaming while already streaming {0}", this));
 
@@ -301,18 +301,14 @@ namespace SportingSolutions.Udapi.Sdk
                         _queueName = path.Substring(path.IndexOf('/', 1) + 1);
                         _virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
                     }
-
-                    lock (this)
+                    
+                    if (_channel != null)
                     {
-                        if (_channel != null)
-                        {
-                            _channel.Close();
-                            _channel = null;
-                        }
-
-                        _channel = _streamController.GetStreamChannel(host, port, user, password, _virtualHost);
+                        Logger.WarnFormat("Channel is still not disposed and it's being replaced {0}",this);
                     }
 
+                    _channel = _streamController.GetStreamChannel(host, port, user, password, _virtualHost);
+                    
                     _consumer = new QueueingCustomConsumer(_channel);
                     _channel.BasicConsume(_queueName, true, _consumer);
                     _channel.BasicQos(0, 10, false);
