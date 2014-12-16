@@ -51,6 +51,8 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             if (configuration == null) throw new ArgumentNullException("configuration");
             if (credentials == null) throw new ArgumentNullException("credentials");
 
+            //ServicePointManager.MaxServicePointIdleTime = 12000;
+
             _configuration = configuration;
             _credentials = credentials;
 
@@ -189,8 +191,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
                 if (response.ResponseStatus == ResponseStatus.Error &&
                     response.ErrorException is WebException &&
-                    response.ErrorException.InnerException is IOException &&
-                    response.ErrorException.InnerException.InnerException is SocketException)
+                    ((WebException) response.ErrorException).Status == WebExceptionStatus.KeepAliveFailure)
                 {
                     //retry
                     connectionClosedRetryCounter++;
@@ -223,8 +224,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
                         if (response.ResponseStatus == ResponseStatus.Error &&
                             response.ErrorException is WebException &&
-                            response.ErrorException.InnerException is IOException &&
-                            response.ErrorException.InnerException.InnerException is SocketException)
+                            ((WebException)response.ErrorException).Status == WebExceptionStatus.KeepAliveFailure)
                         {
                             //retry
                             connectionClosedRetryCounter++;
