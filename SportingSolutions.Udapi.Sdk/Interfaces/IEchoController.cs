@@ -3,5 +3,6 @@
     public interface IEchoController
     {
         void StartEchos(string virtualHost, int echoInterval);
+        void StopEchos();
     }
 }

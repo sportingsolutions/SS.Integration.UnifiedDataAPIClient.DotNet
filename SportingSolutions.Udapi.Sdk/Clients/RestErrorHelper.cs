@@ -25,40 +25,63 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         {
             if (logger != null && restResponse != null)
             {
-                var stringBuilder = new StringBuilder(errorHeading).AppendLine();
-
-                if (restResponse.Request != null)
-                {
-                    stringBuilder.AppendFormat("Request.Method={0}", restResponse.Request.Method).AppendLine();
-                    stringBuilder.AppendFormat("Request.TimeOut={0}", restResponse.Request.Timeout).AppendLine();
-                }
-
-                stringBuilder.AppendFormat("Uri={0}", restResponse.ResponseUri != null ? restResponse.ResponseUri.ToString() : restResponse.Request.Resource).AppendLine();
-                stringBuilder.AppendFormat("ResponseStatus={0}", restResponse.ResponseStatus).AppendLine();
-
-                if (restResponse.StatusCode != 0)
-                {
-                    stringBuilder.AppendFormat("StatusCode={0} ({1})", restResponse.StatusCode, restResponse.StatusDescription).AppendLine();
-                }
-
-                var transactionId = GetTransactionId(restResponse);
-                if (!string.IsNullOrEmpty(transactionId))
-                {
-                    stringBuilder.AppendFormat("TransactionId={0}", GetTransactionId(restResponse)).AppendLine();
-                }
-
-                if (!string.IsNullOrEmpty(restResponse.Content))
-                {
-                    stringBuilder.AppendFormat("Content={0}", restResponse.Content).AppendLine();
-                }
-
-                if (restResponse.ErrorException != null)
-                {
-                    stringBuilder.AppendFormat("Exception={0}", restResponse.ErrorException).AppendLine();
-                }
-                
+                var stringBuilder = BuildLoggingString(restResponse, errorHeading);
                 logger.Error(stringBuilder.ToString());
             }
+        }
+
+        public static void LogRestWarn(ILog logger, IRestResponse restResponse, string warnHeading)
+        {
+            if (logger != null && restResponse != null)
+            {
+                var stringBuilder = BuildLoggingString(restResponse, warnHeading);
+                logger.Warn(stringBuilder.ToString());
+            }
+        }
+
+        private static StringBuilder BuildLoggingString(IRestResponse restResponse, string logHeading)
+        {
+            var stringBuilder = new StringBuilder(logHeading).AppendLine();
+
+            if (restResponse.ResponseUri != null)
+            {
+                stringBuilder.AppendFormat("Uri={0}", restResponse.ResponseUri.ToString()).AppendLine();
+            }
+
+            if (restResponse.Request != null)
+            {
+                if (restResponse.ResponseUri == null)
+                {
+                    stringBuilder.AppendFormat("Uri={0}", restResponse.Request.Resource).AppendLine();
+                }
+                stringBuilder.AppendFormat("Request.Method={0}", restResponse.Request.Method).AppendLine();
+                stringBuilder.AppendFormat("Request.TimeOut={0}", restResponse.Request.Timeout).AppendLine();
+            }
+
+            stringBuilder.AppendFormat("ResponseStatus={0}", restResponse.ResponseStatus).AppendLine();
+
+            if (restResponse.StatusCode != 0)
+            {
+                stringBuilder.AppendFormat("StatusCode={0} ({1})", restResponse.StatusCode, restResponse.StatusDescription).AppendLine();
+            }
+
+            var transactionId = GetTransactionId(restResponse);
+            if (!string.IsNullOrEmpty(transactionId))
+            {
+                stringBuilder.AppendFormat("TransactionId={0}", GetTransactionId(restResponse)).AppendLine();
+            }
+
+            if (!string.IsNullOrEmpty(restResponse.Content))
+            {
+                stringBuilder.AppendFormat("Content={0}", restResponse.Content).AppendLine();
+            }
+
+            if (restResponse.ErrorException != null)
+            {
+                stringBuilder.AppendFormat("Exception={0}", restResponse.ErrorException).AppendLine();
+            }
+
+            return stringBuilder;
         }
 
         private static string GetTransactionId(IRestResponse restResponse)

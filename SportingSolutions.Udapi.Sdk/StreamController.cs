@@ -41,6 +41,8 @@ namespace SportingSolutions.Udapi.Sdk
         private ConnectionFactory _connectionFactory;
         private IConnection _streamConnection;
 
+        private bool _shutdownRequested;
+
         private StreamController()
         {
             _logger = LogManager.GetLogger(typeof(StreamController));
@@ -109,6 +111,12 @@ namespace SportingSolutions.Udapi.Sdk
             return channel;
         }
 
+        public void ShutdownConnection()
+        {
+            _shutdownRequested = true;
+            _streamConnection.Close();
+        }
+
         private void TryToConnect()
         {
             while (_streamConnection == null || !_streamConnection.IsOpen)
@@ -129,12 +137,19 @@ namespace SportingSolutions.Udapi.Sdk
 
         private void StreamConnectionConnectionShutdown(IConnection connection, ShutdownEventArgs reason)
         {
-            var stringBuilder = new StringBuilder();
-            stringBuilder.Append("There has been a streaming connection failure").AppendLine();
-            stringBuilder.Append(reason);
+            if (!_shutdownRequested)
+            {
+                var stringBuilder = new StringBuilder();
+                stringBuilder.Append("There has been a streaming connection failure").AppendLine();
+                stringBuilder.Append(reason);
 
-            _logger.Error(stringBuilder.ToString());
-            TryToConnect();
+                _logger.Error(stringBuilder.ToString());
+                TryToConnect();    
+            }
+            else
+            {
+                _shutdownRequested = false;
+            }
         }
 
         public void StartEcho(string virtualHost, int echoInterval)
@@ -145,6 +160,18 @@ namespace SportingSolutions.Udapi.Sdk
                 {
                     _echoController = new EchoController(_connectClient, _echoUri);
                     _echoController.StartEchos(virtualHost, echoInterval);
+                }
+            }
+        }
+
+        public void StopEcho()
+        {
+            lock (InitSync)
+            {
+                if (_echoController != null)
+                {
+                    _echoController.StopEchos();
+                    _echoController = null;
                 }
             }
         }

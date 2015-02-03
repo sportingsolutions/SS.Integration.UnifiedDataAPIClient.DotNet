@@ -24,19 +24,19 @@ namespace SportingSolutions.Udapi.Sdk
         private static readonly ILog Logger;
 
         private static QueueingCustomConsumer _consumer;
-        private static ConnectionFactory _connectionFactory;
-        private static IConnection _connection;
+      
         private static readonly QueueDetails QueueDetails;
         private static IModel _channel;
 
         private static IObservable<IMessageUpdate> _updateStream;
-        //private static IObservable<IMessageUpdate> _echoStream;
 
         private static readonly ConcurrentDictionary<string, string> MappingQueueToFixture;
         private static readonly ConcurrentDictionary<string, IDisposable> Subscriptions;
         private static readonly ConcurrentDictionary<string, IDisposable> EchoSubscriptions;
 
         private static readonly ConcurrentDictionary<string, Resource> SubscribedResources;
+
+        private static readonly ConcurrentDictionary<string, string> ResourceIdToConsumerTag; 
 
         private static readonly Stopwatch StopWatch = new Stopwatch();
         private static int _numberMessages = 0;
@@ -50,6 +50,7 @@ namespace SportingSolutions.Udapi.Sdk
             Subscriptions = new ConcurrentDictionary<string, IDisposable>();
             EchoSubscriptions = new ConcurrentDictionary<string, IDisposable>();
             SubscribedResources = new ConcurrentDictionary<string, Resource>();
+            ResourceIdToConsumerTag = new ConcurrentDictionary<string, string>();
         }
 
         public static void StartStream(Resource resource)
@@ -71,6 +72,7 @@ namespace SportingSolutions.Udapi.Sdk
                                             .Select(update => update.Message).ObserveOn(Scheduler.Default)
                                             .Subscribe(resource.StreamObserver);
 
+            
             // Store the subscription (IDisposable) objects so we can stop streaming later on
             Subscriptions.AddOrUpdate(fixtureId, subscription, (s, d) => subscription);
 
@@ -101,10 +103,10 @@ namespace SportingSolutions.Udapi.Sdk
                 subscription.Dispose();
             }
 
-            Resource resource;
-            SubscribedResources.TryRemove(fixtureId, out resource);
-
-            _channel.QueueDelete(resource.QueueName);
+            lock (InitSync)
+            {
+                _channel.BasicCancel(ResourceIdToConsumerTag[fixtureId]);    
+            }
         }
 
         public static void StartEchoStream(Resource resource)
@@ -141,23 +143,23 @@ namespace SportingSolutions.Udapi.Sdk
                 Logger.DebugFormat("Mapping fixtureId={0} to consumerTag={1}", resource.Id, consumerTag);
 
                 MappingQueueToFixture.AddOrUpdate(consumerTag, s => resource.Id, (s, s1) => resource.Id);
+                ResourceIdToConsumerTag.AddOrUpdate(resource.Id, s => consumerTag, (s1, s2) => consumerTag);
             }
         }
 
         private static string SetupNewBinding(QueueDetails queue)
         {
-            if (_connection == null || _consumer == null)
+            if (_consumer == null)
             {
                 lock (InitSync)
                 {
-                    if (_connection == null || _consumer == null)
+                    if (_consumer == null)
                     {
                         QueueDetails.Host = queue.Host;
                         QueueDetails.Port = queue.Port;
                         QueueDetails.UserName = queue.UserName;
                         QueueDetails.Password = queue.Password;
                         QueueDetails.VirtualHost = "/" + queue.VirtualHost;
-
                         InitializeConnection();
                     }
                 }
@@ -175,19 +177,6 @@ namespace SportingSolutions.Udapi.Sdk
 
         private static void InitializeConnection()
         {
-            if (null == _connectionFactory)
-            {
-                _connectionFactory = new ConnectionFactory();
-                _connectionFactory.RequestedHeartbeat = 5;
-                _connectionFactory.HostName = QueueDetails.Host;
-                _connectionFactory.Port = QueueDetails.Port;
-                _connectionFactory.UserName = QueueDetails.UserName;
-                _connectionFactory.Password = QueueDetails.Password;
-                _connectionFactory.VirtualHost = QueueDetails.VirtualHost;
-            }
-
-            _connection = _connectionFactory.CreateConnection();
-
             _channel = StreamController.Instance.GetStreamChannel(QueueDetails.Host, QueueDetails.Port, QueueDetails.UserName, QueueDetails.Password, QueueDetails.VirtualHost);
             _channel.ModelShutdown += _channel_ModelShutdown;
             _consumer = new QueueingCustomConsumer(_channel);
@@ -198,26 +187,46 @@ namespace SportingSolutions.Udapi.Sdk
 
         static void _channel_ModelShutdown(IModel model, ShutdownEventArgs reason)
         {
-            throw new NotImplementedException();
+            
+            StreamController.Instance.ShutdownConnection();
         }
 
         private static void QueueCancelledUnexpectedly(string consumerTag)
         {
-            var fixtureId = MappingQueueToFixture[consumerTag];
-            var resource = SubscribedResources[fixtureId];
-            resource.RaiseStreamDisconnected();
+            CleanupDictionariesAndRaiseDisconnect(consumerTag);
         }
 
-        private static void QueueCancelled(string r)
+        private static void QueueCancelled(string consumerTag)
         {
-            var xxx = r;
+            CleanupDictionariesAndRaiseDisconnect(consumerTag);
+        }
+
+        private static void CleanupDictionariesAndRaiseDisconnect(string consumerTag)
+        {
+            string fixtureId;
+            MappingQueueToFixture.TryRemove(consumerTag, out fixtureId);
+
+            Resource resource;
+            SubscribedResources.TryRemove(fixtureId, out resource);
+            
+            string ct;
+            ResourceIdToConsumerTag.TryRemove(fixtureId, out ct);
+
+            if (SubscribedResources.IsEmpty)
+            {
+                _channel.Close();
+                _consumer = null;
+                StreamController.Instance.StopEcho();
+            }
+
+            resource.RaiseStreamDisconnected();
         }
 
         private static IObservable<IMessageUpdate> GenerateUpdateStreamItems()
         {
             var updateStream = Observable.Generate(true, b => true, b => true, b => GetMessage(), Scheduler.Default);
-            updateStream = updateStream.Publish();
-
+            updateStream = updateStream.Publish().RefCount();
+            
             return updateStream;
         }
 
@@ -262,6 +271,8 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 catch (EndOfStreamException ex)
                 {
+                    Logger.Error(string.Format("Error End of Stream Exception fixtureId={0}", fixtureId), ex);
+                    break;
                     //HandleIndividualConnectionIssues(ex);
                 }
                 catch (BrokerUnreachableException ex)
