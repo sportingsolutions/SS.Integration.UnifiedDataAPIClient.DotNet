@@ -52,7 +52,8 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             _currentEpoch = currentEpoch;
             _settings = Settings.Instance;
             Id = _gtpFixture.Id;
-            _currentSequence = -1;
+
+            _currentSequence = gtpFixture.Content.Sequence;
 
             Listen();
         }

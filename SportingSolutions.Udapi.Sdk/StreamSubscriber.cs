@@ -138,41 +138,25 @@ namespace SportingSolutions.Udapi.Sdk
         {
             lock (InitSync)
             {
-                var consumerTag = SetupNewBinding(queue);
+                if (_consumer == null)
+                {
+                    QueueDetails.Host = queue.Host;
+                    QueueDetails.Port = queue.Port;
+                    QueueDetails.UserName = queue.UserName;
+                    QueueDetails.Password = queue.Password;
+                    QueueDetails.VirtualHost = "/" + queue.VirtualHost;
+                    InitializeConnection();
+                }
+            }
 
+            lock (QueueBindSync)
+            {
+                var consumerTag = _channel.BasicConsume(queue.Name, true, _consumer);  // BasicConsume is not thread safe
                 Logger.DebugFormat("Mapping fixtureId={0} to consumerTag={1}", resource.Id, consumerTag);
 
                 MappingQueueToFixture.AddOrUpdate(consumerTag, s => resource.Id, (s, s1) => resource.Id);
                 ResourceIdToConsumerTag.AddOrUpdate(resource.Id, s => consumerTag, (s1, s2) => consumerTag);
             }
-        }
-
-        private static string SetupNewBinding(QueueDetails queue)
-        {
-            if (_consumer == null)
-            {
-                lock (InitSync)
-                {
-                    if (_consumer == null)
-                    {
-                        QueueDetails.Host = queue.Host;
-                        QueueDetails.Port = queue.Port;
-                        QueueDetails.UserName = queue.UserName;
-                        QueueDetails.Password = queue.Password;
-                        QueueDetails.VirtualHost = "/" + queue.VirtualHost;
-                        InitializeConnection();
-                    }
-                }
-            }
-
-            string consumerTag;
-
-            lock (QueueBindSync)
-            {
-                consumerTag = _channel.BasicConsume(queue.Name, true, _consumer);  // BasicConsume is not thread safe
-            }
-
-            return consumerTag;
         }
 
         private static void InitializeConnection()
@@ -187,7 +171,6 @@ namespace SportingSolutions.Udapi.Sdk
 
         static void _channel_ModelShutdown(IModel model, ShutdownEventArgs reason)
         {
-            
             StreamController.Instance.ShutdownConnection();
         }
 
