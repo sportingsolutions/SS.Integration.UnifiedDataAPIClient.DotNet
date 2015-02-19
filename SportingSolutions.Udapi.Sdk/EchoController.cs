@@ -31,7 +31,7 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 if (_echoTimer == null)
                 {
-                    _echoTimer = new Timer(x => SendEcho(_echoUri, virtualHost), null, 0, echoInterval);
+                    _echoTimer = new Timer(x => SendEcho(_echoUri, virtualHost), null, echoInterval/2, echoInterval);
                 }
             }
         }

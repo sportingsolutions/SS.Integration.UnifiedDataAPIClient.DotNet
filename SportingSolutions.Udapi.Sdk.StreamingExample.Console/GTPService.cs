@@ -199,7 +199,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                         if (delay.TotalMilliseconds >= Convert.ToDouble(_settings.EchoInterval * 3))
                         {
                             _logger.WarnFormat("fixtureName=\"{0}\" fixtureId={1} has not received a message in messageDelay={2} ms Restarting fixture", fixture.Name, fixture.Id, delay.TotalMilliseconds);
-                            FixtureController.RestartFixture(fixture.Id);
+                          //  FixtureController.RestartFixture(fixture.Id);
                         }
                         else
                         {

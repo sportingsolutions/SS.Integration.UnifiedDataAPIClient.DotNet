@@ -21,27 +21,30 @@ namespace SportingSolutions.Udapi.Sdk
         private static readonly object InitSync = new object();
         private static readonly object QueueBindSync = new object();
 
-        private static readonly ILog Logger;
+        private readonly ILog Logger;
 
         private static QueueingCustomConsumer _consumer;
       
-        private static readonly QueueDetails QueueDetails;
+        private readonly QueueDetails QueueDetails;
         private static IModel _channel;
 
         private static IObservable<IMessageUpdate> _updateStream;
 
-        private static readonly ConcurrentDictionary<string, string> MappingQueueToFixture;
-        private static readonly ConcurrentDictionary<string, IDisposable> Subscriptions;
-        private static readonly ConcurrentDictionary<string, IDisposable> EchoSubscriptions;
+        private readonly ConcurrentDictionary<string, string> MappingQueueToFixture;
+        private readonly ConcurrentDictionary<string, IDisposable> Subscriptions;
+        private readonly ConcurrentDictionary<string, IDisposable> EchoSubscriptions;
 
-        private static readonly ConcurrentDictionary<string, Resource> SubscribedResources;
+        private readonly ConcurrentDictionary<string, Resource> SubscribedResources;
 
-        private static readonly ConcurrentDictionary<string, string> ResourceIdToConsumerTag; 
+        private readonly ConcurrentDictionary<string, string> ResourceIdToConsumerTag; 
 
         private static readonly Stopwatch StopWatch = new Stopwatch();
         private static int _numberMessages = 0;
 
-        static StreamSubscriber()
+        private static StreamSubscriber _streamSubscriber = null;
+        private static readonly object _subscriberLock = new object();
+
+        private StreamSubscriber()
         {
             StopWatch.Start();
             Logger = LogManager.GetLogger(typeof(StreamController));
@@ -53,7 +56,19 @@ namespace SportingSolutions.Udapi.Sdk
             ResourceIdToConsumerTag = new ConcurrentDictionary<string, string>();
         }
 
-        public static void StartStream(Resource resource)
+        public static StreamSubscriber GetStreamSubscriber()
+        {
+            lock (_subscriberLock)
+            {
+                if (_streamSubscriber == null)
+                {
+                    _streamSubscriber = new StreamSubscriber();
+                }
+            }
+            return _streamSubscriber;
+        }
+
+        public void StartStream(Resource resource)
         {
             var fixtureId = resource.Id;
             var queue = resource.GetQueueDetails();
@@ -89,7 +104,7 @@ namespace SportingSolutions.Udapi.Sdk
             StreamController.Instance.StartEcho(queue.VirtualHost, 10000);
         }
 
-        public static void StopStream(string fixtureId)
+        public void StopStream(string fixtureId)
         {
             IDisposable subscription;
 
@@ -105,11 +120,18 @@ namespace SportingSolutions.Udapi.Sdk
 
             lock (InitSync)
             {
-                _channel.BasicCancel(ResourceIdToConsumerTag[fixtureId]);    
+                try
+                {
+                    _channel.BasicCancel(ResourceIdToConsumerTag[fixtureId]);    
+                }
+                catch (AlreadyClosedException ace)
+                {
+                    Logger.Warn(string.Format("FixtureId={0} channel already closed",fixtureId),ace);      
+                }
             }
         }
 
-        public static void StartEchoStream(Resource resource)
+        public void StartEchoStream(Resource resource)
         {
             lock (InitSync)
             {
@@ -134,7 +156,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        private static void SetupStream(Resource resource, QueueDetails queue)
+        private void SetupStream(Resource resource, QueueDetails queue)
         {
             lock (InitSync)
             {
@@ -159,7 +181,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        private static void InitializeConnection()
+        private void InitializeConnection()
         {
             _channel = StreamController.Instance.GetStreamChannel(QueueDetails.Host, QueueDetails.Port, QueueDetails.UserName, QueueDetails.Password, QueueDetails.VirtualHost);
             _channel.ModelShutdown += _channel_ModelShutdown;
@@ -174,17 +196,17 @@ namespace SportingSolutions.Udapi.Sdk
             StreamController.Instance.ShutdownConnection();
         }
 
-        private static void QueueCancelledUnexpectedly(string consumerTag)
+        private void QueueCancelledUnexpectedly(string consumerTag)
         {
             CleanupDictionariesAndRaiseDisconnect(consumerTag);
         }
 
-        private static void QueueCancelled(string consumerTag)
+        private void QueueCancelled(string consumerTag)
         {
             CleanupDictionariesAndRaiseDisconnect(consumerTag);
         }
 
-        private static void CleanupDictionariesAndRaiseDisconnect(string consumerTag)
+        private void CleanupDictionariesAndRaiseDisconnect(string consumerTag)
         {
             string fixtureId;
             MappingQueueToFixture.TryRemove(consumerTag, out fixtureId);
@@ -205,7 +227,7 @@ namespace SportingSolutions.Udapi.Sdk
             resource.RaiseStreamDisconnected();
         }
 
-        private static IObservable<IMessageUpdate> GenerateUpdateStreamItems()
+        private IObservable<IMessageUpdate> GenerateUpdateStreamItems()
         {
             var updateStream = Observable.Generate(true, b => true, b => true, b => GetMessage(), Scheduler.Default);
             updateStream = updateStream.Publish().RefCount();
@@ -224,7 +246,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        private static IMessageUpdate GetMessage()
+        private IMessageUpdate GetMessage()
         {
             var fixtureId = string.Empty;
             MessageUpdate streamMessageUpdate = null;
@@ -255,30 +277,34 @@ namespace SportingSolutions.Udapi.Sdk
                 catch (EndOfStreamException ex)
                 {
                     Logger.Error(string.Format("Error End of Stream Exception fixtureId={0}", fixtureId), ex);
+                    if (_consumer != null && !_consumer.IsRunning)
+                    {
+                        Logger.Error("Consumer not running");
+                        foreach (var consumerTag in MappingQueueToFixture.Keys)
+                        {
+                            StopStream(MappingQueueToFixture[consumerTag]);
+                            CleanupDictionariesAndRaiseDisconnect(consumerTag);
+                        }
+                    }
                     break;
-                    //HandleIndividualConnectionIssues(ex);
-                }
-                catch (BrokerUnreachableException ex)
-                {
-                    //HandleUnreachableServerIssue(ex);
                 }
                 catch (Exception ex)
                 {
-                    if (!_consumer.IsRunning)
-                    {
+                  //  if (!_consumer.IsRunning)
+                  //  {
                         //HandleIndividualConnectionIssues(ex);
-                    }
-                    else
-                    {
+                  //  }
+                  //  else
+                  //  {
                         Logger.Error(string.Format("Error processing message from Streaming Queue for fixtureId={0}", fixtureId), ex);
-                    }
+                  //  }
                 }
             }
 
             return streamMessageUpdate;
         }
 
-        public static string ExtractMessage(object output, ref string fixtureId, QueueingCustomConsumer consumer)
+        public string ExtractMessage(object output, ref string fixtureId, QueueingCustomConsumer consumer)
         {
             var deliveryArgs = (BasicDeliverEventArgs)output;
             var message = deliveryArgs.Body;

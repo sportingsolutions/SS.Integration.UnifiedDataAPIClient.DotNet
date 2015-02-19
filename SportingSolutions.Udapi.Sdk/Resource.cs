@@ -93,8 +93,9 @@ namespace SportingSolutions.Udapi.Sdk
 
             StreamObserver = Observer.Create<string>(ProcessMessage);
             EchoObserver = Observer.Create<string>(ProcessEcho);
-
-            StreamSubscriber.StartStream(this);
+            Logger.DebugFormat("Stream request started for fixtureId={0} fixtureName=\"{1}\"", Id, Name);
+            var streamSubscriber = StreamSubscriber.GetStreamSubscriber();
+            streamSubscriber.StartStream(this);
         }
 
         private void ProcessEcho(string echo)
@@ -159,7 +160,8 @@ namespace SportingSolutions.Udapi.Sdk
                 {
                     IsStreamActive = false;
 
-                    StreamSubscriber.StopStream(Id);
+                    var streamSubscriber = StreamSubscriber.GetStreamSubscriber();
+                    streamSubscriber.StopStream(Id);
 
                     if (StreamDisconnected != null)
                     {
