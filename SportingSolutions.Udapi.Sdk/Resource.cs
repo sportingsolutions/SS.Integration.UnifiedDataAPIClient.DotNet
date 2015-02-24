@@ -13,59 +13,55 @@
 //limitations under the License.
 
 using System;
-using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Web;
-using Newtonsoft.Json.Linq;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
-using System.Reactive;
 
 namespace SportingSolutions.Udapi.Sdk
 {
-    public class Resource : Endpoint, IResource, IDisposable, IStreamStatistics
+    public class Resource : Endpoint, IResource, IDisposable, IConsumer
     {
-        private readonly ManualResetEvent _pauseStream;
+        private const int DEFAULT_ECHO_INTERVAL_MS = 10000;
+        private const int DEFAULT_ECHO_MAX_DELAY_MS = 3000;
 
-        public IObserver<string> StreamObserver;
-        public IObserver<string> EchoObserver;
 
         public event EventHandler StreamConnected;
         public event EventHandler StreamDisconnected;
         public event EventHandler<StreamEventArgs> StreamEvent;
+
+        [Obsolete]
         public event EventHandler StreamSynchronizationError;
 
-        private readonly StreamController _streamController;
 
-        internal Resource(RestItem restItem, IConnectClient connectClient, StreamController streamController)
-            : base(restItem, connectClient)
+        private readonly ManualResetEvent _pauseStream;
+
+        public Resource(RestItem restItem, IConnectClient client)
+            : base(restItem, client)
         {
             Logger = LogManager.GetLogger(typeof(Resource).ToString());
             Logger.DebugFormat("Instantiated fixtureName=\"{0}\"", restItem.Name);
-            _streamController = streamController;
+
             _pauseStream = new ManualResetEvent(true);
         }
+
+
+        #region IResource Members
 
         public string Id
         {
             get { return State.Content.Id; }
         }
+
         public string Name
         {
             get { return State.Name; }
         }
-        public string QueueName { get; set; }
-
-        public DateTime LastMessageReceived { get; private set; }
-        public DateTime LastStreamDisconnect { get; private set; }
-        public bool IsStreamActive { get; set; }
-
-        public double EchoRoundTripInMilliseconds { get; private set; }
 
         public Summary Content
         {
@@ -84,19 +80,113 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming()
         {
-            StartStreaming(10000, 3000);
+            StartStreaming(DEFAULT_ECHO_INTERVAL_MS, DEFAULT_ECHO_MAX_DELAY_MS);
         }
 
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
-            IsStreamActive = true;
-
-            StreamObserver = Observer.Create<string>(ProcessMessage);
-            EchoObserver = Observer.Create<string>(ProcessEcho);
-
-            StreamSubscriber.StartStream(this);
+            StreamController.Instance.AddConsumer(this, echoInterval, echoMaxDelay);
+            Logger.InfoFormat("Streaming started for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
         }
 
+        public void PauseStreaming()
+        {
+            Logger.InfoFormat("Streaming paused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            _pauseStream.Reset();
+        }
+
+        public void UnPauseStreaming()
+        {
+            Logger.InfoFormat("Streaming unpaused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            _pauseStream.Set();
+        }
+
+        public void StopStreaming()
+        {
+            StreamController.Instance.RemoveConsumer(this);
+            Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
+        }
+
+        #endregion
+
+        #region IDisposable Members
+
+        public void Dispose()
+        {            
+            StopStreaming();
+        }
+
+        #endregion
+
+        #region IConsumer Members
+
+        public virtual void OnStreamDisconnected()
+        {
+            if(StreamDisconnected != null)
+                StreamDisconnected(this, EventArgs.Empty);
+        }
+
+        public virtual void OnStreamConnected()
+        {
+            if(StreamConnected != null)
+                StreamConnected(this, EventArgs.Empty);
+        }
+
+        public virtual void OnStreamEvent(StreamEventArgs e)
+        {
+            if (StreamEvent != null)
+                StreamEvent(this, e);
+        }
+
+        public QueueDetails GetQueueDetails()
+        {
+            var loggingStringBuilder = new StringBuilder();
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp", "GetAmqpStream Http Error", loggingStringBuilder);
+            var amqpLink =
+                restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
+
+            var amqpUri = new Uri(amqpLink.Href);
+
+            var queueDetails = new QueueDetails { Host = amqpUri.Host };
+
+            var userInfo = amqpUri.UserInfo;
+            userInfo = HttpUtility.UrlDecode(userInfo);
+            if (!String.IsNullOrEmpty(userInfo))
+            {
+                var userPass = userInfo.Split(':');
+                if (userPass.Length > 2)
+                {
+                    throw new ArgumentException(string.Format("Bad user info in AMQP URI: {0}", userInfo));
+                }
+                queueDetails.UserName = userPass[0];
+                if (userPass.Length == 2)
+                {
+                    queueDetails.Password = userPass[1];
+                }
+            }
+
+            var path = amqpUri.AbsolutePath;
+            if (!String.IsNullOrEmpty(path))
+            {
+                queueDetails.Name = path.Substring(path.IndexOf('/', 1) + 1);
+                var virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
+
+                queueDetails.VirtualHost = virtualHost;
+            }
+
+            var port = amqpUri.Port;
+            if (port != -1)
+            {
+                queueDetails.Port = port;
+            }
+
+            return queueDetails;
+        }
+
+        #endregion
+
+        /*
+        
         private void ProcessEcho(string echo)
         {
             if (IsStreamActive)
@@ -137,102 +227,8 @@ namespace SportingSolutions.Udapi.Sdk
             return jobject["Content"]["Sequence"].Value<int>();
         }
 
-        public void PauseStreaming()
-        {
-            Logger.InfoFormat("Streaming paused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-            _pauseStream.Reset();
-        }
 
-        public void UnPauseStreaming()
-        {
-            Logger.InfoFormat("Streaming unpaused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-            _pauseStream.Set();
-        }
+     */
 
-        public void StopStreaming()
-        {
-            try
-            {
-                Logger.InfoFormat("Stopping streaming for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
-
-                if (IsStreamActive)
-                {
-                    IsStreamActive = false;
-
-                    StreamSubscriber.StopStream(Id);
-
-                    if (StreamDisconnected != null)
-                    {
-                        StreamDisconnected(this, EventArgs.Empty);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(string.Format("Problem when stopping stream for fixtureId={0} fixtureName=\"{1}\"", Id, Name), ex);
-                Dispose();
-            }
-        }
-
-        internal void RaiseStreamDisconnected()
-        {
-            if (StreamDisconnected != null)
-            {
-                IsStreamActive = false;
-                StreamDisconnected(this, EventArgs.Empty);
-            }
-        }
-
-        public void Dispose()
-        {
-            StopStreaming();
-        }
-
-        public QueueDetails GetQueueDetails()
-        {
-            var loggingStringBuilder = new StringBuilder();
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp", "GetAmqpStream Http Error", loggingStringBuilder);
-            var amqpLink =
-                restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
-
-            var amqpUri = new Uri(amqpLink.Href);
-
-            var queueDetails = new QueueDetails() { Host = amqpUri.Host };
-
-            var userInfo = amqpUri.UserInfo;
-            userInfo = HttpUtility.UrlDecode(userInfo);
-            if (!String.IsNullOrEmpty(userInfo))
-            {
-                var userPass = userInfo.Split(':');
-                if (userPass.Length > 2)
-                {
-                    throw new ArgumentException(string.Format("Bad user info in AMQP URI: {0}", userInfo));
-                }
-                queueDetails.UserName = userPass[0];
-                if (userPass.Length == 2)
-                {
-                    queueDetails.Password = userPass[1];
-                }
-            }
-
-            var path = amqpUri.AbsolutePath;
-            if (!String.IsNullOrEmpty(path))
-            {
-                queueDetails.Name = path.Substring(path.IndexOf('/', 1) + 1);
-                var virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
-
-                queueDetails.VirtualHost = virtualHost;
-            }
-
-            var port = amqpUri.Port;
-            if (port != -1)
-            {
-                queueDetails.Port = port;
-            }
-
-            QueueName = queueDetails.Name;
-
-            return queueDetails;
-        }
     }
 }

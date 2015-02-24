@@ -18,35 +18,34 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 {
     public class Configuration : IConfiguration
     {
-        private readonly Uri _baseUrl;
-        private readonly string _contentType;
-        private readonly int _timeout;
-        private readonly bool _compression;
-
-        public Configuration(Uri baseUrl)
+        private const string DEFAULT_CONTENT_TYPE = "application/json";
+      
+        public Configuration(Uri baseUrl, int timeoutMilliseconds = 60000)
         {
-            if (baseUrl == null) throw new ArgumentNullException("baseUrl");
+            if (baseUrl == null) 
+                throw new ArgumentNullException("baseUrl");
 
-            _baseUrl = baseUrl;
-            _contentType = "application/json";
-            _timeout = 60000;
-            _compression = true;
+            Compression = true;
+            BaseUrl = baseUrl;
+            Timeout = timeoutMilliseconds;
+            ContentType = DEFAULT_CONTENT_TYPE;
         }
 
-        public Configuration(Uri baseUrl, string contentType, int timeout, bool compression)
+        public Configuration(Uri baseUrl, string contentType, int timeoutMilliseconds, bool compressionEnabled)
+            : this(baseUrl, timeoutMilliseconds)
         {
             if (string.IsNullOrEmpty(contentType)) throw new ArgumentNullException("contentType");
-            if (baseUrl == null) throw new ArgumentNullException("baseUrl");
-
-            _baseUrl = baseUrl;
-            _contentType = contentType;
-            _timeout = timeout;
-            _compression = compression;
+            
+            ContentType = contentType;
+            Compression = compressionEnabled;
         }
 
-        public Uri BaseUrl { get { return _baseUrl; } }
-        public string ContentType { get { return _contentType; } }
-        public int Timeout { get { return _timeout; } }
-        public bool Compression { get { return _compression; } }
+        public int Timeout { get; set; }
+
+        public Uri BaseUrl { get; private set; }
+
+        public string ContentType { get; set; }
+
+        public bool Compression { get; set; }
     }
 }

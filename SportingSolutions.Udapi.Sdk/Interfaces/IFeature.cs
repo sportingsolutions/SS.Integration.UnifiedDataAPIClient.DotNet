@@ -18,9 +18,27 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
     public interface IFeature
     {
+        /// <summary>
+        ///     Feature's name
+        /// </summary>
         string Name { get; }
 
+        /// <summary>
+        ///     Returns the list of published resources
+        ///     for this feature
+        /// </summary>
+        /// <returns></returns>
         List<IResource> GetResources();
+
+        /// <summary>
+        ///     Returns the resource associated
+        ///     to the given name.
+        /// 
+        ///     It returns null if the the 
+        ///     resource doesn't exist
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
         IResource GetResource(string name);
     }
 }

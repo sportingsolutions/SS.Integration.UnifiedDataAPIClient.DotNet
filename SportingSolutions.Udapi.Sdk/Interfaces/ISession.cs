@@ -18,7 +18,23 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
     public interface ISession
     {
+        
+        /// <summary>
+        ///     Returns the service associated to 
+        ///     the given name.
+        /// 
+        ///     It returns null if the service
+        ///     doesn't exist
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
         IService GetService(string name);
+
+        /// <summary>
+        ///     Returns the list of Sporting Solutions services
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
         IList<IService> GetServices();
     }
 }

@@ -21,7 +21,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
     public class SessionContainer
     {
         private static volatile ISession _theSession;
-        private static readonly object SyncRoot = new Object();
+        private static readonly object _lock = new object();
 
         private readonly ILog _logger = LogManager.GetLogger(typeof (SessionContainer).ToString());
         private readonly ICredentials _credentials;
@@ -39,7 +39,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             {
                 if (_theSession == null)
                 {
-                    lock (SyncRoot)
+                    lock (_lock)
                     {
                         if (_theSession == null)
                         {
@@ -56,7 +56,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
 
         public void ReleaseSession()
         {
-            lock (SyncRoot)
+            lock (_lock)
             {
                 _theSession = null;
             }

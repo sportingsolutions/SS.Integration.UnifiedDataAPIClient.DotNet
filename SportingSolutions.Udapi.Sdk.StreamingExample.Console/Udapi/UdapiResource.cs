@@ -17,11 +17,10 @@ using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
-using System.Linq;
 
 namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
 {
-    internal class UdapiResource : BaseSS<IResource>, IResource, IStreamStatistics
+    internal class UdapiResource : BaseSS<IResource>, IResource
     {
         private readonly String _featureName;
         private readonly String _resourceName;
@@ -130,27 +129,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
         {
             get { return ReconnectOnException(x => x.Content, _theRealObject); }
         }
-
-        public DateTime LastMessageReceived
-        {
-            get { return ((IStreamStatistics)_theRealObject).LastMessageReceived; }
-        }
-
-        public DateTime LastStreamDisconnect
-        {
-            get { return ((IStreamStatistics)_theRealObject).LastStreamDisconnect; }
-        }
-
-        public bool IsStreamActive
-        {
-            get { return ((IStreamStatistics)_theRealObject).IsStreamActive; }
-        }
-
-        public double EchoRoundTripInMilliseconds
-        {
-            get { return ((IStreamStatistics)_theRealObject).EchoRoundTripInMilliseconds; }
-        }
-
+    
         public event EventHandler StreamConnected
         {
             add

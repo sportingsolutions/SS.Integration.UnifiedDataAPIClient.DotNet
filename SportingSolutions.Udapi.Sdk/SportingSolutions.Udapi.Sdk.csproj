@@ -71,13 +71,11 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Newtonsoft.Json.6.0.8\lib\net40\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.5.0.6\lib\net40\Newtonsoft.Json.dll</HintPath>
     </Reference>
-    <Reference Include="RabbitMQ.Client, Version=3.4.3.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\RabbitMQ.Client.3.4.3\lib\net35\RabbitMQ.Client.dll</HintPath>
+    <Reference Include="RabbitMQ.Client">
+      <HintPath>..\packages\RabbitMQ.Client.3.3.2\lib\net30\RabbitMQ.Client.dll</HintPath>
     </Reference>
     <Reference Include="RestSharp, Version=104.5.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -85,18 +83,6 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Reactive.Core">
-      <HintPath>..\packages\Rx-Core.2.1.30214.0\lib\Net40\System.Reactive.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Reactive.Interfaces">
-      <HintPath>..\packages\Rx-Interfaces.2.1.30214.0\lib\Net40\System.Reactive.Interfaces.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Reactive.Linq">
-      <HintPath>..\packages\Rx-Linq.2.1.30214.0\lib\Net40\System.Reactive.Linq.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Reactive.PlatformServices">
-      <HintPath>..\packages\Rx-PlatformServices.2.1.30214.0\lib\Net40\System.Reactive.PlatformServices.dll</HintPath>
-    </Reference>
     <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -108,7 +94,6 @@
     <Compile Include="..\CommonAssemblyInfo.cs">
       <Link>Properties\CommonAssemblyInfo.cs</Link>
     </Compile>
-    <Compile Include="BlockingQueue.cs" />
     <Compile Include="Clients\Configuration.cs" />
     <Compile Include="Clients\ConnectClient.cs" />
     <Compile Include="Clients\ConnectConverter.cs" />
@@ -118,39 +103,32 @@
     <Compile Include="Clients\ICredentials.cs" />
     <Compile Include="Clients\RestErrorHelper.cs" />
     <Compile Include="Credentials.cs" />
-    <Compile Include="EchoController.cs" />
-    <Compile Include="Interfaces\IEchoController.cs" />
-    <Compile Include="Interfaces\IMessageUpdate.cs" />
-    <Compile Include="Model\MessageUpdate.cs" />
+    <Compile Include="Extensions\JsonHelper.cs" />
+    <Compile Include="Interfaces\IDispatcher.cs" />
+    <Compile Include="Interfaces\IResourceInternal.cs" />
     <Compile Include="QueueDetails.cs" />
-    <Compile Include="RabbitMqConsumer.cs" />
     <Compile Include="StreamController.cs" />
     <Compile Include="Endpoint.cs" />
     <Compile Include="Events\StreamEventArgs.cs" />
     <Compile Include="Exceptions\NotAuthenticatedException.cs" />
-    <Compile Include="Extensions\JsonHelper.cs" />
     <Compile Include="Feature.cs" />
     <Compile Include="Interfaces\ICredentials.cs" />
     <Compile Include="Interfaces\IFeature.cs" />
     <Compile Include="Interfaces\IResource.cs" />
     <Compile Include="Interfaces\IService.cs" />
     <Compile Include="Interfaces\ISession.cs" />
-    <Compile Include="Interfaces\IStreamStatistics.cs" />
     <Compile Include="Model\RestItem.cs" />
     <Compile Include="Model\RestLink.cs" />
     <Compile Include="Model\StreamEcho.cs" />
     <Compile Include="Model\Tag.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="QueueingCustomConsumer.cs" />
     <Compile Include="Resource.cs" />
     <Compile Include="Service.cs" />
     <Compile Include="Session.cs" />
     <Compile Include="SessionFactory.cs" />
     <Compile Include="Model\Summary.cs" />
     <Compile Include="StreamSubscriber.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <WCFMetadata Include="Service References\" />
+    <Compile Include="UpdateDispatcher.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config">

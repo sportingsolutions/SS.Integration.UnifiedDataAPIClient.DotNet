@@ -14,10 +14,8 @@
 
 using System;
 using System.Linq;
-using System.Collections.Generic;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
 using SportingSolutions.Udapi.Sdk.Events;
+using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.StreamingExample.Console.Configuration;
 using SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model;
@@ -31,24 +29,17 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         private readonly IResource _gtpFixture;
         private int _currentEpoch;
         private int _currentSequence;
-        private string _sport;
         private readonly ISettings _settings;
 
         private string Id { get; set; }
 
         public bool FixtureEnded { get; private set; }
 
-        public IStreamStatistics StreamStatistics
-        {
-            get { return (IStreamStatistics)_gtpFixture; }
-        }
-
-        public StreamListener(IResource gtpFixture, int currentEpoch, string sport)
+        public StreamListener(IResource gtpFixture, int currentEpoch)
         {
             _logger = LogManager.GetLogger(typeof(StreamListener).ToString());
             FixtureEnded = false;
             _gtpFixture = gtpFixture;
-            _sport = sport;
             _currentEpoch = currentEpoch;
             _settings = Settings.Instance;
             Id = _gtpFixture.Id;
@@ -90,7 +81,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             {
                 _logger.WarnFormat("Stream disconnected due to problem with {0}, suspending markets, will try reconnect within 1 minute", _gtpFixture.Name);
                 FixtureEnded = true;
-                
+
                 //The Stream has disconnected but the fixture hasn't ended, must be in an error state
                 //Probably should suspend all markets for this fixture
                 SuspendAllMarkets();
@@ -111,16 +102,11 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         {
             try
             {
-                var resource = sender as IResource;
-                //Notice the two-step deserialization
-                var streamMessage = (StreamMessage)JsonConvert.DeserializeObject(e.Update, typeof(StreamMessage),
-                                                       new JsonSerializerSettings
-                                                       {
-                                                           Converters = new List<JsonConverter> { new IsoDateTimeConverter() },
-                                                           NullValueHandling = NullValueHandling.Ignore
-                                                       });
 
+                //Notice the two-step deserialization
+                var streamMessage = e.Update.FromJson<StreamMessage>();
                 var fixtureDelta = streamMessage.GetContent<Fixture>();
+
                 _logger.InfoFormat("Streaming Update arrived for {0} id {1} sequence {2}", _gtpFixture.Name, _gtpFixture.Id, fixtureDelta.Sequence);
 
                 if (fixtureDelta.Sequence < _currentSequence)
@@ -128,6 +114,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                     _logger.InfoFormat("Fixture {0} id {1} sequence {2} is less than current sequence {3}", _gtpFixture.Name, _gtpFixture.Id, fixtureDelta.Sequence, _currentSequence);
                     return;
                 }
+
                 if ((fixtureDelta.Sequence - _currentSequence) > 1)
                 {
                     _logger.WarnFormat("Fixture {0} id {1} sequence {2} is more than one greater that current sequence {3}", _gtpFixture.Name, _gtpFixture.Id, fixtureDelta.Sequence, _currentSequence);
@@ -157,12 +144,12 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                     }
                     else
                     {
-                        SuspendAndReprocessSnapshot();   
+                        SuspendAndReprocessSnapshot();
                     }
                 }
                 else if (fixtureDelta.Epoch == _currentEpoch)
                 {
-                    ProcessDelta(fixtureDelta); 
+                    ProcessDelta(fixtureDelta);
                 }
             }
             catch (Exception ex)
@@ -174,7 +161,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         private void SuspendAndReprocessSnapshot()
         {
             Fixture fixtureSnapshot = null;
-            
+
             try
             {
                 SuspendAllMarkets();
@@ -182,15 +169,8 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                 _logger.InfoFormat("Get UDAPI Snapshot for {0}", _gtpFixture.Name);
                 var snapshotString = _gtpFixture.GetSnapshot();
                 _logger.InfoFormat("Successfully retrieved UDAPI Snapshot for {0}", _gtpFixture.Name);
-                
-                fixtureSnapshot =
-                    (Fixture)
-                    JsonConvert.DeserializeObject(snapshotString, typeof(Fixture),
-                                                  new JsonSerializerSettings
-                                                  {
-                                                      Converters = new List<JsonConverter> { new IsoDateTimeConverter() },
-                                                      NullValueHandling = NullValueHandling.Ignore
-                                                  });
+
+                fixtureSnapshot = snapshotString.FromJson<Fixture>();
 
                 //Process the snapshot and send to client system                
             }
@@ -214,7 +194,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 
         private void SuspendAllMarkets()
         {
-            
+
         }
     }
 }

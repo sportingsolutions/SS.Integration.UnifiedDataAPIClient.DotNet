@@ -18,14 +18,10 @@ namespace SportingSolutions.Udapi.Sdk.Exceptions
 {
     public class NotAuthenticatedException : Exception
     {
-        public NotAuthenticatedException(string message, Exception innerException):base(message,innerException)
-        {
-            
-        }
+        public NotAuthenticatedException(string message, Exception innerException)
+            : base(message, innerException) { }
 
-        public NotAuthenticatedException(string message) : base(message)
-        {
-             
-        }
+        public NotAuthenticatedException(string message) 
+            : base(message) { }
     }
 }

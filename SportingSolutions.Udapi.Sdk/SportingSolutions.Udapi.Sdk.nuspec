@@ -12,9 +12,9 @@
     <description>The SDK provides an easy to use interface into the Sporting Solutions Unified Data API. Usage of this SDK requires a GTP username and password (available on request), it's usage is authorised only for current or prospective clients.</description>
     <copyright>Copyright (c) SPIN Services Ltd. 2013</copyright>
     <dependencies>
-      <dependency id="log4net" version="[1.2.10]" />
-      <dependency id="Newtonsoft.Json" version="4.5.9" />
-      <dependency id="RabbitMQ.Client" version="2.8.6" />
+      <dependency id="log4net" version="[2.0.3]" />
+      <dependency id="Newtonsoft.Json" version="5.0.6" />
+      <dependency id="RabbitMQ.Client" version="3.3.2" />
     </dependencies>
 	<tags>SportingSolutions GTP  Connect  SportingSolutionsConnect SDK SportingIndex Sporting Solutions Index UnifiedDataAPI</tags>
   </metadata>

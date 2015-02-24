@@ -18,9 +18,27 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
     public interface IService
     {
+        /// <summary>
+        ///     Service's name
+        /// </summary>
         string Name { get; }
 
+        /// <summary>
+        ///     Returns a list of the features
+        ///     for this service
+        /// </summary>
+        /// <returns></returns>
         List<IFeature> GetFeatures();
+
+        /// <summary>
+        ///     Returns the feature associated
+        ///     to the given name.
+        ///
+        ///     It returns null if the feature
+        ///     doesn't exist
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
         IFeature GetFeature(string name);
     }
 }

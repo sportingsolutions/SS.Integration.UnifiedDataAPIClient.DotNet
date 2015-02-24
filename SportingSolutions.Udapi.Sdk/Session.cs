@@ -27,47 +27,36 @@ using log4net;
 
 namespace SportingSolutions.Udapi.Sdk
 {
-    /// <summary>
-    /// 
-    /// </summary>
     public class Session : Endpoint, ISession
     {
-        private IList<RestItem> _restItems;
-
         internal Session(IConnectClient connectClient)
             : base(connectClient)
         {
             Logger = LogManager.GetLogger(typeof(Session).ToString());
-            GetRoot();
         }
 
         public IList<IService> GetServices()
         {
-            Logger.Info("Get all available services..");
-            if (_restItems == null)
-            {
-                GetRoot();
-            }
-
-            var result = _restItems.Select(serviceRestItem => new Service(serviceRestItem, ConnectClient)).Cast<IService>().ToList();
-            _restItems = null;
-            return result;
+            Logger.Info("Get all available services...");
+            var links = GetRoot();
+            if (links == null)
+                return new List<IService>();
+            
+            return links.Select(serviceRestItem => new Service(serviceRestItem, ConnectClient)).Cast<IService>().ToList();
         }
 
         public IService GetService(string name)
         {
             Logger.InfoFormat("Get Service {0}", name);
-            if (_restItems == null)
-            {
-                GetRoot();
-            }
+            var links = GetRoot();
 
-            var result = _restItems.Select(serviceRestItem => new Service(serviceRestItem, ConnectClient)).FirstOrDefault(service => service.Name == name);
-            _restItems = null;
-            return result;
+            if (links == null)
+                return null;
+
+            return links.Select(serviceRestItem => new Service(serviceRestItem, ConnectClient)).FirstOrDefault(service => service.Name == name);
         }
 
-        private void GetRoot()
+        private IEnumerable<RestItem> GetRoot()
         {
             var stopwatch = new Stopwatch();
             var messageStringBuilder = new StringBuilder("Beginning Get Root Request");
@@ -90,7 +79,8 @@ namespace SportingSolutions.Udapi.Sdk
                     throw new NotAuthenticatedException("UserName or password are incorrect");
                 }
 
-                _restItems = getRootResponse.Content.FromJson<List<RestItem>>();
+                if (getRootResponse.Content != null)
+                    return getRootResponse.Content.FromJson<List<RestItem>>();
             }
             catch (NotAuthenticatedException)
             {
@@ -101,8 +91,13 @@ namespace SportingSolutions.Udapi.Sdk
                 Logger.Error("Get Root Exception", ex);
                 throw;
             }
-            Logger.Debug(messageStringBuilder);
-            stopwatch.Stop();
+            finally
+            {
+                Logger.Debug(messageStringBuilder);
+                stopwatch.Stop();
+            }
+
+            return null;
         }
     }
 }

@@ -18,9 +18,24 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 {
     public interface IConfiguration
     {
+        /// <summary>
+        ///     Service base URL
+        /// </summary>
         Uri BaseUrl { get; }
+
+        /// <summary>
+        ///     Http request content type
+        /// </summary>
         string ContentType { get; }
+
+        /// <summary>
+        ///     Request timeout in milliseconds
+        /// </summary>
         int Timeout { get; }
+
+        /// <summary>
+        ///     True if http compression should be used
+        /// </summary>
         bool Compression { get; }
     }
 }

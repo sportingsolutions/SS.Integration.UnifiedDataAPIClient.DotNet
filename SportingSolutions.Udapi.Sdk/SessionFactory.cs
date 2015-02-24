@@ -14,7 +14,6 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using ICredentials = SportingSolutions.Udapi.Sdk.Interfaces.ICredentials;
@@ -23,11 +22,8 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class SessionFactory
     {
-        private static readonly object SessionFactoryLock = new object();
-        private static readonly object SessionLock = new object();
-        private static volatile SessionFactory _sessionFactory;
-
-        private readonly IDictionary<string,ISession> _sessions;
+        private static readonly SessionFactory _sessionFactory = new SessionFactory();
+        private readonly ConcurrentDictionary<string, ISession> _sessions;
 
         private SessionFactory()
         {
@@ -36,33 +32,20 @@ namespace SportingSolutions.Udapi.Sdk
 
         public static ISession CreateSession(Uri serverUri, ICredentials credentials)
         {
-            if (_sessionFactory == null)
-            {
-                lock (SessionFactoryLock)
-                {
-                    if (_sessionFactory == null)
-                    {
-                        _sessionFactory = new SessionFactory();
-                    }
-                }    
-            }
             return _sessionFactory.GetSession(serverUri, credentials);
         }
 
         private ISession GetSession(Uri serverUri, ICredentials credentials)
         {
-            lock (SessionLock)
+            ISession session = null;
+            _sessions.TryGetValue(serverUri + credentials.UserName, out session);
+            if (session == null)
             {
-                ISession session = null;
-                var sessionExists = _sessions.TryGetValue(serverUri + credentials.UserName, out session);
-                if (!sessionExists)
-                {
-                    var connectClient = new ConnectClient(new Configuration(serverUri), new Clients.Credentials(credentials.UserName, credentials.Password));
-                    session = new Session(connectClient);
-                    _sessions.Add(serverUri + credentials.UserName, session);
-                }
-                return session;
+                var connectClient = new ConnectClient(new Configuration(serverUri), new Clients.Credentials(credentials.UserName, credentials.Password));
+                session = new Session(connectClient);
+                _sessions.TryAdd(serverUri + credentials.UserName, session);
             }
+            return session;
         }
     }
 }

@@ -28,6 +28,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
     public class ConnectClient : IConnectClient
     {
+        private const int DEFAULT_REQUEST_RETRY_ATTEMPTS = 3;
         private static readonly object sysLock = new object();
 
         private readonly IConfiguration _configuration;
@@ -39,9 +40,9 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         public const string XAuthUser = "X-Auth-User";
         public const string XAuthKey = "X-Auth-Key";
 
-        private ILog Logger;
+        private readonly ILog Logger;
 
-        private int _connectionClosedRetryAttempts = 3;
+        
 
         public ConnectClient(IConfiguration configuration, ICredentials credentials)
         {
@@ -68,7 +69,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             return restClient;
         }
 
-        private IRestRequest CreateRequest(Uri uri, Method method, object body, string contentType, int timeout)
+        private static IRestRequest CreateRequest(Uri uri, Method method, object body, string contentType, int timeout)
         {
             IRestRequest request = new RestRequest(uri, method);
             request.Resource = uri.ToString();
@@ -113,7 +114,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             return response;
         }
 
-        private Uri FindLoginUri(IEnumerable<RestItem> restItems)
+        private static Uri FindLoginUri(IEnumerable<RestItem> restItems)
         {
             var restLink = restItems.SelectMany(restItem => restItem.Links)
                                            .FirstOrDefault(
@@ -132,7 +133,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
             loginRequest.AddHeader(XAuthUser, _credentials.ApiUser);
             loginRequest.AddHeader(XAuthKey, _credentials.ApiKey);
-                
+
             response = CreateClient().Execute<List<RestItem>>(loginRequest);
 
             if (response.StatusCode == HttpStatusCode.OK)
@@ -146,11 +147,12 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         public IRestResponse<T> Request<T>(Uri uri, Method method, object body, string contentType, int timeout) where T : new()
         {
             var restResponse = Request(uri, method, body, contentType, timeout);
-            var response = new RestResponse<T>();
-
-            response.Request = restResponse.Request;
-            response.StatusCode = restResponse.StatusCode;
-            response.Content = restResponse.Content;
+            var response = new RestResponse<T>
+            {
+                Request = restResponse.Request,
+                StatusCode = restResponse.StatusCode,
+                Content = restResponse.Content
+            };
 
             if (restResponse.ErrorException != null)
             {
@@ -175,7 +177,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         {
             var connectionClosedRetryCounter = 0;
             IRestResponse response = null;
-            while (connectionClosedRetryCounter < _connectionClosedRetryAttempts)
+            while (connectionClosedRetryCounter < DEFAULT_REQUEST_RETRY_ATTEMPTS)
             {
                 var request = CreateRequest(uri, method, body, contentType, timeout);
 
@@ -190,11 +192,11 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                 {
                     //retry
                     connectionClosedRetryCounter++;
-                    Logger.WarnFormat("Request failed due underlying connection closed URL={0}",uri);
+                    Logger.WarnFormat("Request failed due underlying connection closed URL={0}", uri);
                     continue;
                 }
 
-                if (response != null && response.StatusCode == HttpStatusCode.Unauthorized)
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
                 {
                     RestErrorHelper.LogRestWarn(Logger, response, string.Format("Unauthenticated when using authToken={0}", _xAuthTokenParameter != null ? _xAuthTokenParameter.Value : String.Empty));
 
@@ -232,8 +234,10 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                         throw new NotAuthenticatedException(string.Format("Not Authenticated for url={0}", uri));
                     }
                 }
-                connectionClosedRetryCounter = _connectionClosedRetryAttempts;
+
+                connectionClosedRetryCounter = DEFAULT_REQUEST_RETRY_ATTEMPTS;
             }
+
             return response;
         }
 

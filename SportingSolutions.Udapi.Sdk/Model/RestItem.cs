@@ -30,6 +30,7 @@ namespace SportingSolutions.Udapi.Sdk.Model
         }
 
         public string Name { get; set; }
+
         public Summary Content { get; set; }
 
         public List<RestLink> Links { get; set; }

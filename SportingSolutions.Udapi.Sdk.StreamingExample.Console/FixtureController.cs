@@ -2,9 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using SportingSolutions.Udapi.Sdk.StreamingExample.Console.Configuration;
 using SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model;
 using log4net;
 
@@ -18,12 +16,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 
         private volatile static object _lockAddItem = new object();
 
-        private static bool _isAddingItems;
-        public static bool IsAddingItems
-        {
-            get { return _isAddingItems; }
-            private set { _isAddingItems = value; }
-        }
+        public static bool IsAddingItems { get; private set; }
 
         public static void AddListener(string id, Func<StreamListener> createListener)
         {
@@ -48,12 +41,12 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         {
             _logger.DebugFormat("Adding/Checking fixtures in progress...");
             //Monitor.Enter(_locker);
-            _isAddingItems = true;
+            IsAddingItems = true;
         }
 
         public static void FinishAddingItems()
         {
-            _isAddingItems = false;
+            IsAddingItems = false;
             //Monitor.Exit(_locker);
             _logger.DebugFormat("Fixture addding/checking should be complete.");
         }
@@ -66,13 +59,6 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             }
         }
 
-        public static DateTime GetLastMessageReceived(string id)
-        {
-            lock(_locker)
-            {
-                return _fixtureTasks[id].Item.StreamStatistics.LastMessageReceived;
-            }
-        }
 
         private static FixtureControlItem<StreamListener> GetObjectById(string id)
         {
@@ -150,7 +136,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             lock (_locker)
             {
                 Parallel.ForEach(_fixtureTasks.Values,
-                                 new ParallelOptions() { MaxDegreeOfParallelism = maxThreads }, action);
+                                 new ParallelOptions { MaxDegreeOfParallelism = maxThreads }, action);
             }
         }
 

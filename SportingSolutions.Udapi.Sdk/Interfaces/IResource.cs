@@ -20,20 +20,64 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
     public interface IResource
     {
+        /// <summary>
+        ///     Resource's Id
+        /// </summary>
         string Id { get; }
+
+        /// <summary>
+        ///     Resource's name
+        /// </summary>
         string Name { get; }
+
+        /// <summary>
+        ///     Returns the resource's summary
+        /// </summary>
         Summary Content { get; }
 
-        string GetSnapshot();
-        void StartStreaming();
-        void StartStreaming(int echoInterval, int echoMaxDelay);
-        void PauseStreaming();
-        void UnPauseStreaming();
-        void StopStreaming();
-
+        /// <summary>
+        /// Event raised when the resource succesfully connects 
+        /// to the streaming server
+        /// </summary>
         event EventHandler StreamConnected;
+
+        /// <summary>
+        /// 
+        ///     Event raised when the resource gets disconnected
+        ///     from the streaming server. This can happen if
+        /// 
+        ///     1) StopStreaming() is called
+        ///     2) A network error occured and/or the communication channel 
+        ///        with the streaming server went down
+        /// 
+        /// </summary>
         event EventHandler StreamDisconnected;
+
+        /// <summary>
+        ///     Event raised when a new update has arrived.
+        /// </summary>
         event EventHandler<StreamEventArgs> StreamEvent;
+
+        [Obsolete]
         event EventHandler StreamSynchronizationError;
+
+        /// <summary>
+        ///     Retrieves the current resource's snapshot
+        /// </summary>
+        /// <returns></returns>
+        string GetSnapshot();
+
+        /// <summary>
+        ///     Connect the resource to the streaming service.
+        /// </summary>
+        void StartStreaming();
+
+        void StartStreaming(int echoInterval, int echoMaxDelay);
+
+        void PauseStreaming();
+
+        void UnPauseStreaming();
+
+        void StopStreaming();
     }
 }

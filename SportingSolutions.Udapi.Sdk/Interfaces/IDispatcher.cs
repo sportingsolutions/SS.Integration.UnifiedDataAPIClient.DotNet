@@ -12,12 +12,19 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-namespace SportingSolutions.Udapi.Sdk.Model
+
+namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
-    internal class StreamEcho
+    internal interface IDispatcher
     {
-        public string Host { get; set; }
-        public string Queue { get; set; }
-        public string Message { get; set; }
+        bool HasDestination(IConsumer consumer);
+
+        void AddDestination(IConsumer consumer);
+
+        void RemoveDestination(IConsumer consumer);
+
+        void RemoveAll();
+
+        bool DispatchMessage(string consumerId, string message);
     }
 }

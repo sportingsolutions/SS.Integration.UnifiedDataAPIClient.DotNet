@@ -45,7 +45,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
             if (restResponse.ResponseUri != null)
             {
-                stringBuilder.AppendFormat("Uri={0}", restResponse.ResponseUri.ToString()).AppendLine();
+                stringBuilder.AppendFormat("Uri={0}", restResponse.ResponseUri).AppendLine();
             }
 
             if (restResponse.Request != null)

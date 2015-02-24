@@ -21,11 +21,9 @@ namespace SportingSolutions.Udapi.Sdk.Model
         public string Href { get; set; }
         public string[] Verbs { get; set; }
 
-        public RestLink()
-        {
-        }
+        public RestLink() { }
 
-        public RestLink(string relation, string href, string[] verbs, bool sign = false)
+        public RestLink(string relation, string href, string[] verbs)
         {
             Relation = relation;
             Href = href;

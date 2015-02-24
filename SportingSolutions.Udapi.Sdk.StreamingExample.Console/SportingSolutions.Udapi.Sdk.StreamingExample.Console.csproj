@@ -191,9 +191,8 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Newtonsoft.Json.6.0.8\lib\net40\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.5.0.6\lib\net40\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />
@@ -223,7 +222,6 @@
     <Compile Include="Model\Fixture.cs" />
     <Compile Include="Model\FixtureControlItem.cs" />
     <Compile Include="Model\Market.cs" />
-    <Compile Include="Model\MarketConverter.cs" />
     <Compile Include="Model\Participant.cs" />
     <Compile Include="Model\Selection.cs" />
     <Compile Include="Model\SelectionConverter.cs" />
