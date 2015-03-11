@@ -16,7 +16,6 @@ using System;
 using System.Text;
 using System.Threading;
 using RabbitMQ.Client;
-using RabbitMQ.Client.Exceptions;
 using log4net;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 
@@ -167,10 +166,10 @@ namespace SportingSolutions.Udapi.Sdk
 
                     try
                     {
-                        _streamConnection = factory.CreateConnection();
-                        _streamConnection.ConnectionShutdown += OnConnectionShutdown;
-                        
+                        _streamConnection = factory.CreateConnection();                        
                         _channel = _streamConnection.CreateModel();
+
+                        _streamConnection.ConnectionShutdown += OnConnectionShutdown;
                         _consumer = new StreamSubscriber(Dispatcher);
                         newstate = ConnectionState.CONNECTED;
                         result = true;
@@ -178,9 +177,9 @@ namespace SportingSolutions.Udapi.Sdk
                         _logger.Info("Connection to the streaming server correctly established");
                         
                     }
-                    catch (BrokerUnreachableException buex)
+                    catch (Exception ex)
                     {
-                        _logger.Error("Unable to connect to streaming server...Retrying", buex);
+                        _logger.Error("Unable to connect to streaming server...Retrying", ex);
                         Thread.Sleep(100);
                     }
 
