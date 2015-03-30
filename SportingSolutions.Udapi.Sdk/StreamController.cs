@@ -252,7 +252,7 @@ namespace SportingSolutions.Udapi.Sdk
             if (State != ConnectionState.CONNECTED)
                 throw new Exception("Connection is not open - cannot register a new consumer on queue=" + queue.Name);
 
-            _logger.DebugFormat("Creating consumer for queue={0}", queue.Name);
+            _logger.InfoFormat("Creating consumer for queue={0} id={1}", queue.Name, consumer.Id);
 
 
             // operations on IModel are not thread-safe

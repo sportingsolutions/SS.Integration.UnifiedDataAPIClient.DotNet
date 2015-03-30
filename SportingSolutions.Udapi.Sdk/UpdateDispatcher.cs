@@ -132,7 +132,7 @@ namespace SportingSolutions.Udapi.Sdk
             _consumers[consumer.Id] = c;
             c.Connect();
 
-            _logger.DebugFormat("consumerId={0} added to the dispatcher, count={1}", consumer.Id, _consumers.Count);
+            _logger.InfoFormat("consumerId={0} added to the dispatcher, count={1}", consumer.Id, _consumers.Count);
         }
 
         public void RemoveDestination(IConsumer consumer)
@@ -147,7 +147,7 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 c.Disconnect();
 
-                _logger.DebugFormat("consumerId={0} remove from the dispatcher, count={1}", consumer.Id, _consumers.Count);
+                _logger.DebugFormat("consumerId={0} removed from the dispatcher, count={1}", consumer.Id, _consumers.Count);
             }
         }
 

@@ -49,7 +49,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             _startBarrier.WaitOne();
 
-            _logger.Debug("Consumer thread is reading from the streaming queue");
+            _logger.Debug("Consumer thread is now reading from the streaming queue");
 
             while (!_cancellationHandle.IsCancellationRequested)
             {
