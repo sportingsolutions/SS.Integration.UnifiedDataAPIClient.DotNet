@@ -36,6 +36,11 @@ namespace SportingSolutions.Udapi.Sdk.Extensions
             return (T)JsonConvert.DeserializeObject(json, typeof(T), _settings);
         }
 
+        public static T FromJson<T>(this string json, bool expectIsoDate = true)
+        {
+            return FromJson<T>(json);
+        }
+
         public static string ToJson(this object deserializedObject)
         {
             string serializedObject = null;

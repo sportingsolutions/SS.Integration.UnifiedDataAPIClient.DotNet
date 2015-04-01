@@ -12,40 +12,49 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-using System;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
     public class Configuration : IConfiguration
     {
         private const string DEFAULT_CONTENT_TYPE = "application/json";
-      
-        public Configuration(Uri baseUrl, int timeoutMilliseconds = 60000)
-        {
-            if (baseUrl == null) 
-                throw new ArgumentNullException("baseUrl");
+        private const bool DEFAULT_USE_COMPRESSION = true;
+        private const bool DEFAULT_USE_ECHOS = true;
+        private const int DEFAULT_TIMEOUT_MILLISECONDS = 60000;
+        private const int DEFAULT_WAIT_INTERVAL_ECHOS_MILLISECONDS = 5000;
+        private const int DEFAULT_MISSED_ECHOS = 3;
+        private const bool DEFAULT_VERBOSE_LOGGING = true;
 
-            Compression = true;
-            BaseUrl = baseUrl;
-            Timeout = timeoutMilliseconds;
+        static Configuration()
+        {
+            Instance = new Configuration();
+        }
+
+        protected Configuration()
+        {
+            Compression = DEFAULT_USE_COMPRESSION;
             ContentType = DEFAULT_CONTENT_TYPE;
+            Timeout = DEFAULT_TIMEOUT_MILLISECONDS;
+            UseEchos = DEFAULT_USE_ECHOS;
+            MissedEchos = DEFAULT_MISSED_ECHOS;
+            EchoWaitInterval = DEFAULT_WAIT_INTERVAL_ECHOS_MILLISECONDS;
+            VerboseLogging = DEFAULT_VERBOSE_LOGGING;
         }
 
-        public Configuration(Uri baseUrl, string contentType, int timeoutMilliseconds, bool compressionEnabled)
-            : this(baseUrl, timeoutMilliseconds)
-        {
-            if (string.IsNullOrEmpty(contentType)) throw new ArgumentNullException("contentType");
-            
-            ContentType = contentType;
-            Compression = compressionEnabled;
-        }
+        public static IConfiguration Instance { get; private set; }
 
         public int Timeout { get; set; }
-
-        public Uri BaseUrl { get; private set; }
 
         public string ContentType { get; set; }
 
         public bool Compression { get; set; }
+
+        public bool UseEchos { get; set; }
+
+        public int MissedEchos { get; set; }
+
+        public int EchoWaitInterval { get; set; }
+
+        public bool VerboseLogging { get; set; }
     }
 }

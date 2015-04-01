@@ -24,8 +24,12 @@ namespace SportingSolutions.Udapi.Sdk
 {
     internal class UpdateDispatcher : IDispatcher
     {
+        #region Consumer Queue Internal
+
         private class ConsumerQueue
         {
+            private static ILog _logger = LogManager.GetLogger(typeof(ConsumerQueue));
+
             private readonly ConcurrentQueue<string> _updates;
             private readonly IConsumer _consumer;
             private volatile bool _disconnectRequested; // must be volatile
@@ -75,6 +79,9 @@ namespace SportingSolutions.Udapi.Sdk
                     {
                         if (_disconnectRequested)
                         {
+                            if(UDAPI.Configuration.VerboseLogging)
+                                _logger.DebugFormat("Going to send disconnection event for consumerId={0}", _consumer.Id);
+
                             _consumer.OnStreamDisconnected();
                             break;
                         }
@@ -88,11 +95,24 @@ namespace SportingSolutions.Udapi.Sdk
                             try
                             {
                                 if ("CONNECT".Equals(message))
+                                {
+                                    if (UDAPI.Configuration.VerboseLogging)
+                                        _logger.DebugFormat("Going to send connection event for consumerId={0}", _consumer.Id);
+
                                     _consumer.OnStreamConnected();
+                                }
                                 else
+                                {
+                                    if(UDAPI.Configuration.VerboseLogging)
+                                        _logger.DebugFormat("Update arrived for consumerId={0}, pending={1}", _consumer.Id, _updates.Count);
+
                                     _consumer.OnStreamEvent(new StreamEventArgs(message));
+                                }
                             }
-                            catch { }
+                            catch (Exception e)
+                            {
+                                _logger.Error("An error occured while pushing update for consumerId=" + _consumer.Id, e);
+                            }
                         }
 
                         lock (this)
@@ -105,17 +125,22 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
+        #endregion
+
         private ConcurrentDictionary<string, ConsumerQueue> _consumers;
+        private readonly IEchoController _echosController;
         private readonly ILog _logger = LogManager.GetLogger(typeof(UpdateDispatcher));
 
         public UpdateDispatcher()
         {
             _consumers = new ConcurrentDictionary<string, ConsumerQueue>();
+            _echosController = new EchoController(this);
+            _logger.DebugFormat("UpdateDisptacher initialised");
         }
 
         #region IDispatcher Members
 
-        public bool HasDestination(IConsumer consumer)
+        public bool HasConsumer(IConsumer consumer)
         {
             if(consumer == null || string.IsNullOrEmpty(consumer.Id))
                 return false;
@@ -123,19 +148,20 @@ namespace SportingSolutions.Udapi.Sdk
             return _consumers.ContainsKey(consumer.Id);
         }
 
-        public void AddDestination(IConsumer consumer)
+        public void AddConsumer(IConsumer consumer)
         {
             if(consumer == null || string.IsNullOrEmpty(consumer.Id))
                 return;
 
             var c = new ConsumerQueue(consumer);
             _consumers[consumer.Id] = c;
+            _echosController.AddConsumer(consumer);
             c.Connect();
 
-            _logger.InfoFormat("consumerId={0} added to the dispatcher, count={1}", consumer.Id, _consumers.Count);
+            _logger.InfoFormat("consumerId={0} added to the dispatcher, count={1}", consumer.Id, ConsumersCount);
         }
 
-        public void RemoveDestination(IConsumer consumer)
+        public void RemoveConsumer(IConsumer consumer)
         {
             if(consumer == null || string.IsNullOrEmpty(consumer.Id))
                 return;
@@ -147,8 +173,10 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 c.Disconnect();
 
-                _logger.DebugFormat("consumerId={0} removed from the dispatcher, count={1}", consumer.Id, _consumers.Count);
+                _logger.DebugFormat("consumerId={0} removed from the dispatcher, count={1}", consumer.Id, ConsumersCount);
             }
+
+            _echosController.RemoveConsumer(consumer);
         }
 
         public void RemoveAll()
@@ -162,13 +190,27 @@ namespace SportingSolutions.Udapi.Sdk
 
             Parallel.ForEach(tmp.Values, po, x => x.Disconnect());
 
-            _logger.Debug("All consumers are disconnected");
+            _logger.Info("All consumers are disconnected");
+
+            _echosController.RemoveAll();
         }
 
         public bool DispatchMessage(string consumerId, string message)
         {
+
             if(string.IsNullOrEmpty(consumerId) || string.IsNullOrEmpty(message))
                 return false;
+
+            // is this an echo message?
+            if(message.StartsWith("{\"Relation\":\"http://api.sportingsolutions.com/rels/stream/echo\""))
+            {
+                _echosController.ProcessEcho(consumerId);
+                return true;
+            }            
+
+
+            if(UDAPI.Configuration.VerboseLogging)
+                _logger.DebugFormat("Update arrived for consumerId={0}", consumerId);
 
             // note that TryGetValue is lock-free
             ConsumerQueue c = null; 
@@ -180,7 +222,19 @@ namespace SportingSolutions.Udapi.Sdk
             return true;
         }
 
+        public int ConsumersCount { get {  return _consumers.Count; } }
+
         #endregion
-       
+
+        #region IDisposable Members
+
+        public void Dispose()
+        {
+            _logger.DebugFormat("Disposing dispatcher");
+            RemoveAll();
+            _echosController.Dispose();
+        }
+
+        #endregion
     }
 }

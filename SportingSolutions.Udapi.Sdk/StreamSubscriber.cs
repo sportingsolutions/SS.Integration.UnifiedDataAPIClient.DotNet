@@ -39,7 +39,7 @@ namespace SportingSolutions.Udapi.Sdk
             _startBarrier = new ManualResetEvent(false);
             _consumer = Task.Factory.StartNew(Consume);
 
-            _logger.Debug("Consumer created");
+            _logger.Debug("Streaming consumer created");
         }
 
 

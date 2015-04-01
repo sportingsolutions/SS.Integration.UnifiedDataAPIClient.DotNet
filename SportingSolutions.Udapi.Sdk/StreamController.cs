@@ -52,10 +52,12 @@ namespace SportingSolutions.Udapi.Sdk
             Dispatcher = dispatcher;
             _cancellationTokenSource = new CancellationTokenSource();
             State = ConnectionState.DISCONNECTED;
+
+            _logger.DebugFormat("StreamController initialised");
         }
 
         private StreamController()
-            : this (new UpdateDispatcher())
+            : this(new UpdateDispatcher())
         {
         }
 
@@ -87,8 +89,8 @@ namespace SportingSolutions.Udapi.Sdk
         {
             if (State != ConnectionState.CONNECTED)
             {
-                // this prevent any other calles to call EstablishConnection()
-                // EstablishConnection will wake up any sleeping threads when it finishes
+                // this prevents any other execution of EstablishConnection()
+                // EstablishConnection() will wake up any sleeping threads when it finishes
                 lock (_connectionLock)
                 {
                     while (State == ConnectionState.CONNECTING)
@@ -142,7 +144,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             // this method doesn't quit until
             // 1) a connection is established
-            // 2) Dispose is called
+            // 2) Dispose() is called
             //
             // therefore we will NOT quit from this method
             // when the StreamController has State = CONNECTING
@@ -155,8 +157,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             try
             {
-
-                _logger.InfoFormat("Connecting to the streaming server");
+                _logger.DebugFormat("Connecting to the streaming server");
 
                 long attempt = 1;
                 bool result = false;
@@ -202,7 +203,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        public virtual void Connect(string host, int port, string user, string password, string virtualHost)
+        protected virtual void Connect(string host, int port, string user, string password, string virtualHost)
         {
             var factory = new ConnectionFactory
             {
@@ -258,12 +259,11 @@ namespace SportingSolutions.Udapi.Sdk
             // operations on IModel are not thread-safe
             lock (_lock)
             {
-                if (Dispatcher.HasDestination(consumer))
+                if (Dispatcher.HasConsumer(consumer))
                     throw new InvalidOperationException(string.Format("Consumer Id={0} already exists - cannot add twice", consumer.Id));
 
                 var ctag = _channel.BasicConsume(queue.Name, true, consumer.Id, _consumer);
-                _logger.InfoFormat("ctag=" + ctag);
-                Dispatcher.AddDestination(consumer);
+                Dispatcher.AddConsumer(consumer);
             }
 
             EnsureConsumerIsRunning();
@@ -279,13 +279,13 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 lock (_lock)
                 {
-                    if(Dispatcher.HasDestination(consumer))
+                    if (Dispatcher.HasConsumer(consumer))
                         _channel.BasicCancel(consumer.Id);
                 }
             }
             finally
             {
-                Dispatcher.RemoveDestination(consumer);
+                Dispatcher.RemoveConsumer(consumer);
             }
         }
 
@@ -303,7 +303,7 @@ namespace SportingSolutions.Udapi.Sdk
             _logger.Info("Shutting down StreamController");
             _cancellationTokenSource.Cancel();
 
-            Dispatcher.RemoveAll();
+            Dispatcher.Dispose();
 
             if (_channel != null)
             {

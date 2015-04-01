@@ -38,14 +38,13 @@ namespace SportingSolutions.Udapi.Sdk
         [Obsolete]
         public event EventHandler StreamSynchronizationError;
 
-
         private readonly ManualResetEvent _pauseStream;
 
         public Resource(RestItem restItem, IConnectClient client)
             : base(restItem, client)
         {
             Logger = LogManager.GetLogger(typeof(Resource).ToString());
-            Logger.DebugFormat("Instantiated fixtureName=\"{0}\"", restItem.Name);
+            Logger.DebugFormat("Instantiated fixtureName=\"{0}\" fixtureId=\"{1}\"", restItem.Name, Id);
 
             _pauseStream = new ManualResetEvent(true);
         }
@@ -140,6 +139,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public QueueDetails GetQueueDetails()
         {
+
             var loggingStringBuilder = new StringBuilder();
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp", "GetAmqpStream Http Error", loggingStringBuilder);
             var amqpLink =
@@ -183,52 +183,26 @@ namespace SportingSolutions.Udapi.Sdk
             return queueDetails;
         }
 
+        public void SendEcho()
+        {
+            var link = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/batchecho");
+            var echouri = new Uri(link.Href);
+
+            var details = GetQueueDetails();
+            var streamEcho = new StreamEcho
+            {
+                Host = details.VirtualHost,
+                Message = Guid.NewGuid().ToString() + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+            };
+
+            var response = ConnectClient.Request(echouri, RestSharp.Method.POST, streamEcho, UDAPI.Configuration.ContentType, 3000);
+            if (response.ErrorException != null || response.Content == null)
+            {
+                RestErrorHelper.LogRestError(Logger, response, "Error sending echo request");
+                throw new Exception(string.Format("Error calling {0}", echouri), response.ErrorException);
+            }
+        }
+
         #endregion
-
-        /*
-        
-        private void ProcessEcho(string echo)
-        {
-            if (IsStreamActive)
-            {
-                Logger.DebugFormat("Thread: {2} - Echo recieved for fixtureId={0} fixtureName=\"{1}\"", Id, Name, Thread.CurrentThread.ManagedThreadId);
-
-                var split = echo.Split(';');
-                var timeSent = DateTime.ParseExact(split[1], "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
-                var roundTripTime = DateTime.Now - timeSent;
-
-                var roundMillis = roundTripTime.TotalMilliseconds;
-
-                EchoRoundTripInMilliseconds = roundMillis;
-
-                LastMessageReceived = DateTime.Now;
-            }
-        }
-
-        private void ProcessMessage(string message)
-        {
-            if (IsStreamActive)
-            {
-                Logger.DebugFormat("Thread: {2} - Stream message arrived for fixtureId={0} fixtureName=\"{1}\"", Id, Name, Thread.CurrentThread.ManagedThreadId);
-
-                if (StreamEvent != null)
-                {
-                    StreamEvent(this, new StreamEventArgs(message));
-                }
-
-                LastMessageReceived = DateTime.Now;
-            }
-        }
-
-        public static int GetSequenceFromStreamUpdate(string update)
-        {
-            var jobject = JObject.Parse(update);
-
-            return jobject["Content"]["Sequence"].Value<int>();
-        }
-
-
-     */
-
     }
 }

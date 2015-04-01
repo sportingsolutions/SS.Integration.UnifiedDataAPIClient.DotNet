@@ -41,7 +41,7 @@ namespace SportingSolutions.Udapi.Sdk
             _sessions.TryGetValue(serverUri + credentials.UserName, out session);
             if (session == null)
             {
-                var connectClient = new ConnectClient(new Configuration(serverUri), new Clients.Credentials(credentials.UserName, credentials.Password));
+                var connectClient = new ConnectClient(serverUri, new Clients.Credentials(credentials.UserName, credentials.Password));
                 session = new Session(connectClient);
                 _sessions.TryAdd(serverUri + credentials.UserName, session);
             }

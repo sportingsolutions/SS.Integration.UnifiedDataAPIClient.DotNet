@@ -12,11 +12,13 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+using System;
+using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
 
 namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
-    internal interface IConsumer
+    public interface IConsumer
     {
         string Id { get; }
 
@@ -27,5 +29,7 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         void OnStreamDisconnected();
 
         void OnStreamEvent(StreamEventArgs e);
+
+        void SendEcho();
     }
 }

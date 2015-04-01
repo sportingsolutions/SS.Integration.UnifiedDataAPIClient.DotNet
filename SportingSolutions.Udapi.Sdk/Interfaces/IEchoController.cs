@@ -12,23 +12,18 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-
 using System;
 
 namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
-    internal interface IDispatcher : IDisposable
+    internal interface IEchoController : IDisposable
     {
-        bool HasConsumer(IConsumer consumer);
-
         void AddConsumer(IConsumer consumer);
 
         void RemoveConsumer(IConsumer consumer);
 
         void RemoveAll();
 
-        bool DispatchMessage(string consumerId, string message);
-
-        int ConsumersCount { get; }
+        void ProcessEcho(string consumerId);
     }
 }

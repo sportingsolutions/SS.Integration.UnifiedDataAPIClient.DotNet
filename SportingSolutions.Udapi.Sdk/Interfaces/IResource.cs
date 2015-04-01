@@ -72,6 +72,7 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         /// </summary>
         void StartStreaming();
 
+        [Obsolete]
         void StartStreaming(int echoInterval, int echoMaxDelay);
 
         void PauseStreaming();

@@ -103,9 +103,11 @@
     <Compile Include="Clients\ICredentials.cs" />
     <Compile Include="Clients\RestErrorHelper.cs" />
     <Compile Include="Credentials.cs" />
+    <Compile Include="EchoController.cs" />
     <Compile Include="Extensions\JsonHelper.cs" />
     <Compile Include="Interfaces\IDispatcher.cs" />
-    <Compile Include="Interfaces\IResourceInternal.cs" />
+    <Compile Include="Interfaces\IEchoController.cs" />
+    <Compile Include="Interfaces\IConsumer.cs" />
     <Compile Include="QueueDetails.cs" />
     <Compile Include="StreamController.cs" />
     <Compile Include="Endpoint.cs" />
@@ -128,6 +130,7 @@
     <Compile Include="SessionFactory.cs" />
     <Compile Include="Model\Summary.cs" />
     <Compile Include="StreamSubscriber.cs" />
+    <Compile Include="UDAPI.cs" />
     <Compile Include="UpdateDispatcher.cs" />
   </ItemGroup>
   <ItemGroup>

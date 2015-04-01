@@ -12,17 +12,10 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-using System;
-
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
     public interface IConfiguration
     {
-        /// <summary>
-        ///     Service base URL
-        /// </summary>
-        Uri BaseUrl { get; }
-
         /// <summary>
         ///     Http request content type
         /// </summary>
@@ -37,5 +30,26 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         ///     True if http compression should be used
         /// </summary>
         bool Compression { get; }
+
+        /// <summary>
+        ///     True if echos should be used
+        /// </summary>
+        bool UseEchos { get; }
+
+        /// <summary>
+        ///     Number of missed echos before
+        ///     disconnecting a resorce
+        /// </summary>
+        int MissedEchos { get; }
+
+        /// <summary>
+        ///     Milliseconds between each batchecho
+        /// </summary>
+        int EchoWaitInterval { get; }
+
+        /// <summary>
+        ///     True to enable verbose logging
+        /// </summary>
+        bool VerboseLogging { get; }
     }
 }
