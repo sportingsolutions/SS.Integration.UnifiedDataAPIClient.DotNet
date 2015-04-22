@@ -37,12 +37,10 @@ namespace SportingSolutions.Udapi.Sdk
                 Configuration = configuration;
         }
 
-
         public static void Dispose()
         {
             StreamController.Instance.Dispose();
         }
-
 
         public static IConfiguration Configuration { get; set; }
     }

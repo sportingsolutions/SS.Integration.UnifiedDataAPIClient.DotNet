@@ -23,19 +23,39 @@ using SportingSolutions.Udapi.Sdk.Interfaces;
 
 namespace SportingSolutions.Udapi.Sdk
 {
+    /// <summary>
+    ///     This consumer is associated with different queues, so it reads
+    ///     from all of them and dispatch the message to the IDispatcher 
+    ///     object passed into the constructor.
+    /// 
+    ///     As it is associated with many queues, these properties are
+    ///     not valid:
+    /// 
+    ///     QueueingBasicConsuer.IsRunning
+    ///     QueueingBasicConsumer.ConsumerTag
+    /// 
+    /// </summary>
     internal class StreamSubscriber : QueueingBasicConsumer, IDisposable
     {
+
+        public event EventHandler<ShutdownEventArgs> SubscriberShutdown;
 
         private readonly ILog _logger = LogManager.GetLogger(typeof(StreamSubscriber));
         private readonly IDispatcher _dispatcher;
         private readonly CancellationTokenSource _cancellationHandle;
         private readonly ManualResetEvent _startBarrier;
         private readonly Task _consumer;
+        private bool _modelShutdownRaised;
 
         public StreamSubscriber(IDispatcher dispatcher)
         {
+            if(dispatcher == null)
+                throw new ArgumentNullException("dispatcher");
+
             _cancellationHandle = new CancellationTokenSource();
             _dispatcher = dispatcher;
+            _modelShutdownRaised = false;
+
             _startBarrier = new ManualResetEvent(false);
             _consumer = Task.Factory.StartNew(Consume);
 
@@ -51,7 +71,9 @@ namespace SportingSolutions.Udapi.Sdk
 
             _logger.Debug("Consumer thread is now reading from the streaming queue");
 
-            while (!_cancellationHandle.IsCancellationRequested)
+            bool run = true;
+
+            while (!_cancellationHandle.IsCancellationRequested && run)
             {
                 try
                 {
@@ -68,6 +90,8 @@ namespace SportingSolutions.Udapi.Sdk
                     if (!_cancellationHandle.IsCancellationRequested)
                     {
                         _logger.Error("Error processing message from streaming queue", ex);
+
+                        run = !this.Model.IsClosed;
                     }
                 }
             }
@@ -77,9 +101,29 @@ namespace SportingSolutions.Udapi.Sdk
 
         public override void HandleBasicCancelOk(string consumerTag)
         {
+            // this is raised when BasicCancel is called.
+            // DO NOT call base.HandleBasicCancelOk() as it will in turn
+            // call OnCancel()
             ConsumerCancelledEventHandler handler = m_consumerCancelled;
             if (handler != null)
                 handler(this, new ConsumerEventArgs(consumerTag));
+        }
+
+        public override void HandleModelShutdown(IModel model, ShutdownEventArgs reason)
+        {
+            // this event is registred withing the model by the RabbitMQ library for each consumer...
+            // moreover, if the connection goes down, the rabbitmq's IConnection implementation
+            // raises an exception that bubbles down from IConnection to here 
+            // (IConnection -> ISession -> IModel -> IConsumer)
+            //
+            // So, we handle this event ONCE for either handling any connection or model failure.
+
+            _logger.InfoFormat("AMPQ Model is shutting down - eventRaised={0}", _modelShutdownRaised);
+            if (SubscriberShutdown != null && !_modelShutdownRaised)
+            {
+                _modelShutdownRaised = true;
+                SubscriberShutdown(this, reason);
+            }
         }
 
         public void Start()
@@ -91,6 +135,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _logger.Debug("Disposing main consumer");
 
+            _modelShutdownRaised = true;
             _cancellationHandle.Cancel();
             _startBarrier.Set();
 

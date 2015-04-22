@@ -24,6 +24,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         private const int DEFAULT_WAIT_INTERVAL_ECHOS_MILLISECONDS = 5000;
         private const int DEFAULT_MISSED_ECHOS = 3;
         private const bool DEFAULT_VERBOSE_LOGGING = true;
+        private const int DEFAULT_DISCONNECTION_OPERATION_MILLISECONDS = 120000;
 
         static Configuration()
         {
@@ -39,6 +40,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             MissedEchos = DEFAULT_MISSED_ECHOS;
             EchoWaitInterval = DEFAULT_WAIT_INTERVAL_ECHOS_MILLISECONDS;
             VerboseLogging = DEFAULT_VERBOSE_LOGGING;
+            DisconnectionOperationTimeout = DEFAULT_DISCONNECTION_OPERATION_MILLISECONDS;
         }
 
         public static IConfiguration Instance { get; private set; }
@@ -56,5 +58,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         public int EchoWaitInterval { get; set; }
 
         public bool VerboseLogging { get; set; }
+
+        public int DisconnectionOperationTimeout { get; set; }
     }
 }

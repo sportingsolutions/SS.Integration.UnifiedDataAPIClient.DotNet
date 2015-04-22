@@ -24,6 +24,11 @@ namespace SportingSolutions.Udapi.Sdk
     internal class StreamController : IDisposable
     {
 
+        static StreamController()
+        {
+            Instance = new StreamController();
+        }
+
         internal enum ConnectionState
         {
             DISCONNECTED = 0,
@@ -34,15 +39,14 @@ namespace SportingSolutions.Udapi.Sdk
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamController));
         private static readonly object _lock = new object();
         private static readonly object _connectionLock = new object();
-        private static StreamController _instance;
-
 
         private StreamSubscriber _consumer;
         private readonly CancellationTokenSource _cancellationTokenSource;
         
         private IModel _channel;
-        private ConnectionFactory _connectionFactory;
         private IConnection _streamConnection;
+
+
 
         internal StreamController(IDispatcher dispatcher)
         {
@@ -57,27 +61,10 @@ namespace SportingSolutions.Udapi.Sdk
         }
 
         private StreamController()
-            : this(new UpdateDispatcher())
-        {
-        }
+            : this(new UpdateDispatcher()) { }
 
 
-        public static StreamController Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    lock (_lock)
-                    {
-                        if (_instance == null)
-                            _instance = new StreamController();
-                    }
-                }
-
-                return _instance;
-            }
-        }
+        public static StreamController Instance { get; internal set; }
 
         public IDispatcher Dispatcher { get; internal set; }
 
@@ -85,35 +72,12 @@ namespace SportingSolutions.Udapi.Sdk
 
         #region Connection management
 
-        private void WaitForConnection(ConnectionFactory factory)
+        private void CloseConnection()
         {
-            if (State != ConnectionState.CONNECTED)
-            {
-                // this prevents any other execution of EstablishConnection()
-                // EstablishConnection() will wake up any sleeping threads when it finishes
-                lock (_connectionLock)
-                {
-                    while (State == ConnectionState.CONNECTING)
-                    {
-                        Monitor.Wait(_connectionLock);
-                    }
-
-                    if (State == ConnectionState.CONNECTED || _cancellationTokenSource.IsCancellationRequested)
-                        return;
-
-                    State = ConnectionState.CONNECTING;
-                }
-
-                EstablishConnection(factory);
-            }
-        }
-
-        private void Reconnect()
-        {
-            // prevent any others to restablish the connection
+            // this prevents any others to restablish the connection
             lock (_connectionLock)
             {
-                State = ConnectionState.CONNECTING;
+                State = ConnectionState.DISCONNECTED;
             }
 
             if (_consumer != null)
@@ -125,19 +89,10 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 if (_streamConnection != null)
                     _streamConnection.Close();
-
             }
             catch { }
 
-            try
-            {
-                Dispatcher.RemoveAll();
-
-            }
-            finally
-            {
-                EstablishConnection(_connectionFactory);
-            }
+            Dispatcher.RemoveAll();
         }
 
         private void EstablishConnection(ConnectionFactory factory)
@@ -170,12 +125,14 @@ namespace SportingSolutions.Udapi.Sdk
                         _streamConnection = factory.CreateConnection();                        
                         _channel = _streamConnection.CreateModel();
 
-                        _streamConnection.ConnectionShutdown += OnConnectionShutdown;
+                        _logger.Info("Connection to the streaming server correctly established");
+
                         _consumer = new StreamSubscriber(Dispatcher);
+
+                        // this is the main event raised if something went wrong with the AMPQ SDK
+                        _consumer.SubscriberShutdown += OnModelShutdown;    
                         newstate = ConnectionState.CONNECTED;
                         result = true;
-                        
-                        _logger.Info("Connection to the streaming server correctly established");
                         
                     }
                     catch (Exception ex)
@@ -192,12 +149,7 @@ namespace SportingSolutions.Udapi.Sdk
                 // wake up any sleeping threads
                 lock (_connectionLock)
                 {
-                
                     State = newstate;
-
-                    if (_connectionFactory == null)
-                        _connectionFactory = factory;
-
                     Monitor.PulseAll(_connectionLock);
                 }
             }
@@ -205,30 +157,48 @@ namespace SportingSolutions.Udapi.Sdk
 
         protected virtual void Connect(string host, int port, string user, string password, string virtualHost)
         {
-            var factory = new ConnectionFactory
+            if (State != ConnectionState.CONNECTED)
             {
-                RequestedHeartbeat = 5,
-                HostName = host,
-                Port = port,
-                UserName = user,
-                Password = password,
-                VirtualHost = "/" + virtualHost
-            };
+                // this prevents any other execution of EstablishConnection().
+                // EstablishConnection() wakes up any sleeping threads when it finishes
+                lock (_connectionLock)
+                {
+                    while (State == ConnectionState.CONNECTING)
+                    {
+                        Monitor.Wait(_connectionLock);
+                    }
 
-            WaitForConnection(factory);
+                    if (State == ConnectionState.CONNECTED || _cancellationTokenSource.IsCancellationRequested)
+                        return;
+
+                    State = ConnectionState.CONNECTING;
+                }
+
+                var factory = new ConnectionFactory 
+                {
+                    RequestedHeartbeat = 5,
+                    HostName = host,
+                    Port = port,
+                    UserName = user,
+                    Password = password,
+                    VirtualHost = "/" + virtualHost
+                };
+
+                EstablishConnection(factory);
+            }            
         }
 
-        protected virtual void OnConnectionShutdown(IConnection connection, ShutdownEventArgs reason)
+        protected virtual void OnModelShutdown(object sender, ShutdownEventArgs reason)
         {
             if (!_cancellationTokenSource.IsCancellationRequested)
             {
                 var stringBuilder = new StringBuilder();
-                stringBuilder.Append("There has been a streaming connection failure").AppendLine();
+                stringBuilder.Append("There has been a problem with the streaming connection").AppendLine();
                 stringBuilder.Append(reason);
 
                 _logger.Error(stringBuilder.ToString());
 
-                Reconnect();
+                CloseConnection();
             }
         }
 
@@ -240,6 +210,17 @@ namespace SportingSolutions.Udapi.Sdk
         {
             if(consumer == null)
                 throw new ArgumentNullException("consumer");
+
+            // wait for any disconnection ops if necessary...
+            if(!Dispatcher.EnsureAvailability())
+                throw new Exception("IDispatcher is not yet ready - consumerId=" + consumer.Id + " not registred");
+
+            // GetQueueDetails() calls the UDAPI service....it is here that 
+            // the AMPQ queue is created on the server side!
+            //
+            // Dispatcher.EnsumeAvailability() makes sure that we don't have to
+            // wait for any disconnection operations (i.e. the connection went down)
+            // between the GetQueueDetails() and BasicConsume()
 
             QueueDetails queue = consumer.GetQueueDetails();
             if(queue == null || string.IsNullOrEmpty(queue.Name))
@@ -253,16 +234,16 @@ namespace SportingSolutions.Udapi.Sdk
             if (State != ConnectionState.CONNECTED)
                 throw new Exception("Connection is not open - cannot register a new consumer on queue=" + queue.Name);
 
-            _logger.InfoFormat("Creating consumer for queue={0} id={1}", queue.Name, consumer.Id);
+            _logger.InfoFormat("Creating consumer for queue={0} consumerId={1}", queue.Name, consumer.Id);
 
 
             // operations on IModel are not thread-safe
             lock (_lock)
             {
                 if (Dispatcher.HasConsumer(consumer))
-                    throw new InvalidOperationException(string.Format("Consumer Id={0} already exists - cannot add twice", consumer.Id));
+                    throw new InvalidOperationException(string.Format("consumerId={0} already exists - cannot add it twice", consumer.Id));
 
-                var ctag = _channel.BasicConsume(queue.Name, true, consumer.Id, _consumer);
+                _channel.BasicConsume(queue.Name, true, consumer.Id, _consumer);
                 Dispatcher.AddConsumer(consumer);
             }
 
@@ -279,6 +260,7 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 lock (_lock)
                 {
+                    // this raises a HandleBasicCancelOk 
                     if (Dispatcher.HasConsumer(consumer))
                         _channel.BasicCancel(consumer.Id);
                 }
@@ -317,9 +299,9 @@ namespace SportingSolutions.Udapi.Sdk
                     _logger.Warn(
                         string.Format("An error occured while trying to close the streaming channel"), e);
                 }
-            }
 
-            _logger.Debug("Streaming channel closed");
+                _logger.Debug("Streaming channel closed");
+            }
 
             if (_streamConnection != null)
             {
@@ -333,9 +315,9 @@ namespace SportingSolutions.Udapi.Sdk
                     _logger.Warn(
                         string.Format("An error occured while trying to close the streaming connection"), e);
                 }
-            }
 
-            _logger.Debug("Streaming connection closed");
+                _logger.Debug("Streaming connection closed");
+            }
 
             if (_consumer != null)
                 _consumer.Dispose();

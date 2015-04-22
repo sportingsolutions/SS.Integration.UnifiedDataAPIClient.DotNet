@@ -30,5 +30,20 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         bool DispatchMessage(string consumerId, string message);
 
         int ConsumersCount { get; }
+
+        /// <summary>
+        ///     This method make sure that the IDispatcher object
+        ///     can be safely used.
+        /// 
+        ///     The main purpose of this method is to ensure the order
+        ///     of the updates for a consumer.
+        /// 
+        ///     As an example, if the IDispatcher is busy removing a 
+        ///     consumer, that consumer can't be added until the
+        ///     operation is completed.
+        /// 
+        ///     Returns false if the IDispatcher is not ready.
+        /// </summary>
+        bool EnsureAvailability();
     }
 }
