@@ -18,5 +18,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyDescription("Sporting Solutions Unified Data API Sdk")]
 [assembly: AssemblyConfiguration("")]
 
-
+[assembly: InternalsVisibleTo("SportingSolutions.Udapi.Sdk.Tests")]
 

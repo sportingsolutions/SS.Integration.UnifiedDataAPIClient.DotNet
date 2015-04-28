@@ -24,9 +24,10 @@ using SportingSolutions.Udapi.Sdk.Interfaces;
 namespace SportingSolutions.Udapi.Sdk
 {
     /// <summary>
-    ///     This consumer is associated with different queues, so it reads
+    /// 
+    ///     This consumer is associated with many queues. It reads
     ///     from all of them and dispatch the message to the IDispatcher 
-    ///     object passed into the constructor.
+    ///     object passed as an argument to the constructor.
     /// 
     ///     As it is associated with many queues, these properties are
     ///     not valid:
@@ -111,7 +112,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public override void HandleModelShutdown(IModel model, ShutdownEventArgs reason)
         {
-            // this event is registred withing the model by the RabbitMQ library for each consumer...
+            // this event is registred within the model by the RabbitMQ library for each consumer...
             // moreover, if the connection goes down, the rabbitmq's IConnection implementation
             // raises an exception that bubbles down from IConnection to here 
             // (IConnection -> ISession -> IModel -> IConsumer)

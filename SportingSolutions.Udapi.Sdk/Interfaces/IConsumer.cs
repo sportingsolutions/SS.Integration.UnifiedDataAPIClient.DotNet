@@ -12,8 +12,7 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-using System;
-using SportingSolutions.Udapi.Sdk.Clients;
+
 using SportingSolutions.Udapi.Sdk.Events;
 
 namespace SportingSolutions.Udapi.Sdk.Interfaces

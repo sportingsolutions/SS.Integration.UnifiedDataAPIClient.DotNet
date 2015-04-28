@@ -132,19 +132,26 @@ namespace SportingSolutions.Udapi.Sdk
         private readonly ILog _logger = LogManager.GetLogger(typeof(UpdateDispatcher));
 
         private ConcurrentDictionary<string, ConsumerQueue> _consumers;
-        private readonly IEchoController _echosController;
         private readonly object _lock = new object();
+
+        // track manually how many consumers are registred...
+        // as a call to Count() on an ConcurrentDictionary takes a full lock
+        private volatile int _consumersCount;
         private bool _removeAllPending;
 
         public UpdateDispatcher()
         {
             _consumers = new ConcurrentDictionary<string, ConsumerQueue>();
-            _echosController = new EchoController(this);
+            EchoManager = new EchoController();
 
+            _consumersCount = 0;
             _removeAllPending = false;
 
             _logger.DebugFormat("UpdateDispatcher initialised");
         }
+
+
+        internal IEchoController EchoManager { get; set; }
 
         #region IDispatcher Members
 
@@ -163,10 +170,11 @@ namespace SportingSolutions.Udapi.Sdk
 
             var c = new ConsumerQueue(consumer);
             _consumers[consumer.Id] = c;
-            _echosController.AddConsumer(consumer);
+            int tmp = ++_consumersCount;
+            EchoManager.AddConsumer(consumer);
             c.Connect();
 
-            _logger.InfoFormat("consumerId={0} added to the dispatcher, count={1}", consumer.Id, ConsumersCount);
+            _logger.InfoFormat("consumerId={0} added to the dispatcher, count={1}", consumer.Id, tmp);
         }
 
         public void RemoveConsumer(IConsumer consumer)
@@ -175,20 +183,23 @@ namespace SportingSolutions.Udapi.Sdk
                 return;
 
             ConsumerQueue c = null;
-            _consumers.TryRemove(consumer.Id, out c);
-
-            try
+            if (_consumers.TryRemove(consumer.Id, out c))
             {
-                if (c != null)
+                var tmp = --_consumersCount;
+
+                try
                 {
-                    c.Disconnect();
+                    if (c != null)
+                    {
+                        c.Disconnect();
 
-                    _logger.DebugFormat("consumerId={0} removed from the dispatcher, count={1}", consumer.Id, ConsumersCount);
+                        _logger.DebugFormat("consumerId={0} removed from the dispatcher, count={1}", consumer.Id, tmp);
+                    }
                 }
-            }
-            finally
-            {
-                _echosController.RemoveConsumer(c.Consumer);
+                finally
+                {
+                    EchoManager.RemoveConsumer(c.Consumer);
+                }
             }
         }
 
@@ -205,20 +216,20 @@ namespace SportingSolutions.Udapi.Sdk
                 }
 
                 
-                _logger.DebugFormat("Sending disconnection to count={0} consumers", _consumers.Count);
+                _logger.DebugFormat("Sending disconnection to count={0} consumers", _consumersCount);
 
-                foreach(var c in _consumers.Values)
-                {
-                    c.Disconnect();
-                }
+                ParallelOptions po = new ParallelOptions{ MaxDegreeOfParallelism = Environment.ProcessorCount };
 
+                Parallel.ForEach(_consumers.Values, po, x => x.Disconnect());
+                
                 _logger.Info("All consumers are disconnected");
 
             }
             finally
             {
-                _echosController.RemoveAll();
+                EchoManager.RemoveAll();
                 _consumers = new ConcurrentDictionary<string, ConsumerQueue>();
+                _consumersCount = 0;
 
                 lock(_lock)
                 {
@@ -237,7 +248,7 @@ namespace SportingSolutions.Udapi.Sdk
             // is this an echo message?
             if(message.StartsWith("{\"Relation\":\"http://api.sportingsolutions.com/rels/stream/echo\""))
             {
-                _echosController.ProcessEcho(consumerId);
+                EchoManager.ProcessEcho(consumerId);
                 return true;
             }            
 
@@ -255,7 +266,7 @@ namespace SportingSolutions.Udapi.Sdk
             return true;
         }
 
-        public int ConsumersCount { get {  return _consumers.Count; } }
+        public int ConsumersCount { get {  return _consumersCount; } }
 
         public bool EnsureAvailability()
         {
@@ -285,7 +296,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
             finally
             {
-                _echosController.Dispose();
+                EchoManager.Dispose();
             }
         }
 

@@ -39,6 +39,7 @@ namespace SportingSolutions.Udapi.Sdk
         public event EventHandler StreamSynchronizationError;
 
         private readonly ManualResetEvent _pauseStream;
+        private QueueDetails _queueDetails;
 
         public Resource(RestItem restItem, IConnectClient client)
             : base(restItem, client)
@@ -47,6 +48,7 @@ namespace SportingSolutions.Udapi.Sdk
             Logger.DebugFormat("Instantiated fixtureName=\"{0}\" fixtureId=\"{1}\"", restItem.Name, Id);
 
             _pauseStream = new ManualResetEvent(true);
+            _queueDetails = null;
         }
 
 
@@ -180,18 +182,21 @@ namespace SportingSolutions.Udapi.Sdk
                 queueDetails.Port = port;
             }
 
+            _queueDetails = queueDetails;
             return queueDetails;
         }
 
         public void SendEcho()
         {
+            if(_queueDetails == null)
+                _queueDetails = GetQueueDetails();
+
             var link = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/batchecho");
             var echouri = new Uri(link.Href);
 
-            var details = GetQueueDetails();
             var streamEcho = new StreamEcho
             {
-                Host = details.VirtualHost,
+                Host = _queueDetails.VirtualHost,
                 Message = Guid.NewGuid().ToString() + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
             };
 
