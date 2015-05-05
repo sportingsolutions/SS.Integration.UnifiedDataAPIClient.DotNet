@@ -55,6 +55,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             }
         }
 
+        public void ForceCloseConnection()
+        {
+            base.CloseConnection();
+        }
+        
         protected override void EstablishConnection(ConnectionFactory factory)
         {
             if(Consumer != null)
@@ -65,7 +70,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             OnConnectionStatusChanged(ConnectionState.CONNECTED);
         }
 
-        protected override void AddConsumerToQueue(IConsumer consumer, string queueName)
+        protected override void AddConsumerToQueue(IConsumer consumer)
         {
             if(Dispatcher.HasConsumer(consumer))
                 throw new InvalidOperationException(string.Format("consumerId={0} already exists - cannot add it twice", consumer.Id));

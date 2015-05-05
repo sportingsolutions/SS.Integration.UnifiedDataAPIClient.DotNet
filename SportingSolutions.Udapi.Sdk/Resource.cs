@@ -39,7 +39,7 @@ namespace SportingSolutions.Udapi.Sdk
         public event EventHandler StreamSynchronizationError;
 
         private readonly ManualResetEvent _pauseStream;
-        private QueueDetails _queueDetails;
+        private string _virtualHost;
 
         public Resource(RestItem restItem, IConnectClient client)
             : base(restItem, client)
@@ -48,7 +48,6 @@ namespace SportingSolutions.Udapi.Sdk
             Logger.DebugFormat("Instantiated fixtureName=\"{0}\" fixtureId=\"{1}\"", restItem.Name, Id);
 
             _pauseStream = new ManualResetEvent(true);
-            _queueDetails = null;
         }
 
 
@@ -87,7 +86,7 @@ namespace SportingSolutions.Udapi.Sdk
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
             StreamController.Instance.AddConsumer(this, echoInterval, echoMaxDelay);
-            Logger.InfoFormat("Streaming started for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
+            Logger.InfoFormat("Streaming request queued for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
         }
 
         public void PauseStreaming()
@@ -174,6 +173,7 @@ namespace SportingSolutions.Udapi.Sdk
                 var virtualHost = path.Substring(1, path.IndexOf('/', 1) - 1);
 
                 queueDetails.VirtualHost = virtualHost;
+                _virtualHost = queueDetails.VirtualHost;
             }
 
             var port = amqpUri.Port;
@@ -182,22 +182,21 @@ namespace SportingSolutions.Udapi.Sdk
                 queueDetails.Port = port;
             }
 
-            _queueDetails = queueDetails;
             return queueDetails;
         }
 
         public void SendEcho()
         {
-            if(_queueDetails == null)
-                _queueDetails = GetQueueDetails();
+            if(string.IsNullOrEmpty(_virtualHost))
+                throw new Exception("virtualHost is not defined");
 
             var link = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/batchecho");
             var echouri = new Uri(link.Href);
 
             var streamEcho = new StreamEcho
             {
-                Host = _queueDetails.VirtualHost,
-                Message = Guid.NewGuid().ToString() + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                Host = _virtualHost,
+                Message = Guid.NewGuid() + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
             };
 
             var response = ConnectClient.Request(echouri, RestSharp.Method.POST, streamEcho, UDAPI.Configuration.ContentType, 3000);

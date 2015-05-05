@@ -16,7 +16,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using log4net;
@@ -106,26 +105,20 @@ namespace SportingSolutions.Udapi.Sdk
 
             while(!_cancellationTokenSource.IsCancellationRequested)
             {
-                IConsumer proxyForEcho = null;
-
                 foreach(var consumer in _consumers)
                 {
                     int tmp = consumer.Value.EchosCountDown;
                     consumer.Value.EchosCountDown--;
 
-                    proxyForEcho = proxyForEcho ?? consumer.Value.Consumer;
-
                     if(tmp != UDAPI.Configuration.MissedEchos)
                     {
-                        _logger.DebugFormat("consumerId={0} missed count={1} echos", consumer, UDAPI.Configuration.MissedEchos - tmp);
+                        _logger.DebugFormat("consumerId={0} missed count={1} echos", consumer.Key, UDAPI.Configuration.MissedEchos - tmp);
 
                         if (tmp <= 1)
                         {
-                            _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected", consumer, UDAPI.Configuration.MissedEchos);
+                            _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected", consumer.Key, UDAPI.Configuration.MissedEchos);
                             invalidConsumers.Add(consumer.Value.Consumer);
 
-                            if(proxyForEcho == consumer.Value.Consumer)
-                                proxyForEcho = null;
                         }
                     }
                 }
@@ -137,7 +130,7 @@ namespace SportingSolutions.Udapi.Sdk
 
                 invalidConsumers.Clear();
 
-                SendEchos(proxyForEcho);
+                SendEchos();
 
                 _cancellationTokenSource.Token.WaitHandle.WaitOne(UDAPI.Configuration.EchoWaitInterval);
             }
@@ -145,23 +138,18 @@ namespace SportingSolutions.Udapi.Sdk
             _logger.InfoFormat("Echo task quitting...");
         }
 
-        private void SendEchos(IConsumer consumer)
+        
+        private void SendEchos()
         {
-            if(consumer == null)
-            { 
-                var tmp = _consumers.Values.FirstOrDefault();
-                if( tmp != null)
-                    consumer = tmp.Consumer;
-            }
-
-            if(consumer != null)
+            foreach(var c in _consumers)
             {
                 try
                 {
-                    consumer.SendEcho();
+                    c.Value.Consumer.SendEcho();
+                    break;
                 }
                 catch (Exception e)
-                {                    
+                {
                     _logger.Error("An error occured while trying to send echo-request", e);
                 }
             }

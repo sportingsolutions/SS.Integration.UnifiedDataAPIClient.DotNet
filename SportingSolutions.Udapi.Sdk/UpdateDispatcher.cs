@@ -132,12 +132,10 @@ namespace SportingSolutions.Udapi.Sdk
         private readonly ILog _logger = LogManager.GetLogger(typeof(UpdateDispatcher));
 
         private ConcurrentDictionary<string, ConsumerQueue> _consumers;
-        private readonly object _lock = new object();
 
         // track manually how many consumers are registred...
         // as a call to Count() on an ConcurrentDictionary takes a full lock
         private volatile int _consumersCount;
-        private bool _removeAllPending;
 
         public UpdateDispatcher()
         {
@@ -145,7 +143,6 @@ namespace SportingSolutions.Udapi.Sdk
             EchoManager = new EchoController();
 
             _consumersCount = 0;
-            _removeAllPending = false;
 
             _logger.DebugFormat("UpdateDispatcher initialised");
         }
@@ -183,38 +180,32 @@ namespace SportingSolutions.Udapi.Sdk
                 return;
 
             ConsumerQueue c = null;
-            if (_consumers.TryRemove(consumer.Id, out c))
+            _consumers.TryGetValue(consumer.Id, out c);
+            if (c == null)
+                return;
+
+            try
             {
+                // it is important to first send the disconnect event, 
+                // and only then, remove the item from the list
+
+                c.Disconnect();
                 var tmp = --_consumersCount;
+                _logger.DebugFormat("consumerId={0} removed from the dispatcher, count={1}", consumer.Id, tmp);
 
-                try
-                {
-                    if (c != null)
-                    {
-                        c.Disconnect();
-
-                        _logger.DebugFormat("consumerId={0} removed from the dispatcher, count={1}", consumer.Id, tmp);
-                    }
-                }
-                finally
-                {
-                    EchoManager.RemoveConsumer(c.Consumer);
-                }
+                _consumers.TryRemove(consumer.Id, out c);
             }
+            finally
+            {
+                EchoManager.RemoveConsumer(c.Consumer);
+            }
+           
         }
 
         public void RemoveAll()
         {
             try
             {
-                lock (_lock)
-                {
-                    if(_removeAllPending)
-                        return;
-
-                    _removeAllPending = true;
-                }
-
                 
                 _logger.DebugFormat("Sending disconnection to count={0} consumers", _consumersCount);
 
@@ -230,12 +221,6 @@ namespace SportingSolutions.Udapi.Sdk
                 EchoManager.RemoveAll();
                 _consumers = new ConcurrentDictionary<string, ConsumerQueue>();
                 _consumersCount = 0;
-
-                lock(_lock)
-                {
-                    _removeAllPending  = false;
-                    Monitor.PulseAll(_lock);
-                }
             }
         }
 
@@ -267,20 +252,6 @@ namespace SportingSolutions.Udapi.Sdk
         }
 
         public int ConsumersCount { get {  return _consumersCount; } }
-
-        public bool EnsureAvailability()
-        {
-            bool ok = true;
-            lock(_lock)
-            {
-                if(_removeAllPending)
-                {
-                    ok = Monitor.Wait(_lock, UDAPI.Configuration.DisconnectionOperationTimeout);
-                }
-            }
-
-            return ok;
-        }
 
         #endregion
 

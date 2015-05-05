@@ -46,7 +46,7 @@ namespace SportingSolutions.Udapi.Sdk
         private readonly CancellationTokenSource _cancellationHandle;
         private readonly ManualResetEvent _startBarrier;
         private readonly Task _consumer;
-        private bool _modelShutdownRaised;
+        private int _modelShutdownRaised;
 
         public StreamSubscriber(IDispatcher dispatcher)
         {
@@ -55,7 +55,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             _cancellationHandle = new CancellationTokenSource();
             _dispatcher = dispatcher;
-            _modelShutdownRaised = false;
+            _modelShutdownRaised = 0;
 
             _startBarrier = new ManualResetEvent(false);
             _consumer = Task.Factory.StartNew(Consume);
@@ -117,13 +117,13 @@ namespace SportingSolutions.Udapi.Sdk
             // raises an exception that bubbles down from IConnection to here 
             // (IConnection -> ISession -> IModel -> IConsumer)
             //
-            // So, we handle this event ONCE for either handling any connection or model failure.
+            // So, we handle this event ONCE for either connection or model failure.
 
-            _logger.InfoFormat("AMPQ Model is shutting down - eventRaised={0}", _modelShutdownRaised);
-            if (SubscriberShutdown != null && !_modelShutdownRaised)
+            if (Interlocked.Exchange(ref _modelShutdownRaised, 1) == 0)
             {
-                _modelShutdownRaised = true;
-                SubscriberShutdown(this, reason);
+                _logger.InfoFormat("AMPQ Model is shutting down");
+                if(SubscriberShutdown != null)
+                    SubscriberShutdown(this, reason);
             }
         }
 
@@ -136,7 +136,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _logger.Debug("Disposing main consumer");
 
-            _modelShutdownRaised = true;
+            _modelShutdownRaised = 1;
             _cancellationHandle.Cancel();
             _startBarrier.Set();
 
