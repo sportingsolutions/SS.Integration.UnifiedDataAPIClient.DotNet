@@ -24,7 +24,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         private const int DEFAULT_WAIT_INTERVAL_ECHOS_MILLISECONDS = 5000;
         private const int DEFAULT_MISSED_ECHOS = 3;
         private const bool DEFAULT_VERBOSE_LOGGING = true;
-        private const int DEFAULT_DISCONNECTION_OPERATION_MILLISECONDS = 120000;
+        private const ushort DEFAULT_AMQP_HEARTBEAT = 15;
 
         static Configuration()
         {
@@ -40,7 +40,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             MissedEchos = DEFAULT_MISSED_ECHOS;
             EchoWaitInterval = DEFAULT_WAIT_INTERVAL_ECHOS_MILLISECONDS;
             VerboseLogging = DEFAULT_VERBOSE_LOGGING;
-            DisconnectionOperationTimeout = DEFAULT_DISCONNECTION_OPERATION_MILLISECONDS;
+            AMQPMissedHeartbeat = DEFAULT_AMQP_HEARTBEAT;
         }
 
         public static IConfiguration Instance { get; private set; }
@@ -59,6 +59,6 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
         public bool VerboseLogging { get; set; }
 
-        public int DisconnectionOperationTimeout { get; set; }
+        public ushort AMQPMissedHeartbeat { get; set; }
     }
 }

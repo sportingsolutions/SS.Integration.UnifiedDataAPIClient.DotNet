@@ -52,14 +52,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         /// </summary>
         bool VerboseLogging { get; }
 
-        /// <summary>
-        ///     A consumer can't be added to the IDispatcher object
-        ///     is this last one is performing a RemoveAll().
-        /// 
-        ///     This allows to specify for how long a consumer
-        ///     can wait if AddConsumer is called while RemoveAll
-        ///     is running
-        /// </summary>
-        int DisconnectionOperationTimeout { get; }
+
+        ushort AMQPMissedHeartbeat { get; }
     }
 }

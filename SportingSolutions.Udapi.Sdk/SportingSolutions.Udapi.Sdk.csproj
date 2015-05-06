@@ -109,6 +109,7 @@
     <Compile Include="Interfaces\IEchoController.cs" />
     <Compile Include="Interfaces\IConsumer.cs" />
     <Compile Include="Interfaces\IStreamStatistics.cs" />
+    <Compile Include="Interfaces\IStreamSubscriber.cs" />
     <Compile Include="QueueDetails.cs" />
     <Compile Include="StreamController.cs" />
     <Compile Include="Endpoint.cs" />

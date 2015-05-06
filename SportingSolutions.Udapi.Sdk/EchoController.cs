@@ -27,7 +27,7 @@ namespace SportingSolutions.Udapi.Sdk
     {
         private class EchoEntry
         {
-            public IConsumer Consumer;
+            public IStreamSubscriber Subscriber;
             public int EchosCountDown;
         }
 
@@ -53,28 +53,28 @@ namespace SportingSolutions.Udapi.Sdk
 
         public bool Enabled { get; private set; }
 
-        public void AddConsumer(IConsumer consumer)
+        public void AddConsumer(IStreamSubscriber subscriber)
         {
-            if(!Enabled || consumer == null || string.IsNullOrEmpty(consumer.Id))
+            if (!Enabled || subscriber == null)
                 return;
 
-            _consumers[consumer.Id] = new EchoEntry 
-                { 
-                    Consumer = consumer, 
+            _consumers[subscriber.Consumer.Id] = new EchoEntry 
+                {
+                    Subscriber = subscriber, 
                     EchosCountDown = UDAPI.Configuration.MissedEchos 
                 };
 
-            _logger.DebugFormat("consumerId={0} added to echos manager", consumer.Id);
+            _logger.DebugFormat("consumerId={0} added to echos manager", subscriber.Consumer.Id);
         }
 
-        public void RemoveConsumer(IConsumer consumer)
+        public void RemoveConsumer(IStreamSubscriber subscriber)
         {
-            if (!Enabled || consumer == null || string.IsNullOrEmpty(consumer.Id))
+            if (!Enabled || subscriber == null)
                 return;
 
             EchoEntry tmp;
-            if(_consumers.TryRemove(consumer.Id, out tmp))
-                _logger.DebugFormat("consumerId={0} removed from echos manager", consumer.Id);
+            if (_consumers.TryRemove(subscriber.Consumer.Id, out tmp))
+                _logger.DebugFormat("consumerId={0} removed from echos manager", subscriber.Consumer.Id);
         }
 
         public void RemoveAll()
@@ -85,13 +85,13 @@ namespace SportingSolutions.Udapi.Sdk
             _consumers.Clear();
         }
 
-        public void ProcessEcho(string consumerId)
+        public void ProcessEcho(string subscriberId)
         {
             EchoEntry entry;
-            if(!string.IsNullOrEmpty(consumerId) && _consumers.TryGetValue(consumerId, out entry))
+            if (!string.IsNullOrEmpty(subscriberId) && _consumers.TryGetValue(subscriberId, out entry))
             {
                 if(UDAPI.Configuration.VerboseLogging)
-                    _logger.DebugFormat("Resetting echo information for consumerId={0}", consumerId);
+                    _logger.DebugFormat("Resetting echo information for consumerId={0}", subscriberId);
 
                 entry.EchosCountDown = UDAPI.Configuration.MissedEchos;
             }
@@ -101,7 +101,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             _logger.InfoFormat("Starting Echo task...");
 
-            List<IConsumer> invalidConsumers = new List<IConsumer>();
+            List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
 
             while(!_cancellationTokenSource.IsCancellationRequested)
             {
@@ -117,7 +117,7 @@ namespace SportingSolutions.Udapi.Sdk
                         if (tmp <= 1)
                         {
                             _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected", consumer.Key, UDAPI.Configuration.MissedEchos);
-                            invalidConsumers.Add(consumer.Value.Consumer);
+                            invalidConsumers.Add(consumer.Value.Subscriber);
 
                         }
                     }
@@ -126,7 +126,7 @@ namespace SportingSolutions.Udapi.Sdk
 
                 // this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
                 // for the invalid consumers
-                StreamController.Instance.RemoveConsumers(invalidConsumers); 
+                RemoveSubribers(invalidConsumers);
 
                 invalidConsumers.Clear();
 
@@ -137,15 +137,22 @@ namespace SportingSolutions.Udapi.Sdk
 
             _logger.InfoFormat("Echo task quitting...");
         }
+      
+        private static void RemoveSubribers(IEnumerable<IStreamSubscriber> subscribers)
+        {
+            foreach(var s in subscribers)
+            {
+                s.StopConsuming();
+            }
+        }
 
-        
         private void SendEchos()
         {
             foreach(var c in _consumers)
             {
                 try
                 {
-                    c.Value.Consumer.SendEcho();
+                    c.Value.Subscriber.Consumer.SendEcho();
                     break;
                 }
                 catch (Exception e)

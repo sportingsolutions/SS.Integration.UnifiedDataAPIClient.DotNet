@@ -19,24 +19,24 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
     internal interface IEchoController : IDisposable
     {
         /// <summary>
-        ///     Adds a new IConsumer to the IEchoController.
+        ///     Adds a new IStreamSubscriber to the IEchoController.
         /// </summary>
-        /// <param name="consumer"></param>
-        void AddConsumer(IConsumer consumer);
+        /// <param name="subscriber"></param>
+        void AddConsumer(IStreamSubscriber subscriber);
 
         /// <summary>
         /// 
-        ///     Removes an IConsumer from the IEchoController.
+        ///     Removes an IStreamSubscriber from the IEchoController.
         /// 
         ///     Note that this method does not raise 
         ///     any disconnection event when called.
         /// 
         /// </summary>
-        /// <param name="consumer"></param>
-        void RemoveConsumer(IConsumer consumer);
+        /// <param name="subscriber"></param>
+        void RemoveConsumer(IStreamSubscriber subscriber);
 
         /// <summary>
-        ///     Removes all the registred IConsumers
+        ///     Removes all the registred IStreamSubscriber objects
         /// </summary>
         void RemoveAll();
 
@@ -44,10 +44,10 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         /// 
         ///     Allows to inform the IEchoController
         ///     that an echo message has arrived
-        ///     for the IConsumer whose Id is consumerId
+        ///     for the IStreamSubscriber whose Id is subscriberId
         /// 
         /// </summary>
-        /// <param name="consumerId"></param>
-        void ProcessEcho(string consumerId);
+        /// <param name="subscriberId"></param>
+        void ProcessEcho(string subscriberId);
     }
 }

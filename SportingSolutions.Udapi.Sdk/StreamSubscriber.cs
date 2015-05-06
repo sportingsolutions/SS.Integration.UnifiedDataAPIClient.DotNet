@@ -12,141 +12,84 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+
 using System;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using log4net;
 using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
+
 
 namespace SportingSolutions.Udapi.Sdk
 {
-    /// <summary>
-    /// 
-    ///     This consumer is associated with many queues. It reads
-    ///     from all of them and dispatch the message to the IDispatcher 
-    ///     object passed as an argument to the constructor.
-    /// 
-    ///     As it is associated with many queues, these properties are
-    ///     not valid:
-    /// 
-    ///     QueueingBasicConsuer.IsRunning
-    ///     QueueingBasicConsumer.ConsumerTag
-    /// 
-    /// </summary>
-    internal class StreamSubscriber : QueueingBasicConsumer, IDisposable
+
+    internal class StreamSubscriber : DefaultBasicConsumer, IStreamSubscriber
     {
-
-        public event EventHandler<ShutdownEventArgs> SubscriberShutdown;
-
         private readonly ILog _logger = LogManager.GetLogger(typeof(StreamSubscriber));
-        private readonly IDispatcher _dispatcher;
-        private readonly CancellationTokenSource _cancellationHandle;
-        private readonly ManualResetEvent _startBarrier;
-        private readonly Task _consumer;
-        private int _modelShutdownRaised;
 
-        public StreamSubscriber(IDispatcher dispatcher)
+        public StreamSubscriber(IModel model, IConsumer consumer, IDispatcher dispatcher)
+            : base(model)
         {
-            if(dispatcher == null)
-                throw new ArgumentNullException("dispatcher");
-
-            _cancellationHandle = new CancellationTokenSource();
-            _dispatcher = dispatcher;
-            _modelShutdownRaised = 0;
-
-            _startBarrier = new ManualResetEvent(false);
-            _consumer = Task.Factory.StartNew(Consume);
-
-            _logger.Debug("Streaming consumer created");
+            Consumer = consumer;
+            ConsumerTag = consumer.Id;
+            Dispatcher = dispatcher;
         }
 
 
-        private void Consume()
+        public void StartConsuming(string queueName)
         {
-            _logger.Debug("Consumer thread is ready...");
-
-            _startBarrier.WaitOne();
-
-            _logger.Debug("Consumer thread is now reading from the streaming queue");
-
-            bool run = true;
-
-            while (!_cancellationHandle.IsCancellationRequested && run)
+            try
             {
-                try
-                {
-                    var output = this.Queue.Dequeue();
-                    if (output == null)
-                        continue;
-
-
-                    _dispatcher.DispatchMessage(output.ConsumerTag, Encoding.UTF8.GetString(output.Body));
-
-                }
-                catch (Exception ex)
-                {
-                    if (!_cancellationHandle.IsCancellationRequested)
-                    {
-                        _logger.Error("Error processing message from streaming queue", ex);
-
-                        run = !this.Model.IsClosed;
-                    }
-                }
+                Model.BasicConsume(queueName, true, Consumer.Id, this);
+                Dispatcher.AddSubscriber(this);
             }
-
-            _logger.Debug("Consumer thread is quitting...");
+            catch(Exception e)
+            {
+                _logger.Error("An error occured while trying to start streaming for consumerId=" + Consumer.Id, e);
+                throw;
+            }
         }
 
-        public override void HandleBasicCancelOk(string consumerTag)
+        public void StopConsuming()
         {
-            // this is raised when BasicCancel is called.
-            // DO NOT call base.HandleBasicCancelOk() as it will in turn
-            // call OnCancel()
-            ConsumerCancelledEventHandler handler = m_consumerCancelled;
-            if (handler != null)
-                handler(this, new ConsumerEventArgs(consumerTag));
+            try
+            {
+                Model.BasicCancel(ConsumerTag);
+            }
+            catch (Exception e)
+            {
+                _logger.Error("An error occured while stoping streaming for consumedId=" + ConsumerTag, e);
+            }
+            finally
+            {
+                Dispatcher.RemoveSubscriber(this);
+                _logger.InfoFormat("Streaming stopped for consumerId={0}", ConsumerTag);
+            }
+        }
+
+        public IConsumer Consumer { get; private set; }
+
+        public IDispatcher Dispatcher { get; private set; }
+
+        #region DefaultBasicConsumer
+
+        public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, byte[] body)
+        {
+            if(!IsRunning)
+                return;
+
+            Dispatcher.DispatchMessage(consumerTag, Encoding.UTF8.GetString(body));
         }
 
         public override void HandleModelShutdown(IModel model, ShutdownEventArgs reason)
         {
-            // this event is registred within the model by the RabbitMQ library for each consumer...
-            // moreover, if the connection goes down, the rabbitmq's IConnection implementation
-            // raises an exception that bubbles down from IConnection to here 
-            // (IConnection -> ISession -> IModel -> IConsumer)
-            //
-            // So, we handle this event ONCE for either connection or model failure.
+            _logger.InfoFormat("Model shutdown for consumerId={0} - disconnection event will be raised", ConsumerTag);
 
-            if (Interlocked.Exchange(ref _modelShutdownRaised, 1) == 0)
-            {
-                _logger.InfoFormat("AMPQ Model is shutting down");
-                if(SubscriberShutdown != null)
-                    SubscriberShutdown(this, reason);
-            }
+            base.HandleModelShutdown(model, reason);
+            Dispatcher.RemoveSubscriber(this);
         }
 
-        public void Start()
-        {
-            _startBarrier.Set();
-        }
-
-        public void Dispose()
-        {
-            _logger.Debug("Disposing main consumer");
-
-            _modelShutdownRaised = 1;
-            _cancellationHandle.Cancel();
-            _startBarrier.Set();
-
-            try
-            {
-                Queue.Close();
-            }
-            catch { }
-
-            Task.WaitAny(_consumer);
-        }
+        #endregion
+        
     }
 }

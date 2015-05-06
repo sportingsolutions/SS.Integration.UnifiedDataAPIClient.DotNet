@@ -12,25 +12,14 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-
-using System;
-
 namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
-    internal interface IDispatcher : IDisposable
+    interface IStreamSubscriber
     {
-        bool HasSubscriber(string subscriberId);
+        IConsumer Consumer { get; }
 
-        void AddSubscriber(IStreamSubscriber subscriber);
+        void StopConsuming();
 
-        IStreamSubscriber GetSubscriber(string subscriberId);
-
-        void RemoveSubscriber(IStreamSubscriber subscriber);
-
-        void RemoveAll();
-
-        bool DispatchMessage(string consumerId, string message);
-
-        int SubscribersCount { get; }
+        void StartConsuming(string queueName);
     }
 }

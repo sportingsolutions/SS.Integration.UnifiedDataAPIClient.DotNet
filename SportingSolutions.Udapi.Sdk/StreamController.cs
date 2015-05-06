@@ -13,12 +13,10 @@
 //limitations under the License.
 
 using System;
-using System.Text;
 using System.Threading;
 using RabbitMQ.Client;
 using log4net;
 using SportingSolutions.Udapi.Sdk.Interfaces;
-using System.Collections.Generic;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -61,16 +59,17 @@ namespace SportingSolutions.Udapi.Sdk
         }
 
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamController));
-        
-        private static readonly object _lock = new object();
+        private static readonly TimeSpan _lockingTimeout = TimeSpan.FromSeconds(3);
+
+
         private static readonly object _connectionLock = new object();
+        private readonly ReaderWriterLock _lock = new ReaderWriterLock();
+        private bool _canPerformChannelOperations;
 
         private readonly CancellationTokenSource _cancellationTokenSource;
         
-        private IModel _channel;
         private IConnection _streamConnection;
         private volatile ConnectionState _state;
-        private bool _isLogicConnectionValid;
 
         internal StreamController(IDispatcher dispatcher)
         {
@@ -79,10 +78,8 @@ namespace SportingSolutions.Udapi.Sdk
 
             Dispatcher = dispatcher;
             _cancellationTokenSource = new CancellationTokenSource();
-            
+            _canPerformChannelOperations = true;
             State = ConnectionState.DISCONNECTED;
-            _isLogicConnectionValid = true;
-
 
             _logger.DebugFormat("StreamController initialised");
         }
@@ -101,16 +98,6 @@ namespace SportingSolutions.Udapi.Sdk
         /// </summary>
         internal IDispatcher Dispatcher { get; private set; }
 
-        /// <summary>
-        ///
-        ///     Returns the StreamSubscriber. It is responsible
-        ///     for reading AMPQ messages from the connection
-        ///     and dispatch them to the consumers using
-        ///     the consumers' Ids.
-        /// 
-        /// </summary>
-        protected StreamSubscriber Consumer { get; set; }
-
         internal ConnectionState State 
         { 
             get 
@@ -124,51 +111,49 @@ namespace SportingSolutions.Udapi.Sdk
             } 
         }
 
+        internal bool CanPerformChannelOperations
+        {
+            get
+            {
+                bool tmp;
+                _lock.AcquireReaderLock(_lockingTimeout);
+                tmp = _canPerformChannelOperations;
+                _lock.ReleaseReaderLock();
+                return tmp;
+            }
+            set
+            {
+                _lock.AcquireWriterLock(_lockingTimeout);
+                _canPerformChannelOperations = value;
+                _lock.ReleaseWriterLock();
+            }
+        }
+
         #region Connection management
 
         protected virtual void CloseConnection()
         {
-            // this prevents any new consumer
-            // to be added while we clean up
-            lock (_lock)
-            {
-                _isLogicConnectionValid = false;
-            }
 
-            try
+            CanPerformChannelOperations = false;
+
+
+            // this prevents any consumer to establish a new connection
+            // (and therefore, replacing the new Consumer variable with 
+            // a new object)
+            lock (_connectionLock)
             {
-                // this prevents any consumer to establish a new connection
-                // (and therefore, replacing the new Consumer variable with 
-                // a new object)
-                lock (_connectionLock)
+                try
                 {
-                    if (Consumer != null)
+                    if (_streamConnection != null)
                     {
-                        Consumer.SubscriberShutdown -= OnModelShutdown;
-                        Consumer.Dispose();
-                        Consumer = null;
+                        _streamConnection.ConnectionShutdown -= OnConnectionShutdown;
+                        _streamConnection.Close();
+                        _streamConnection = null;
                     }
-
-                    try
-                    {
-                        if (_streamConnection != null)
-                            _streamConnection.Close();
-                    }
-                    catch { }
-
-                    OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
                 }
+                catch { }
 
-                // this could run outside the lock, as _isLogicConnectionValid is 
-                // still set to false, hence, no consumers can be added
-                Dispatcher.RemoveAll();
-            }
-            finally
-            {
-                lock (_lock)
-                {
-                    _isLogicConnectionValid = true;
-                }
+                OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
             }
 
         }
@@ -200,18 +185,18 @@ namespace SportingSolutions.Udapi.Sdk
 
                     try
                     {
-                        _streamConnection = factory.CreateConnection();                        
-                        _channel = _streamConnection.CreateModel();
+                        _streamConnection = factory.CreateConnection();
+                        _streamConnection.ConnectionShutdown += OnConnectionShutdown;
 
                         _logger.Info("Connection to the streaming server correctly established");
 
-                        Consumer = new StreamSubscriber(Dispatcher);
-
-                        // this is the main event raised if something went wrong with the AMPQ SDK
-                        Consumer.SubscriberShutdown += OnModelShutdown;    
                         newstate = ConnectionState.CONNECTED;
                         result = true;
                         
+                        _lock.AcquireWriterLock(_lockingTimeout);
+                        _canPerformChannelOperations = true;
+                        _lock.ReleaseWriterLock();
+
                     }
                     catch (Exception ex)
                     {
@@ -271,7 +256,7 @@ namespace SportingSolutions.Udapi.Sdk
 
 
                 var factory = new ConnectionFactory {
-                    RequestedHeartbeat = 5,
+                    RequestedHeartbeat = UDAPI.Configuration.AMQPMissedHeartbeat,
                     HostName = queue.Host,
                     Port = queue.Port,
                     UserName = queue.UserName,
@@ -283,18 +268,10 @@ namespace SportingSolutions.Udapi.Sdk
             }            
         }
 
-        protected virtual void OnModelShutdown(object sender, ShutdownEventArgs reason)
-        {
-            if (!_cancellationTokenSource.IsCancellationRequested)
-            {
-                var stringBuilder = new StringBuilder();
-                stringBuilder.Append("There has been a problem with the streaming connection").AppendLine();
-                stringBuilder.Append(reason);
-
-                _logger.Error(stringBuilder.ToString());
-
-                CloseConnection();
-            }
+        protected virtual void OnConnectionShutdown(object sender, ShutdownEventArgs sea)
+        {            
+            _logger.Error("The AMQP connection was shutdown: " + sea);
+            CloseConnection();
         }
 
         protected virtual void OnConnectionStatusChanged(ConnectionState newState)
@@ -329,111 +306,41 @@ namespace SportingSolutions.Udapi.Sdk
             if (State != ConnectionState.CONNECTED)
                 throw new Exception("Connection is not open - cannot register consumerId=" + consumer.Id);
 
-            AddConsumerToQueue(consumer);
-
-            EnsureConsumerIsRunning();
-            
+            AddConsumerToQueue(consumer);            
         }
 
         protected virtual void AddConsumerToQueue(IConsumer consumer)
         {
 
-            // this is quite a bottle-neck, however, operations 
-            // on IModel are not thread-safe so a lock is necessary.
-            //
-            // As there could be many consumers waiting to execute
-            // BasicConsume (just think about after a disconnection)
-            // GetQueueDetails must be inside the lock as well, otherwise
-            // by the time the thread gets to call BasicConsume, the queue
-            // created by GetQueueDetails might have disappeard due
-            // the expire settings
+            QueueDetails queue = consumer.GetQueueDetails();
+            if (queue == null || string.IsNullOrEmpty(queue.Name))
+                throw new Exception("Invalid queue details");
 
-            lock (_lock)
-            {
-                if (!_isLogicConnectionValid)
-                    throw new InvalidOperationException("Cannot accept consumers at the moment");
 
-                if (Dispatcher.HasConsumer(consumer))
-                    throw new InvalidOperationException(string.Format("consumerId={0} already exists - cannot add it twice", consumer.Id));                
+            if(!CanPerformChannelOperations)
+                throw new InvalidOperationException("Cannot accept new consumers at the moment");
 
-                QueueDetails queue = consumer.GetQueueDetails();
-                if (queue == null || string.IsNullOrEmpty(queue.Name))
-                    throw new Exception("Invalid queue details");
-
-                _channel.BasicConsume(queue.Name, true, consumer.Id, Consumer);
-
-                Dispatcher.AddConsumer(consumer);
-            }
+            var model = _streamConnection.CreateModel();    
+            var subscriber = new StreamSubscriber(model, consumer, Dispatcher);
+            subscriber.StartConsuming(queue.Name);
         }
-     
+           
         public void RemoveConsumer(IConsumer consumer)
         {
             if(consumer == null)
                 throw new ArgumentNullException("consumer");
 
-            RemoveConsumerFromQueue(consumer, true);
-        }
-
-        internal void RemoveConsumers(IEnumerable<IConsumer> consumers)
-        {
-            if(consumers == null)
-                return;
-
-            /* 
-             *  First thing to do is to remove the consumer from the dispatcher.
-             *  
-             *  This allows us to:
-             *  1) immediately send the disconnection event
-             *  2) prevent to send other messages (note we can still receive messages
-             *     as BasicCancel has not yet been called)
-             * 
-             *  Also note that RemoveConsumer behaves as an async method
-             *  so it returns pretty quickly
-             */
-
-            foreach (var c in consumers)
-            {
-                lock (_lock)
-                {
-                    if (!_isLogicConnectionValid)
-                        break;
-
-                    try
-                    {
-                        _channel.BasicCancel(c.Id);
-                    }
-                    finally
-                    {
-                        Dispatcher.RemoveConsumer(c);
-                    }
-                }
-            }
+            RemoveConsumerFromQueue(consumer);
         }
         
-        protected virtual void RemoveConsumerFromQueue(IConsumer consumer, bool checkIfExists)
+        protected virtual void RemoveConsumerFromQueue(IConsumer consumer)
         {
-            if (checkIfExists && !Dispatcher.HasConsumer(consumer))
+            if(!CanPerformChannelOperations)
                 return;
 
-            lock(_lock)
-            {
-                if (!_isLogicConnectionValid)
-                    return;
-
-                try
-                {
-                    _channel.BasicCancel(consumer.Id);
-                }
-                finally
-                {
-                    Dispatcher.RemoveConsumer(consumer);
-                }
-            }
-        }
-
-        private void EnsureConsumerIsRunning()
-        {
-            Consumer.Start();
+            var sub = Dispatcher.GetSubscriber(consumer.Id);
+            if(sub != null)
+                sub.StopConsuming();
         }
 
         #endregion
@@ -447,44 +354,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             Dispatcher.Dispose();
 
-            if (_channel != null)
-            {
-                try
-                {
-                    _channel.Close();
-                }
-                catch (Exception e)
-                {
-                    // don't bubble it up
-                    _logger.Warn(
-                        string.Format("An error occured while trying to close the streaming channel"), e);
-                }
-
-                _logger.Debug("Streaming channel closed");
-            }
-
-            if (_streamConnection != null)
-            {
-                try
-                {
-                    _streamConnection.Close();
-                }
-                catch (Exception e)
-                {
-                    // don't bubble it up
-                    _logger.Warn(
-                        string.Format("An error occured while trying to close the streaming connection"), e);
-                }
-
-                _logger.Debug("Streaming connection closed");
-            }
-
-            if (Consumer != null)
-            {
-                Consumer.SubscriberShutdown -= OnModelShutdown;
-                Consumer.Dispose();
-                Consumer = null;
-            }
+            CloseConnection();
 
             _logger.InfoFormat("StreamController correctly disposed");
         }
