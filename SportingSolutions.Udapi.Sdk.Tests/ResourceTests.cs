@@ -138,8 +138,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             // fake response for getting AMPQ details
             var streamLink = item.Links.FirstOrDefault(x => string.Equals(x.Relation, "http://api.sportingsolutions.com/rels/stream/amqp"));
 
-            var streamResponse = new RestResponse<List<RestItem>>
-            {
+            var streamResponse = new RestResponse<List<RestItem>> {
                 StatusCode = System.Net.HttpStatusCode.OK,
                 Content = "[{\"Name\":\"stream\",\"Links\":[{\"Relation\":\"amqp\",\"Href\":\"amqp://test%40testco:password@localhost/testco/amq.gen-nntsI7-nQIJSpqEOV1N98w\"}]}]"
             };
@@ -149,10 +148,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             // mock the request of getting AMPQ details
             var client = new Mock<IConnectClient>();
             client.Setup(x => x.Request<List<RestItem>>(
-                It.Is<Uri>(y => string.Equals(y.ToString(), streamLink.Href)), 
+                It.Is<Uri>(y => string.Equals(y.ToString(), streamLink.Href)),
                 It.Is<Method>(y => y == Method.GET))
                 ).Returns(streamResponse);
-            
+              
             
             return new Resource(item, client.Object);
         }
@@ -199,7 +198,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             
             connectedRaised.Should().BeTrue("Connection event wasn't raised");
             disconnectedRaised.Should().BeFalse("Disconnection event wasn't raised");
-            StreamController.Instance.Dispatcher.HasConsumer(resource).Should().BeTrue("Consumer wasn't correctly registred");
+            StreamController.Instance.Dispatcher.HasSubscriber(resource.Id).Should().BeTrue("Consumer wasn't correctly registred");
 
             // STEP 4: stop streaming
             resource.StopStreaming();
@@ -210,7 +209,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             }
 
             disconnectedRaised.Should().BeTrue("Disconnection event wasn't raised");
-            StreamController.Instance.Dispatcher.HasConsumer(resource).Should().BeFalse("Consumer wasn't correctly registred");
+            StreamController.Instance.Dispatcher.HasSubscriber(resource.Id).Should().BeFalse("Consumer wasn't correctly registred");
 
             // once the connection is open, we don't close it unless Dispose() is called
             StreamController.Instance.State.Should().Be(StreamController.ConnectionState.CONNECTED);
@@ -265,10 +264,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.CONNECTED, "Connection wasn't established");
 
             // STEP 2: check that all consumers are correctly registred witht the Dispatcher
-            StreamController.Instance.Dispatcher.ConsumersCount.Should().Be(10000, "Not all consumers were correctly registred");
+            StreamController.Instance.Dispatcher.SubscribersCount.Should().Be(10000, "Not all consumers were correctly registred");
 
             foreach(var r in resources)
-                StreamController.Instance.Dispatcher.HasConsumer(r).Should().BeTrue("Consumer " + r.Id + " wasn't correctly registred");
+                StreamController.Instance.Dispatcher.HasSubscriber(r.Id).Should().BeTrue("Consumer " + r.Id + " wasn't correctly registred");
             
 
             // STEP 3: StopStreaming() for all resources
@@ -283,7 +282,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Thread.Yield();
 
             // STEP 4: check the results
-            StreamController.Instance.Dispatcher.ConsumersCount.Should().Be(0, "Not all consumer were correctly un-registred");
+            StreamController.Instance.Dispatcher.SubscribersCount.Should().Be(0, "Not all consumer were correctly un-registred");
 
             for(int i = 0; i < 10000; i++)
             {
@@ -320,7 +319,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Thread.Yield();
 
             // STEP 3: check that the consumer is correctly registred
-            StreamController.Instance.Dispatcher.HasConsumer(resource).Should().BeTrue("Consumer wansn't correctly registred");
+            StreamController.Instance.Dispatcher.HasSubscriber(resource.Id).Should().BeTrue("Consumer wansn't correctly registred");
             StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.CONNECTED, "Connection wasn't established");
 
 
@@ -339,7 +338,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             
             ok.Should().BeTrue("StreamController allowed a consumer to be registred twice");
-            StreamController.Instance.Dispatcher.HasConsumer(resource).Should().BeTrue("Consumer was erroneously removed");
+            StreamController.Instance.Dispatcher.HasSubscriber(resource.Id).Should().BeTrue("Consumer was erroneously removed");
         }
     
         /// <summary>
@@ -381,12 +380,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.CONNECTED, "Connection was not established");
 
             // STEP 2: check that all consumers are correctly registred witht the Dispatcher
-            StreamController.Instance.Dispatcher.ConsumersCount.Should().Be(10000, "Not all consumer were correctly registred");
+            StreamController.Instance.Dispatcher.SubscribersCount.Should().Be(10000, "Not all consumer were correctly registred");
 
             foreach (var r in resources)
-                StreamController.Instance.Dispatcher.HasConsumer(r).Should().BeTrue("Consumer " + r.Id + " wasn't correctly registred");
+                StreamController.Instance.Dispatcher.HasSubscriber(r.Id).Should().BeTrue("Consumer " + r.Id + " wasn't correctly registred");
 
-            StreamController.Instance.Dispatcher.ConsumersCount.Should().Be(10000, "Not all consumer were correctly registred2");
 
             // STEP 3: Send 3 updates to the first 5000 resources
             for (int j = 0; j < 3; j++)
@@ -402,7 +400,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Thread.Yield();
 
             // STEP 4: check the results
-            StreamController.Instance.Dispatcher.ConsumersCount.Should().Be(10000, "Some consumers were erroneously removed");
+            StreamController.Instance.Dispatcher.SubscribersCount.Should().Be(10000, "Some consumers were erroneously removed");
 
             for (int i = 0; i < 10000; i++)
             {

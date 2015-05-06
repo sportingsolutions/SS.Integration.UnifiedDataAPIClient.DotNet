@@ -193,9 +193,7 @@ namespace SportingSolutions.Udapi.Sdk
                         newstate = ConnectionState.CONNECTED;
                         result = true;
                         
-                        _lock.AcquireWriterLock(_lockingTimeout);
-                        _canPerformChannelOperations = true;
-                        _lock.ReleaseWriterLock();
+                        CanPerformChannelOperations = true;
 
                     }
                     catch (Exception ex)
@@ -214,7 +212,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        public void Connect(IConsumer consumer)
+        private void Connect(IConsumer consumer)
         {
 
             if (State != ConnectionState.CONNECTED)
@@ -305,6 +303,9 @@ namespace SportingSolutions.Udapi.Sdk
 
             if (State != ConnectionState.CONNECTED)
                 throw new Exception("Connection is not open - cannot register consumerId=" + consumer.Id);
+
+            if(Dispatcher.HasSubscriber(consumer.Id))
+                throw new InvalidOperationException("consumerId=" + consumer.Id + " cannot be registred twice");
 
             AddConsumerToQueue(consumer);            
         }

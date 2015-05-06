@@ -103,10 +103,17 @@ namespace SportingSolutions.Udapi.Sdk
 
             List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
 
+            // acquiring the consumer here prevents to put another lock on the
+            // dictionary
+            IStreamSubscriber sendEchoConsumer = null;
+
             while(!_cancellationTokenSource.IsCancellationRequested)
             {
                 foreach(var consumer in _consumers)
                 {
+                    if(sendEchoConsumer == null)
+                        sendEchoConsumer = consumer.Value.Subscriber;
+
                     int tmp = consumer.Value.EchosCountDown;
                     consumer.Value.EchosCountDown--;
 
@@ -119,6 +126,8 @@ namespace SportingSolutions.Udapi.Sdk
                             _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected", consumer.Key, UDAPI.Configuration.MissedEchos);
                             invalidConsumers.Add(consumer.Value.Subscriber);
 
+                            if (sendEchoConsumer == consumer.Value.Subscriber)
+                                sendEchoConsumer = null;
                         }
                     }
                 }
@@ -130,7 +139,7 @@ namespace SportingSolutions.Udapi.Sdk
 
                 invalidConsumers.Clear();
 
-                SendEchos();
+                SendEchos(sendEchoConsumer);
 
                 _cancellationTokenSource.Token.WaitHandle.WaitOne(UDAPI.Configuration.EchoWaitInterval);
             }
@@ -146,20 +155,20 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        private void SendEchos()
+        private void SendEchos(IStreamSubscriber item)
         {
-            foreach(var c in _consumers)
+            if (item == null)
+                return;
+
+            try
             {
-                try
-                {
-                    c.Value.Subscriber.Consumer.SendEcho();
-                    break;
-                }
-                catch (Exception e)
-                {
-                    _logger.Error("An error occured while trying to send echo-request", e);
-                }
+                item.Consumer.SendEcho();
             }
+            catch (Exception e)
+            {
+                _logger.Error("An error occured while trying to send echo-request", e);
+            }
+
         }
 
         public void Dispose()

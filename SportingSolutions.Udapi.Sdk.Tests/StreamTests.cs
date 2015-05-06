@@ -17,7 +17,7 @@ using System.Threading;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
-using RabbitMQ.Client;
+using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 
@@ -29,6 +29,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [SetUp]
         public void Initialise()
         {
+            ((Configuration)UDAPI.Configuration).UseEchos = false;
             MockedStreamController.Register(new UpdateDispatcher());
         }
 
@@ -36,8 +37,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         public void EstablishConnectionTest()
         {
             // STEP 1: prepare mocked data
-            QueueDetails details = new QueueDetails
-            {
+            QueueDetails details = new QueueDetails {
                 Host = "testhost",
                 Name = "testname",
                 Password = "testpassword",
@@ -63,9 +63,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
-        public void CloseConnectionTest()
+        public void RemoveConsumerTest()
         {
             // STEP 1: prepare mocked data
+
             QueueDetails details = new QueueDetails {
                 Host = "testhost",
                 Name = "testname",
@@ -82,58 +83,81 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             // is the controller in its initial state?
             StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.DISCONNECTED);
 
+            // STEP 2: add a consumer
             StreamController.Instance.AddConsumer(consumer.Object, -1, -1);
 
+            // STEP 3: check that up to now, everythin is ok
             StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.CONNECTED);
+            StreamController.Instance.Dispatcher.GetSubscriber("testing").Should().NotBeNull();
 
-
-            ((MockedStreamController)StreamController.Instance).Consumer.Should().NotBeNull();
-
-            ((MockedStreamController)StreamController.Instance).Consumer.HandleModelShutdown(null, new ShutdownEventArgs(ShutdownInitiator.Peer, 0, "Testing"));
+            // STEP 4: remove the consumer
+            StreamController.Instance.Dispatcher.RemoveSubscriber(StreamController.Instance.Dispatcher.GetSubscriber("testing"));
 
             Thread.Sleep(1000);
             Thread.Yield();
 
+            // STEP 5: check the outcome
             consumer.Verify(x => x.OnStreamDisconnected(), Times.Once, "Consumer was not disconnect on connection shutdonw");
 
             StreamController.Instance.Dispatcher.Should().NotBeNull();
-            StreamController.Instance.Dispatcher.ConsumersCount.Should().Be(0);
-            StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.DISCONNECTED);
-            ((MockedStreamController)StreamController.Instance).Consumer.Should().BeNull();
+            StreamController.Instance.Dispatcher.SubscribersCount.Should().Be(0);
+            StreamController.Instance.Dispatcher.GetSubscriber("testing").Should().BeNull();
+            StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.CONNECTED);
         }
 
         [Test]
         public void DisposeTest()
         {
-            // STEP 1: prepare mocked data
-            QueueDetails details = new QueueDetails {
-                Host = "testhost",
-                Name = "testname",
-                Password = "testpassword",
-                Port = 5672,
-                UserName = "testuser",
-                VirtualHost = "vhost"
-            };
-
-            Mock<IConsumer> consumer = new Mock<IConsumer>();
-            consumer.Setup(x => x.Id).Returns("testing");
-            consumer.Setup(x => x.GetQueueDetails()).Returns(details);
-
             // is the controller in its initial state?
             StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.DISCONNECTED);
+            Mock<IConsumer>[] consumers = new  Mock<IConsumer>[10000];
 
-            StreamController.Instance.AddConsumer(consumer.Object, -1, -1);
+            // STEP 1: prepare mocked data
 
+            for (int i = 0; i < 10000; i++)
+            {
+                QueueDetails details = new QueueDetails {
+                    Host = "testhost",
+                    Name = "testname",
+                    Password = "testpassword",
+                    Port = 5672,
+                    UserName = "testuser",
+                    VirtualHost = "vhost"
+                };
+
+                Mock<IConsumer> consumer = new Mock<IConsumer>();
+                consumer.Setup(x => x.Id).Returns("testing_" + i);
+                consumer.Setup(x => x.GetQueueDetails()).Returns(details);
+                consumers[i] = consumer;
+
+                // STEP 2: add the consumers
+                StreamController.Instance.AddConsumer(consumer.Object, -1, -1);
+            }
+
+           
+            // STEP 2: check if the connection was correctly established
             StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.CONNECTED);
 
-            StreamController.Instance.Dispose();
-
-            Thread.Sleep(1000);
+            Thread.Sleep(2000);
             Thread.Yield();
 
-            consumer.Verify(x => x.OnStreamDisconnected(), Times.Once, "Consumer was not disconnected when the connection was disposed");
-            StreamController.Instance.Dispatcher.ConsumersCount.Should().Be(0);
-            ((MockedStreamController)StreamController.Instance).Consumer.Should().BeNull();
+            for(int i = 0; i < 10000; i++)
+                consumers[i].Verify(x => x.OnStreamConnected(), Times.Once, "Connection event was not raised");
+
+            // STEP 4
+            StreamController.Instance.Dispose();
+
+            Thread.Sleep(2000);
+            Thread.Yield();
+
+            for (int i = 0; i < 10000; i++)
+            {
+                consumers[i].Verify(x => x.OnStreamConnected(), Times.Once, "Connection event was not raised");
+                consumers[i].Verify(x => x.OnStreamDisconnected(), Times.Once, "Connection event was not raised");
+            }
+
+            StreamController.Instance.Dispatcher.SubscribersCount.Should().Be(0);
+            StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.DISCONNECTED);
         }
     
         /// <summary>
@@ -165,9 +189,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                     Password = "testpassword",
                     Port = 5672,
                     UserName = "testuser",
-                    VirtualHost = "vhost_" + i
+                    VirtualHost = "vhost"
                 };
-
+                
                 Mock<IConsumer> consumer = new Mock<IConsumer>();
                 consumer.Setup(x => x.Id).Returns("testing_" + i);
                 consumer.Setup(x => x.GetQueueDetails()).Returns(details);
@@ -180,7 +204,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             }
 
             StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.CONNECTED);
-            StreamController.Instance.Dispatcher.ConsumersCount.Should().Be(10000);
+            StreamController.Instance.Dispatcher.SubscribersCount.Should().Be(10000);
 
             // send some messages
             for(int i = 0; i < 10000; i++)

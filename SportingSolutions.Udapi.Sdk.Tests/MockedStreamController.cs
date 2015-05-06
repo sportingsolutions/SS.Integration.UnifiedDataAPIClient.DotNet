@@ -31,17 +31,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         public static void Register(IDispatcher dispatcher)
         {
-            
-
             Instance = new MockedStreamController(dispatcher);
-        }
-
-
-        // expose this property
-        public new StreamSubscriber Consumer
-        {
-            get { return base.Consumer; }
-            set { base.Consumer = value; }
         }
 
         public IEchoController EchoManager
@@ -62,26 +52,22 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         
         protected override void EstablishConnection(ConnectionFactory factory)
         {
-            if(Consumer != null)
-                throw new Exception("Connection is already open");
-
-            Consumer = new StreamSubscriber(Dispatcher);
-            Consumer.SubscriberShutdown += OnModelShutdown;    
+            CanPerformChannelOperations = true;
             OnConnectionStatusChanged(ConnectionState.CONNECTED);
         }
 
         protected override void AddConsumerToQueue(IConsumer consumer)
         {
-            if(Dispatcher.HasConsumer(consumer))
-                throw new InvalidOperationException(string.Format("consumerId={0} already exists - cannot add it twice", consumer.Id));
-
-            Dispatcher.AddConsumer(consumer);
+            new MockedStreamSubscriber(consumer, Dispatcher).StartConsuming("");
         }
 
-        protected override void RemoveConsumerFromQueue(IConsumer consumer, bool checkIfExists)
+        protected override void RemoveConsumerFromQueue(IConsumer consumer)
         {
-            if(checkIfExists && !Dispatcher.HasConsumer(consumer))
-                throw new InvalidOperationException(string.Format("consumerId={0} doesn't exist in the queue", consumer.Id));
+            var s = Dispatcher.GetSubscriber(consumer.Id);
+            if(s == null)
+                throw new Exception("Subscriber with Id=" + consumer.Id + " not found");
+
+            s.StopConsuming();
         }
     }
 }
