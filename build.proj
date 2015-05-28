@@ -7,8 +7,7 @@
     <MSBuildExtensionsPath>$([MSBuild]::Unescape('$(MSBuildProjectDirectory)'))\lib</MSBuildExtensionsPath>
     <ExtensionTasksPath>$(MSBuildExtensionsPath)\MSBuildExtensions\</ExtensionTasksPath>
     <!--Solution file-->
-    <SolutionFileName>$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.sln</SolutionFileName>
-    <SplitVersion>$(BUILD_NUMBER.Split('.'))</SplitVersion>
+    <SolutionFileName>$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.sln</SolutionFileName>    
   </PropertyGroup>
 
 
@@ -27,21 +26,22 @@
 
   <Target Name="PrepareArtifact" DependsOnTargets="CleanFolder">
     <ItemGroup>
-      <Libraries Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\bin\$(Configuration)\SportingSolutions.Udapi.Sdk.dll" />
+      <Libraries Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\bin\$(Configuration)\SportingSolutions.Udapi.Sdk.dll;
+                          $(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\bin\$(Configuration)\SportingSolutions.Udapi.Sdk.pdb;" />
     </ItemGroup>
 
-    <Message Text="Preparing artifact for $(Configuration) build: $(BUILD_NUMBER)$(BUILD_RELEASE)$(BUILD_COUNTER)" />
+    <Message Text="Preparing artifact for $(Configuration) build: $(BUILD_NUMBER)" />
     <Copy SourceFiles="@(Libraries)"    DestinationFolder="$(BuildDir)\" />
-    <Message Text="Preparing artifact for $(Configuration) build: $(BUILD_NUMBER)$(BUILD_RELEASE)$(BUILD_COUNTER) completed" />
+    <Message Text="Preparing artifact for $(Configuration) build: $(BUILD_NUMBER) completed" />
   </Target>
 
   <Target Name="BuildZip" >
-    <Message Text="Building ZIP file for conf: $(Configuration) build: $(BUILD_NUMBER)$(BUILD_RELEASE)$(BUILD_COUNTER)" />
+    <Message Text="Building ZIP file for conf: $(Configuration) build: $(BUILD_NUMBER)" />
     <ItemGroup>
       <ZipFiles Include="$(BuildDir)\**\*.*" Exclude="*.zip" />
     </ItemGroup>
-    <MSBuild.ExtensionPack.Compression.DNZip TaskAction="Create" CompressFiles="@(ZipFiles)" ZipFileName="$(BuildDir)\SportingSolutions.Udapi.Sdk-$(BUILD_NUMBER)$(BUILD_RELEASE)$(BUILD_COUNTER).zip" RemoveRoot="$(BuildDir)"/>
-    <Message Text="Building ZIP file for conf: $(Configuration) build: $(BUILD_NUMBER)$(BUILD_RELEASE)$(BUILD_COUNTER) completed" />
+    <MSBuild.ExtensionPack.Compression.DNZip TaskAction="Create" CompressFiles="@(ZipFiles)" ZipFileName="$(BuildDir)\SportingSolutions.Udapi.Sdk-$(BUILD_NUMBER).zip" RemoveRoot="$(BuildDir)"/>
+    <Message Text="Building ZIP file for conf: $(Configuration) build: $(BUILD_NUMBER) completed" />
   </Target>
 
 
