@@ -17,6 +17,14 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("SportingSolutions.Udapi.Sdk")]
 [assembly: AssemblyDescription("Sporting Solutions Unified Data API Sdk")]
 [assembly: AssemblyConfiguration("")]
+[assembly: AssemblyProduct("SportingSolutions.Udapi.Sdk")]
+[assembly: AssemblyCompany("Sporting Solutions Ltd.")]
+[assembly: AssemblyCopyright("Copyright (c) Sporting Solutions Ltd. 2015")]
+[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCulture("")]
+[assembly: AssemblyVersion("0.1.0.0")]
+[assembly: AssemblyFileVersion("0.1.0.0")]
+[assembly: AssemblyInformationalVersion("0.1.0.0")]
 
 [assembly: InternalsVisibleTo("SportingSolutions.Udapi.Sdk.Tests")]
 

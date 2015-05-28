@@ -1,132 +1,50 @@
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  
+
   <PropertyGroup>
     <!--Default Configuration-->
-    <BuildDir Condition=" '$(BuildDir)' == ''">BuildOutput</BuildDir> 
-    <Configuration Condition=" '$(Configuration)' == '' ">Integration</Configuration>
-	  <MSBuildExtensionsPath>$([MSBuild]::Unescape('$(MSBuildProjectDirectory)'))\lib</MSBuildExtensionsPath>
+    <BuildDir Condition=" '$(BuildDir)' == ''">BuildOutput</BuildDir>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <MSBuildExtensionsPath>$([MSBuild]::Unescape('$(MSBuildProjectDirectory)'))\lib</MSBuildExtensionsPath>
     <ExtensionTasksPath>$(MSBuildExtensionsPath)\MSBuildExtensions\</ExtensionTasksPath>
     <!--Solution file-->
     <SolutionFileName>$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.sln</SolutionFileName>
-    <DoxyGen>"C:\Program Files\doxygen\bin\doxygen.exe"</DoxyGen>
     <SplitVersion>$(BUILD_NUMBER.Split('.'))</SplitVersion>
   </PropertyGroup>
 
-  
-  
+
+
   <!--Import MSBuild.ExtensionPack Tasks-->
   <Import Project="$(ExtensionTasksPath)MSBuild.ExtensionPack.tasks"/>
-  
+
   <!--Import MSBuildCommunityTasks Tasks-->
   <Import Project="$(MSBuildExtensionsPath)\msbuild\MSBuild.Community.Tasks.Targets"/>
- 
-  
-  <Target Name="Version">
-    <Message Text="$(SplitVersion)" />
-    <MSBuild.ExtensionPack.Framework.MsBuildHelper TaskAction="GetItem" InputItems1="$(SplitVersion)" Position="0">
-      <Output TaskParameter="OutputItems" ItemName="major"/>
-    </MSBuild.ExtensionPack.Framework.MsBuildHelper>
-    <MSBuild.ExtensionPack.Framework.MsBuildHelper TaskAction="GetItem" InputItems1="$(SplitVersion)" Position="1">
-      <Output TaskParameter="OutputItems" ItemName="minor"/>
-    </MSBuild.ExtensionPack.Framework.MsBuildHelper>
-    <MSBuild.ExtensionPack.Framework.MsBuildHelper TaskAction="GetItem" InputItems1="$(SplitVersion)" Position="2">
-      <Output TaskParameter="OutputItems" ItemName="build"/>
-    </MSBuild.ExtensionPack.Framework.MsBuildHelper>
-    <MSBuild.ExtensionPack.Framework.MsBuildHelper TaskAction="GetItem" InputItems1="$(SplitVersion)" Position="3">
-      <Output TaskParameter="OutputItems" ItemName="revision"/>
-    </MSBuild.ExtensionPack.Framework.MsBuildHelper>
 
-    <PropertyGroup>
-     <MajorVersion>%(major.Identity)</MajorVersion>
-      <MinorVersion>%(minor.Identity)</MinorVersion>
-      <BuildVersion>%(build.Identity)</BuildVersion>
-      <RevisionNumber>%(revision.Identity)</RevisionNumber>
-    </PropertyGroup>
-    <!--Version the CommonAssemblyInfo.cs file-->
-    <MSBuild.ExtensionPack.Framework.AssemblyInfo AssemblyInfoFiles="$(MSBuildProjectDirectory)\CommonAssemblyInfo.cs"
-                                                  AssemblyFileMajorVersion="$(MajorVersion)"
-                                                  AssemblyFileMinorVersion="$(MinorVersion)"
-                                                  AssemblyFileBuildNumber="$(BuildVersion)"
-                                                  AssemblyFileRevision="$(RevisionNumber)"
-                                                  AssemblyMajorVersion="$(MajorVersion)"
-                                                  AssemblyMinorVersion="$(MinorVersion)"
-                                                  AssemblyBuildNumber="$(BuildVersion)"
-                                                  AssemblyRevision="$(RevisionNumber)"
-                                                  AssemblyFileVersion="$(MajorVersion).$(MinorVersion).$(BuildVersion).$(RevisionNumber)"
-                                                  AssemblyVersion="$(MajorVersion).$(MinorVersion).$(BuildVersion).$(RevisionNumber)">
-      <Output TaskParameter="MaxAssemblyVersion" PropertyName="MaxAssemblyVersion" />
-    </MSBuild.ExtensionPack.Framework.AssemblyInfo>
-    <Message Text="----current version---: '$(MaxAssemblyVersion)'" />
-  </Target>
-  
-  <Target Name="Clean">
-    <Message Text="Clean Solution" />	
-	<ItemGroup>
-			
-	<FilesToDelete Include="$(BuildDir)\**\*"/> 
-	</ItemGroup>
-	<ItemGroup>
-		<MoreFilesToDelete Include="$(MSBuildProjectDirectory)\**\*.nupkg"/> 
-	</ItemGroup>
-	<Delete Files="@(FilesToDelete)" />
-	<Delete Files="@(MoreFilesToDelete)" />
-	<RemoveDir Directories="$(BuildDir)" />
-	<MakeDir Directories="$(BuildDir)"/>
-	
-    <MSBuild Projects="$(SolutionFileName)" Targets="Clean" Properties="Configuration=$(Configuration)" />
-  </Target>
-  
-  <Target Name="Compile" DependsOnTargets="Version">
-    <Message Text="Build Version" />
-    <MSBuild Projects="$(SolutionFileName)" Targets="Build" Properties="Configuration=$(Configuration);MaxAssemblyVersion=$(MaxAssemblyVersion)" />
+
+  <Target Name="CleanFolder">
+    <RemoveDir Directories="$(BuildDir)" />
   </Target>
 
-  <Target Name="Test" DependsOnTargets="Clean;Compile">
-    <Message Text="Test Build" />
+
+  <Target Name="PrepareArtifact" DependsOnTargets="CleanFolder">
+    <ItemGroup>
+      <Libraries Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\bin\$(Configuration)\SportingSolutions.Udapi.Sdk.dll" />
+    </ItemGroup>
+
+    <Message Text="Preparing artifact for $(Configuration) build: $(BUILD_NUMBER)$(BUILD_RELEASE)$(BUILD_COUNTER)" />
+    <Copy SourceFiles="@(Libraries)"    DestinationFolder="$(BuildDir)\" />
+    <Message Text="Preparing artifact for $(Configuration) build: $(BUILD_NUMBER)$(BUILD_RELEASE)$(BUILD_COUNTER) completed" />
   </Target>
 
-  <Target Name="Setup" DependsOnTargets="Clean;Compile">
-    <Message Text="Build Setup Projects" />
+  <Target Name="BuildZip" >
+    <Message Text="Building ZIP file for conf: $(Configuration) build: $(BUILD_NUMBER)$(BUILD_RELEASE)$(BUILD_COUNTER)" />
+    <ItemGroup>
+      <ZipFiles Include="$(BuildDir)\**\*.*" Exclude="*.zip" />
+    </ItemGroup>
+    <MSBuild.ExtensionPack.Compression.DNZip TaskAction="Create" CompressFiles="@(ZipFiles)" ZipFileName="$(BuildDir)\SportingSolutions.Udapi.Sdk-$(BUILD_NUMBER)$(BUILD_RELEASE)$(BUILD_COUNTER).zip" RemoveRoot="$(BuildDir)"/>
+    <Message Text="Building ZIP file for conf: $(Configuration) build: $(BUILD_NUMBER)$(BUILD_RELEASE)$(BUILD_COUNTER) completed" />
   </Target>
-  
-  <Target Name="Build" DependsOnTargets="Clean;Compile;GenerateDocs;PrepareForZip;Test;Setup;BuildZip">
-    <Message Text="Build Complete" />
-  </Target>
-  
-  <Target Name="GenerateDocs" DependsOnTargets="Compile">
-	<!-- <Exec Command="type $(MSBuildProjectDirectory)\documentation\doxyfile &amp; echo PROJECT_NUMBER=$(BuildVersion)" /> -->
-	<Exec Command="echo PROJECT_NUMBER=$(MajorVersion).$(MinorVersion).$(BuildVersion).$(RevisionNumber) &gt;&gt; $(MSBuildProjectDirectory)\documentation\doxyfile" /> 
-	<Exec Command="$(DoxyGen) $(MSBuildProjectDirectory)\documentation\doxyfile" />	
-  </Target>
-  
-  <Target Name="PrepareForZip">
-	
-		<ItemGroup>
-			<LibFiles Include="$(MSBuildProjectDirectory)\lib\**\*.*" Exclude="$(MSBuildProjectDirectory)\lib\**\.svn\**" />
-			<SDKSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\*.*" Exclude="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\.svn\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\bin\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\obj\**" />
-			<ExampleSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\*.*" Exclude="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\.svn\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\bin\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.Example.Console\**\obj\**" />
-			<StreamingExampleSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.StreamingExample.Console\**\*.*" Exclude="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.StreamingExample.Console\**\.svn\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.StreamingExample.Console\**\bin\**;$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.StreamingExample.Console\**\obj\**" />
-			<!--TestSrcFiles Include="$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\*.*" Exclude="$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\.svn\**;$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\bin\**;$(MSBuildProjectDirectory)\SPIN.Wholesale.SDK.Tests\**\obj\**" /-->
-			<SlnSrcFiles Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk.sln"  />
-			<Docs Include="$(MSBuildProjectDirectory)\documentation\html\**" />			
-			<SDKBinaries Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\**\bin\**" />
-		</ItemGroup>
-		
-		<Copy SourceFiles="@(LibFiles)" DestinationFolder="$(BuildDir)\\Src\\lib\\%(RecursiveDir)"/>	
-		<Copy SourceFiles="@(SDKSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SportingSolutions.Udapi.Sdk\\%(RecursiveDir)"/>	
-		<Copy SourceFiles="@(ExampleSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SportingSolutions.Udapi.Sdk.Example.Console\\%(RecursiveDir)"/>	
-		<Copy sourceFiles="@(StreamingExampleSrcFiles)" DestinationFolder="$(BuildDir)\\Src\\SportingSolutions.Udapi.Sdk.StreamingExample.Console\\%(RecursiveDir)"/>	
-		<Copy SourceFiles="@(SlnSrcFiles)" DestinationFolder="$(BuildDir)\\Src"/>
-		<Copy SourceFiles="@(Docs)" DestinationFolder="$(BuildDir)\\docs\\%(RecursiveDir)" />
-		<Copy SourceFiles="@(SDKBinaries)" DestinationFolder="$(BuildDir)\\bin" />
-		
-	</Target>
-	
-	<Target Name="BuildZip" >
-		<ItemGroup>
-			<ZipFiles Include="$(BuildDir)\**\*.*" Exclude="*.zip" />
-		</ItemGroup>
-		<MSBuild.ExtensionPack.Compression.DNZip TaskAction="Create" CompressFiles="@(ZipFiles)" ZipFileName="$(BuildDir)\SportingSolutions.Udapi.Sdk-$(MaxAssemblyVersion).zip" RemoveRoot="$(BuildDir)"/>
-</Target>
-  
+
+
+  <Target Name="BuildArtifact" DependsOnTargets="PrepareArtifact;BuildZip"></Target>
+
 </Project>

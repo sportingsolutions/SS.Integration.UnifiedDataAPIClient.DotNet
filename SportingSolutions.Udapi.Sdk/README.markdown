@@ -1,4 +1,3 @@
-/*! \mainpage GTP SDK 
 
 This is the master repository for the Sporting Solutions Unified Data API Client for the .Net Framework.
 The SDK provides an easy to use interface into the Sporting Solutions Unified Data API.  
@@ -14,6 +13,12 @@ You will need [Microsoft .NET Framework 4.0](http://www.microsoft.com/download/e
 Licence
 ----------------------
 Sporting Solutions Unified Data API Client for the .Net Framework is licenced under the terms of the Apache Licence Version 2.0, please see the included Licence.txt file
+
+Where can I get it?
+--------------------------------
+First, [install NuGet](http://docs.nuget.org/docs/start-here/installing-nuget). Then, install SportingSolutions.Udapi.Sdk from the package manager console:
+
+    PM> Install-Package SportingSolutions.Udapi.Sdk
 
 Getting Started
 ----------------------
@@ -43,4 +48,3 @@ theEvent.StreamDisconnected += (sender, args) => System.Console.WriteLine("Strea
 
 theEvent.StartStreaming();
 ```
-
