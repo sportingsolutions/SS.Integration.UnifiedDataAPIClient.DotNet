@@ -35,7 +35,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             private readonly ConcurrentQueue<string> _updates;
             private volatile bool _disconnectRequested; // must be volatile
-            private bool _isProcessing;
+            private volatile bool _isProcessing;
 
             public ConsumerQueue(IStreamSubscriber subscriber)
             {
@@ -73,7 +73,12 @@ namespace SportingSolutions.Udapi.Sdk
                     lock (this)
                     {
                         if (_isProcessing)
+                        {
+                            if (UDAPI.Configuration.VerboseLogging)
+                                _logger.DebugFormat("There is already a dispatching thread for consumerId={0}", Consumer.Id);
+
                             return;
+                        }
 
                         _isProcessing = true;
                     }
@@ -119,12 +124,19 @@ namespace SportingSolutions.Udapi.Sdk
                                 _logger.Error("An error occured while pushing update for consumerId=" + Consumer.Id, e);
                             }
                         }
+                        else
+                        {
+                            _logger.WarnFormat("Failed to acquire update for consumerId={0}", Consumer.Id);
+                        }
 
                         lock (this)
                         {
                             go = !_updates.IsEmpty || _disconnectRequested;
                             _isProcessing = go;
                         }
+
+                        if(UDAPI.Configuration.VerboseLogging)
+                            _logger.DebugFormat("Quitting dispatching thread for consumerId={0}", Consumer.Id);
                     }
                 });
             }
@@ -241,7 +253,10 @@ namespace SportingSolutions.Udapi.Sdk
             // note that TryGetValue is lock-free
             ConsumerQueue c = null;
             if (!_subscribers.TryGetValue(consumerId, out c) || c == null)
+            {
+                _logger.WarnFormat("Update not dispatched to consumerId={0} as it was not found", consumerId);
                 return false;
+            }
 
             c.Add(message);
 

@@ -21,7 +21,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         private const bool DEFAULT_USE_COMPRESSION = true;
         private const bool DEFAULT_USE_ECHOS = true;
         private const int DEFAULT_TIMEOUT_MILLISECONDS = 60000;
-        private const int DEFAULT_WAIT_INTERVAL_ECHOS_MILLISECONDS = 5000;
+        private const int DEFAULT_WAIT_INTERVAL_ECHOS_MILLISECONDS = 10000;
         private const int DEFAULT_MISSED_ECHOS = 3;
         private const bool DEFAULT_VERBOSE_LOGGING = true;
         private const ushort DEFAULT_AMQP_HEARTBEAT = 15;
