@@ -29,7 +29,7 @@ namespace SportingSolutions.Udapi.Sdk
             : base(restItem, connectClient)
         {
             Logger = LogManager.GetLogger(typeof(Feature).ToString());
-            Logger.DebugFormat("Instantiated Feature {0}", restItem.Name);
+            Logger.DebugFormat("Instantiated feature={0}", restItem.Name);
         }
 
         public string Name
@@ -40,20 +40,20 @@ namespace SportingSolutions.Udapi.Sdk
         public List<IResource> GetResources()
         {
             var loggingStringBuilder = new StringBuilder();
-            loggingStringBuilder.AppendFormat("Get all available resources from {0} \r\n", Name);
+            loggingStringBuilder.AppendFormat("Get all available resources from feature={0} - ", Name);
 
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResources Http Error", loggingStringBuilder);
-            Logger.Info(loggingStringBuilder);
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResources HTTP error", loggingStringBuilder);
+            Logger.Debug(loggingStringBuilder);
             return restItems.Select(restItem => new Resource(restItem, ConnectClient)).Cast<IResource>().ToList();
         }
 
         public IResource GetResource(string name)
         {
             var loggingStringBuilder = new StringBuilder();
-            loggingStringBuilder.AppendFormat("Get {0} from {1} \r\n", name, Name);
+            loggingStringBuilder.AppendFormat("Get resource={0} from feature={1} - ", name, Name);
 
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResource Http Error", loggingStringBuilder);
-            Logger.Info(loggingStringBuilder);
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResource HTTP error", loggingStringBuilder);
+            Logger.Debug(loggingStringBuilder);
             return (from restItem in restItems where restItem.Name == name select new Resource(restItem, ConnectClient)).FirstOrDefault();
         }
 

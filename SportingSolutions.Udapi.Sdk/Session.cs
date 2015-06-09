@@ -37,7 +37,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public IList<IService> GetServices()
         {
-            Logger.Info("Get all available services...");
+            Logger.Debug("Get all available services...");
             var links = GetRoot();
             if (links == null)
                 return new List<IService>();
@@ -47,7 +47,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public IService GetService(string name)
         {
-            Logger.InfoFormat("Get Service {0}", name);
+            Logger.DebugFormat("Get service={0}", name);
             var links = GetRoot();
 
             if (links == null)
@@ -59,24 +59,24 @@ namespace SportingSolutions.Udapi.Sdk
         private IEnumerable<RestItem> GetRoot()
         {
             var stopwatch = new Stopwatch();
-            var messageStringBuilder = new StringBuilder("Beginning Get Root Request");
+            var messageStringBuilder = new StringBuilder("GetRoot request...");
             try
             {
                 stopwatch.Start();
 
                 var getRootResponse = ConnectClient.Login();
-                messageStringBuilder.AppendFormat("GetRoot took {0}ms\r\n", stopwatch.ElapsedMilliseconds);
+                messageStringBuilder.AppendFormat("took {0}ms", stopwatch.ElapsedMilliseconds);
                 stopwatch.Restart();
 
                 if (getRootResponse.ErrorException != null || getRootResponse.Content == null)
                 {
-                    RestErrorHelper.LogRestError(Logger, getRootResponse, "GetRoot Http Error");
-                    throw new Exception("There has been a problem calling GetRoot", getRootResponse.ErrorException);
+                    RestErrorHelper.LogRestError(Logger, getRootResponse, "GetRoot HTTP error");
+                    throw new Exception("Error calling GetRoot", getRootResponse.ErrorException);
                 }
 
                 if (getRootResponse.StatusCode == HttpStatusCode.Unauthorized)
                 {
-                    throw new NotAuthenticatedException("UserName or password are incorrect");
+                    throw new NotAuthenticatedException("Username or password are incorrect");
                 }
 
                 if (getRootResponse.Content != null)
@@ -88,7 +88,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
             catch (Exception ex)
             {
-                Logger.Error("Get Root Exception", ex);
+                Logger.Error("GetRoot exception", ex);
                 throw;
             }
             finally

@@ -59,11 +59,11 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 var theUri = FindRelationUri(relation);
 
-                loggingStringBuilder.AppendFormat("Call to url={0} \r\n", theUri);
+                loggingStringBuilder.AppendFormat("Call to url={0} ", theUri);
                 stopwatch.Start();
                 var response = ConnectClient.Request<List<RestItem>>(theUri, Method.GET);
 
-                loggingStringBuilder.AppendFormat("took duration={0}ms\r\n", stopwatch.ElapsedMilliseconds);
+                loggingStringBuilder.AppendFormat("took duration={0}ms", stopwatch.ElapsedMilliseconds);
                 if (response.ErrorException != null)
                 {
                     RestErrorHelper.LogRestError(Logger, response, errorHeading);
@@ -84,10 +84,10 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 var theUri = FindRelationUri(relation);
 
-                loggingStringBuilder.AppendFormat("Beginning call to url={0} \r\n", theUri);
+                loggingStringBuilder.AppendFormat("Beginning call to url={0} ", theUri);
                 stopwatch.Start();
                 var response = ConnectClient.Request(theUri, Method.GET);
-                loggingStringBuilder.AppendFormat("took duration={0}ms\r\n", stopwatch.ElapsedMilliseconds);
+                loggingStringBuilder.AppendFormat("took duration={0}ms", stopwatch.ElapsedMilliseconds);
                 if (response.ErrorException != null || response.Content == null)
                 {
                     RestErrorHelper.LogRestError(Logger, response, errorHeading);

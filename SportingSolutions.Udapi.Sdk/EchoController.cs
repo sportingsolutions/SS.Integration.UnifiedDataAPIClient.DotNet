@@ -99,7 +99,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         private void CheckEchos()
         {
-            _logger.InfoFormat("Starting Echo task...");
+            _logger.Debug("Starting EchoTask");
 
             List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
 
@@ -119,7 +119,7 @@ namespace SportingSolutions.Udapi.Sdk
 
                     if(tmp != UDAPI.Configuration.MissedEchos)
                     {
-                        _logger.DebugFormat("consumerId={0} missed count={1} echos", consumer.Key, UDAPI.Configuration.MissedEchos - tmp);
+                        _logger.WarnFormat("consumerId={0} missed count={1} echos", consumer.Key, UDAPI.Configuration.MissedEchos - tmp);
 
                         if (tmp <= 1)
                         {
@@ -144,7 +144,7 @@ namespace SportingSolutions.Udapi.Sdk
                 _cancellationTokenSource.Token.WaitHandle.WaitOne(UDAPI.Configuration.EchoWaitInterval);
             }
 
-            _logger.InfoFormat("Echo task quitting...");
+            _logger.Debug("EchoTask terminated");
         }
       
         private static void RemoveSubribers(IEnumerable<IStreamSubscriber> subscribers)
@@ -166,7 +166,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
             catch (Exception e)
             {
-                _logger.Error("An error occured while trying to send echo-request", e);
+                _logger.Error("Error sending echo-request", e);
             }
 
         }

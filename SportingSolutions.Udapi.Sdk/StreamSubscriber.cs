@@ -45,7 +45,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
             catch(Exception e)
             {
-                _logger.Error("An error occured while trying to start streaming for consumerId=" + Consumer.Id, e);
+                _logger.Error("Error starting stream for consumerId=" + Consumer.Id, e);
                 throw;
             }
         }
@@ -58,12 +58,12 @@ namespace SportingSolutions.Udapi.Sdk
             }
             catch (Exception e)
             {
-                _logger.Error("An error occured while stoping streaming for consumedId=" + ConsumerTag, e);
+                _logger.Error("Error stopping stream for consumedId=" + ConsumerTag, e);
             }
             finally
             {
                 Dispatcher.RemoveSubscriber(this);
-                _logger.InfoFormat("Streaming stopped for consumerId={0}", ConsumerTag);
+                _logger.DebugFormat("Streaming stopped for consumerId={0}", ConsumerTag);
             }
         }
 
@@ -83,7 +83,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public override void HandleModelShutdown(IModel model, ShutdownEventArgs reason)
         {
-            _logger.InfoFormat("Model shutdown for consumerId={0} - disconnection event will be raised", ConsumerTag);
+            _logger.WarnFormat("Model shutdown for consumerId={0} - disconnection event will be raised", ConsumerTag);
 
             base.HandleModelShutdown(model, reason);
             Dispatcher.RemoveSubscriber(this);

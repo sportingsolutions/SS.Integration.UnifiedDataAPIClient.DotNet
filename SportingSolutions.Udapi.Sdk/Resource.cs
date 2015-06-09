@@ -71,10 +71,10 @@ namespace SportingSolutions.Udapi.Sdk
         public string GetSnapshot()
         {
             var loggingStringBuilder = new StringBuilder();
-            loggingStringBuilder.AppendFormat("Get Snapshot for fixtureName=\"{0}\" fixtureId={1} \r\n", Name, Id);
+            loggingStringBuilder.AppendFormat("Get snapshot for fixtureName=\"{0}\" fixtureId={1} - ", Name, Id);
 
-            var result = FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/snapshot", "GetSnapshot Http Error", loggingStringBuilder);
-            Logger.Info(loggingStringBuilder);
+            var result = FindRelationAndFollowAsString("http://api.sportingsolutions.com/rels/snapshot", "GetSnapshot HTTP error", loggingStringBuilder);
+            Logger.Debug(loggingStringBuilder);
             return result;
         }
 
@@ -86,25 +86,25 @@ namespace SportingSolutions.Udapi.Sdk
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
             StreamController.Instance.AddConsumer(this, echoInterval, echoMaxDelay);
-            Logger.InfoFormat("Streaming request queued for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
+            Logger.DebugFormat("Streaming request queued for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
         }
 
         public void PauseStreaming()
         {
-            Logger.InfoFormat("Streaming paused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            Logger.DebugFormat("Streaming paused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
             _pauseStream.Reset();
         }
 
         public void UnPauseStreaming()
         {
-            Logger.InfoFormat("Streaming unpaused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            Logger.DebugFormat("Streaming unpaused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
             _pauseStream.Set();
         }
 
         public void StopStreaming()
         {
             StreamController.Instance.RemoveConsumer(this);
-            Logger.InfoFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
+            Logger.DebugFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
         }
 
         #endregion
@@ -142,9 +142,8 @@ namespace SportingSolutions.Udapi.Sdk
         {
 
             var loggingStringBuilder = new StringBuilder();
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp", "GetAmqpStream Http Error", loggingStringBuilder);
-            var amqpLink =
-                restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp", "GetAmqpStream HTTP error", loggingStringBuilder);
+            var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
 
             var amqpUri = new Uri(amqpLink.Href);
 

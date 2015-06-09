@@ -24,8 +24,7 @@ using log4net;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
-    public delegate Uri LoginRequiredDelegate<T>(IRestResponse<T> restResponse);
-
+   
     public class ConnectClient : IConnectClient
     {
         private const int DEFAULT_REQUEST_RETRY_ATTEMPTS = 3;

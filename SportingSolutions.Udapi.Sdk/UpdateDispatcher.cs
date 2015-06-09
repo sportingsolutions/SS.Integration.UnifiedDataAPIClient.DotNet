@@ -90,7 +90,7 @@ namespace SportingSolutions.Udapi.Sdk
                         if (_disconnectRequested)
                         {
                             if (UDAPI.Configuration.VerboseLogging)
-                                _logger.DebugFormat("Going to send disconnection event for consumerId={0}", Consumer.Id);
+                                _logger.DebugFormat("Sending disconnection event for consumerId={0}", Consumer.Id);
 
                             Consumer.OnStreamDisconnected();
                             break;
@@ -107,7 +107,7 @@ namespace SportingSolutions.Udapi.Sdk
                                 if ("CONNECT".Equals(message))
                                 {
                                     if (UDAPI.Configuration.VerboseLogging)
-                                        _logger.DebugFormat("Going to send connection event for consumerId={0}", Consumer.Id);
+                                        _logger.DebugFormat("Sending connection event for consumerId={0}", Consumer.Id);
 
                                     Consumer.OnStreamConnected();
                                 }
@@ -202,7 +202,7 @@ namespace SportingSolutions.Udapi.Sdk
 
                 c.Disconnect();
                 int tmp = Interlocked.Decrement(ref _subscribersCount);
-                _logger.DebugFormat("consumerId={0} removed from the dispatcher, count={1}", subscriber.Consumer.Id, tmp);
+                _logger.InfoFormat("consumerId={0} removed from the dispatcher, count={1}", subscriber.Consumer.Id, tmp);
 
                 _subscribers.TryRemove(subscriber.Consumer.Id, out c);
             }

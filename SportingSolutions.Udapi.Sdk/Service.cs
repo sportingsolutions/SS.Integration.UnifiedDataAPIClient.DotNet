@@ -28,7 +28,7 @@ namespace SportingSolutions.Udapi.Sdk
             : base(restItem, connectClient)
         {
             Logger = LogManager.GetLogger(typeof(Service).ToString());
-            Logger.DebugFormat("Instantiated Service {0}", restItem.Name);
+            Logger.DebugFormat("Instantiated service={0}", restItem.Name);
         }
 
         public string Name
@@ -39,20 +39,20 @@ namespace SportingSolutions.Udapi.Sdk
         public List<IFeature> GetFeatures()
         {
             var loggingStringBuilder = new StringBuilder();
-            loggingStringBuilder.AppendFormat("Get all available features from {0} \r\n", Name);
+            loggingStringBuilder.Append("Get all available features - ");
 
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeatures Http Error", loggingStringBuilder);
-            Logger.Info(loggingStringBuilder);
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeatures Http error", loggingStringBuilder);
+            Logger.Debug(loggingStringBuilder);
             return restItems.Select(restItem => new Feature(restItem, ConnectClient)).Cast<IFeature>().ToList();
         }
 
         public IFeature GetFeature(string name)
         {
             var loggingStringBuilder = new StringBuilder();
-            loggingStringBuilder.AppendFormat("Get {0} from {1} \r\n", name, Name);
+            loggingStringBuilder.AppendFormat("Get feature={0} - ", name);
 
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeature Http Error", loggingStringBuilder);
-            Logger.Info(loggingStringBuilder);
+            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeature Http error", loggingStringBuilder);
+            Logger.Debug(loggingStringBuilder);
             return (from restItem in restItems where restItem.Name == name select new Feature(restItem, ConnectClient)).FirstOrDefault();
         }
     }

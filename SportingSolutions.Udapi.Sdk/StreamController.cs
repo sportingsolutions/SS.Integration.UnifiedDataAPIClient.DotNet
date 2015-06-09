@@ -198,7 +198,7 @@ namespace SportingSolutions.Udapi.Sdk
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error("Unable to connect to streaming server...Retrying", ex);
+                        _logger.Error("Error connecting to the streaming server", ex);
                         Thread.Sleep(100);
                     }
 
@@ -350,14 +350,14 @@ namespace SportingSolutions.Udapi.Sdk
 
         public virtual void Shutdown()
         {
-            _logger.Info("Shutting down StreamController");
+            _logger.Debug("Shutting down StreamController");
             _cancellationTokenSource.Cancel();
 
             Dispatcher.Dispose();
 
             CloseConnection();
 
-            _logger.InfoFormat("StreamController correctly disposed");
+            _logger.Info("StreamController correctly disposed");
         }
 
         public void Dispose()
