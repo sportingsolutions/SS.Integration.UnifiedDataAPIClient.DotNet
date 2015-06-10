@@ -41,9 +41,8 @@ namespace SportingSolutions.Udapi.Sdk
             try
             {
                 Model.BasicConsume(queueName, true, Consumer.Id, this);
-                Dispatcher.AddSubscriber(this);
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 _logger.Error("Error starting stream for consumerId=" + Consumer.Id, e);
                 throw;
@@ -72,6 +71,12 @@ namespace SportingSolutions.Udapi.Sdk
         public IDispatcher Dispatcher { get; private set; }
 
         #region DefaultBasicConsumer
+
+        public override void HandleBasicConsumeOk(string consumerTag)
+        {
+            Dispatcher.AddSubscriber(this);
+            base.HandleBasicConsumeOk(consumerTag);
+        }
 
         public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, byte[] body)
         {

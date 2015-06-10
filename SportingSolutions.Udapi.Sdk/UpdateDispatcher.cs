@@ -170,6 +170,9 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void AddSubscriber(IStreamSubscriber subscriber)
         {
+            if(subscriber == null)
+                return;
+
             int tmp = Interlocked.Increment(ref _subscribersCount);
             var c = new ConsumerQueue(subscriber);
             _subscribers[subscriber.Consumer.Id] = c;
@@ -190,10 +193,16 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void RemoveSubscriber(IStreamSubscriber subscriber)
         {
+            if(subscriber == null)
+                return;
+
             ConsumerQueue c = null;
             _subscribers.TryGetValue(subscriber.Consumer.Id, out c);
             if (c == null)
+            {
+                _logger.WarnFormat("consumerId={0} can't be removed from the dispatcher cause it was not found", subscriber.Consumer.Id);
                 return;
+            }
 
             try
             {
