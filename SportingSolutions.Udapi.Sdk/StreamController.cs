@@ -245,11 +245,20 @@ namespace SportingSolutions.Udapi.Sdk
                 // who establish the connection, one here, and the second time on  
                 // AddConsumeToQueue()
 
-                QueueDetails queue = consumer.GetQueueDetails();
-                if (queue == null || string.IsNullOrEmpty(queue.Name))
+                QueueDetails queue = null;
+                try
                 {
+                    queue = consumer.GetQueueDetails();
+                    if (queue == null || string.IsNullOrEmpty(queue.Name))
+                    {
+                        throw new Exception("queue's name is not valid for consumerId=" + consumer.Id);   
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.Error("Error acquiring queue details for consumerId=" + consumer.Id, e);
                     OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
-                    throw new Exception("queue's name is not valid for consumerId=" + consumer.Id);
+                    throw;
                 }
 
 

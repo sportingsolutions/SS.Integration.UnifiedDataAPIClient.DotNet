@@ -13,6 +13,7 @@
 //limitations under the License.
 
 
+using System;
 using System.Threading;
 using FluentAssertions;
 using Moq;
@@ -60,6 +61,32 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             StreamController.Instance.RemoveConsumer(consumer.Object);
 
             StreamController.Instance.State.ShouldBeEquivalentTo(StreamController.ConnectionState.CONNECTED);
+        }
+
+        [Test]
+        public void HandleFailedConnectionAttemptTest()
+        {
+            Mock<IConsumer> consumer = new Mock<IConsumer>();
+            consumer.Setup(x => x.Id).Returns("testing");
+            consumer.Setup(x => x.GetQueueDetails()).Throws(new Exception("Cannot find queue details"));
+
+            // for this test, we need the real StreamController, not the mocked one
+            StreamController instance = new StreamController(new UpdateDispatcher());
+            instance.State.Should().Be(StreamController.ConnectionState.DISCONNECTED);
+
+            bool exceptionRaised = false;
+            try
+            {
+                instance.AddConsumer(consumer.Object, -1, -1);
+            }
+            catch
+            {
+                exceptionRaised = true;
+            }
+
+            exceptionRaised.Should().BeTrue();
+            instance.State.Should().Be(StreamController.ConnectionState.DISCONNECTED);
+
         }
 
         [Test]

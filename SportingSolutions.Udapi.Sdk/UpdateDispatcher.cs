@@ -134,10 +134,10 @@ namespace SportingSolutions.Udapi.Sdk
                             go = !_updates.IsEmpty || _disconnectRequested;
                             _isProcessing = go;
                         }
-
-                        if(UDAPI.Configuration.VerboseLogging)
-                            _logger.DebugFormat("Quitting dispatching thread for consumerId={0}", Consumer.Id);
                     }
+
+                    if (UDAPI.Configuration.VerboseLogging)
+                        _logger.DebugFormat("Quitting dispatching thread for consumerId={0}", Consumer.Id);
                 });
             }
         }
