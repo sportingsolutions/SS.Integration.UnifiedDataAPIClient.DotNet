@@ -268,6 +268,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
 
             c.Add(message);
+            EchoManager.ProcessEcho(consumerId);
 
             return true;
         }
