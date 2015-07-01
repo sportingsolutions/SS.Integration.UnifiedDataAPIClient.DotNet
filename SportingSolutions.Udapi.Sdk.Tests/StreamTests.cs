@@ -258,5 +258,44 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             
         }
     
+        [Test]
+        public void ProcessPendingUpdatesTest()
+        {
+            int counter = 0;
+            bool multipleThreadsIn = false;
+
+            UpdateDispatcher dispatcher = new UpdateDispatcher();
+
+            var consumer = new Mock<IConsumer>();
+            consumer.Setup(x => x.Id).Returns("ABC");
+            consumer.Setup(x => x.OnStreamEvent(It.IsAny<StreamEventArgs>())).Callback(() => {
+
+                if (!Monitor.TryEnter(this))
+                    multipleThreadsIn = true;
+                else
+                {
+                    counter++;
+                    Thread.Sleep(50);
+                    Monitor.Exit(this);
+                }      
+
+            });
+
+            var subscriber = new Mock<IStreamSubscriber>();
+            subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
+
+            dispatcher.AddSubscriber(subscriber.Object);
+            Thread.Sleep(200);
+
+            for (int i = 0; i < 100; i++)
+            {
+                dispatcher.DispatchMessage("ABC", "message");
+            }
+
+            Thread.Sleep(6000);
+
+            multipleThreadsIn.Should().BeFalse();
+            counter.Should().Be(100);
+        }
     }
 }

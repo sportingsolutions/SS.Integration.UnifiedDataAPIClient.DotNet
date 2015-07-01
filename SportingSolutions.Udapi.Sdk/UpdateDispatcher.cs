@@ -70,6 +70,9 @@ namespace SportingSolutions.Udapi.Sdk
             {
 
                 Task.Factory.StartNew(() => {
+
+                    bool go = true;
+
                     lock (this)
                     {
                         if (_isProcessing)
@@ -80,10 +83,9 @@ namespace SportingSolutions.Udapi.Sdk
                             return;
                         }
 
-                        _isProcessing = true;
+                        _isProcessing = !_updates.IsEmpty || _disconnectRequested;
+                        go = _isProcessing;
                     }
-
-                    bool go = !_updates.IsEmpty || _disconnectRequested;
 
                     while (go)
                     {
@@ -114,14 +116,14 @@ namespace SportingSolutions.Udapi.Sdk
                                 else
                                 {
                                     if (UDAPI.Configuration.VerboseLogging)
-                                        _logger.DebugFormat("Update arrived for consumerId={0}, pending={1}", Consumer.Id, _updates.Count);
+                                        _logger.DebugFormat("Dispatching update for consumerId={0}, pending={1}", Consumer.Id, _updates.Count);
 
                                     Consumer.OnStreamEvent(new StreamEventArgs(message));
                                 }
                             }
                             catch (Exception e)
                             {
-                                _logger.Error("An error occured while pushing update for consumerId=" + Consumer.Id, e);
+                                _logger.Error("Error pushing update for consumerId=" + Consumer.Id, e);
                             }
                         }
                         else

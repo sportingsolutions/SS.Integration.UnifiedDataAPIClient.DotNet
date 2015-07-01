@@ -14,7 +14,7 @@
 
 namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
-    interface IStreamSubscriber
+    public interface IStreamSubscriber
     {
         IConsumer Consumer { get; }
 
