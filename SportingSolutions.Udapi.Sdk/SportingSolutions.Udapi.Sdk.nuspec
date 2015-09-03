@@ -15,7 +15,7 @@
       <dependency id="log4net" version="[2.0.3]" />
       <dependency id="Newtonsoft.Json" version="5.0.6" />
       <dependency id="RabbitMQ.Client" version="3.3.2" />
-      <dependency id="RestSharp" version="[104.3.3]" />
+      <dependency id="RestSharp" version="[105.2.3]" />
     </dependencies>
 	  <tags>SportingSolutions GTP  Connect  SportingSolutionsConnect SDK SportingIndex Sporting Solutions Index UnifiedDataAPI</tags>
   </metadata>
