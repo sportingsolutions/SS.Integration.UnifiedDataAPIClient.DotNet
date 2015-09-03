@@ -55,6 +55,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         private IRestClient CreateClient()
         {
             var restClient = new RestClient();
+            restClient.BaseUrl = _baseUrl;
           
             restClient.ClearHandlers();
             restClient.AddHandler("*", new ConnectConverter(UDAPI.Configuration.ContentType));
@@ -68,8 +69,8 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
         private static IRestRequest CreateRequest(Uri uri, Method method, object body, string contentType, int timeout)
         {
-            IRestRequest request = new RestRequest(uri, method);
-            request.Resource = uri.ToString();
+            IRestRequest request = new RestRequest(uri,method);
+            
             request.Timeout = timeout;
 
             if (body != null)
