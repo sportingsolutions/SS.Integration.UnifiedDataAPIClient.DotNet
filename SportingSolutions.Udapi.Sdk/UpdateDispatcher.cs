@@ -87,6 +87,7 @@ namespace SportingSolutions.Udapi.Sdk
                         go = _isProcessing;
                     }
 
+                    string lastOperation = "";
                     while (go)
                     {
                         if (_disconnectRequested)
@@ -94,6 +95,7 @@ namespace SportingSolutions.Udapi.Sdk
                             if (UDAPI.Configuration.VerboseLogging)
                                 _logger.DebugFormat("Sending disconnection event for consumerId={0}", Consumer.Id);
 
+                            lastOperation = "DISCONNECT";
                             Consumer.OnStreamDisconnected();
                             break;
                         }
@@ -111,6 +113,7 @@ namespace SportingSolutions.Udapi.Sdk
                                     if (UDAPI.Configuration.VerboseLogging)
                                         _logger.DebugFormat("Sending connection event for consumerId={0}", Consumer.Id);
 
+                                    lastOperation = "CONNECT";
                                     Consumer.OnStreamConnected();
                                 }
                                 else
@@ -118,6 +121,7 @@ namespace SportingSolutions.Udapi.Sdk
                                     if (UDAPI.Configuration.VerboseLogging)
                                         _logger.DebugFormat("Dispatching update for consumerId={0}, pending={1}", Consumer.Id, _updates.Count);
 
+                                    lastOperation = "UPDATE";
                                     Consumer.OnStreamEvent(new StreamEventArgs(message));
                                 }
                             }
@@ -129,6 +133,7 @@ namespace SportingSolutions.Udapi.Sdk
                         else
                         {
                             _logger.WarnFormat("Failed to acquire update for consumerId={0}", Consumer.Id);
+                            lastOperation = "";
                         }
 
                         lock (this)
@@ -139,7 +144,7 @@ namespace SportingSolutions.Udapi.Sdk
                     }
 
                     if (UDAPI.Configuration.VerboseLogging)
-                        _logger.DebugFormat("Quitting dispatching thread for consumerId={0}", Consumer.Id);
+                        _logger.DebugFormat("Quitting dispatching thread for consumerId={0} lastOp={1}", Consumer.Id, lastOperation);
                 });
             }
         }

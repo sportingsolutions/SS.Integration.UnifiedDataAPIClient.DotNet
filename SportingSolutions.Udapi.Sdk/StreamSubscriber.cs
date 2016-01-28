@@ -23,9 +23,11 @@ using SportingSolutions.Udapi.Sdk.Interfaces;
 namespace SportingSolutions.Udapi.Sdk
 {
 
-    internal class StreamSubscriber : DefaultBasicConsumer, IStreamSubscriber
+    internal class StreamSubscriber : DefaultBasicConsumer, IStreamSubscriber, IDisposable
     {
         private readonly ILog _logger = LogManager.GetLogger(typeof(StreamSubscriber));
+
+        private bool _isDisposed;
 
         public StreamSubscriber(IModel model, IConsumer consumer, IDispatcher dispatcher)
             : base(model)
@@ -33,8 +35,8 @@ namespace SportingSolutions.Udapi.Sdk
             Consumer = consumer;
             ConsumerTag = consumer.Id;
             Dispatcher = dispatcher;
+            _isDisposed = false;
         }
-
 
         public void StartConsuming(string queueName)
         {
@@ -62,6 +64,13 @@ namespace SportingSolutions.Udapi.Sdk
             finally
             {
                 Dispatcher.RemoveSubscriber(this);
+
+                try
+                {
+                    Dispose();
+                }
+                catch { }
+
                 _logger.DebugFormat("Streaming stopped for consumerId={0}", ConsumerTag);
             }
         }
@@ -95,6 +104,32 @@ namespace SportingSolutions.Udapi.Sdk
         }
 
         #endregion
-        
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if(_isDisposed)
+                return;
+
+            if (disposing)
+            {
+                if (Model != null)
+                {
+                    Model.Dispose();
+                    Model = null;
+                }
+            }
+
+            _isDisposed = true;
+        }
+        #endregion
+
     }
 }

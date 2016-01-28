@@ -152,6 +152,10 @@ namespace SportingSolutions.Udapi.Sdk
                     }
                 }
                 catch { }
+                finally
+                {
+                    _streamConnection = null;
+                }
 
                 OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
             }
@@ -171,7 +175,7 @@ namespace SportingSolutions.Udapi.Sdk
             // _connectionLock must be acquire before calling
             // this method.
 
-            ConnectionState newstate = ConnectionState.DISCONNECTED;
+            var newstate = ConnectionState.DISCONNECTED;
 
             try
             {
@@ -232,6 +236,7 @@ namespace SportingSolutions.Udapi.Sdk
                         return;
 
                     State = ConnectionState.CONNECTING;
+
                 }
 
 
@@ -322,7 +327,7 @@ namespace SportingSolutions.Udapi.Sdk
         protected virtual void AddConsumerToQueue(IConsumer consumer)
         {
 
-            QueueDetails queue = consumer.GetQueueDetails();
+            var queue = consumer.GetQueueDetails();
             if (queue == null || string.IsNullOrEmpty(queue.Name))
                 throw new Exception("Invalid queue details");
 
@@ -330,9 +335,21 @@ namespace SportingSolutions.Udapi.Sdk
             if(!CanPerformChannelOperations)
                 throw new InvalidOperationException("Cannot accept new consumers at the moment");
 
-            var model = _streamConnection.CreateModel();    
-            var subscriber = new StreamSubscriber(model, consumer, Dispatcher);
-            subscriber.StartConsuming(queue.Name);
+            var model = _streamConnection.CreateModel();
+            StreamSubscriber subscriber = null;
+
+            try
+            {                 
+                subscriber = new StreamSubscriber(model, consumer, Dispatcher);
+                subscriber.StartConsuming(queue.Name);
+            }
+            catch
+            {
+                if (subscriber != null)
+                    subscriber.Dispose();
+
+                throw;
+            }
         }
            
         public void RemoveConsumer(IConsumer consumer)
