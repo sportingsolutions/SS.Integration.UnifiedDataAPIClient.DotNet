@@ -13,8 +13,8 @@
     <copyright>Copyright (c) SPIN Services Ltd. 2015</copyright>
     <dependencies>
       <dependency id="log4net" version="[2.0.3]" />
-      <dependency id="Newtonsoft.Json" version="5.0.6" />
-      <dependency id="RabbitMQ.Client" version="3.3.2" />
+      <dependency id="Newtonsoft.Json" version="6.0.5" />
+      <dependency id="RabbitMQ.Client" version="3.3.5" />
       <dependency id="RestSharp" version="[105.2.3]" />
     </dependencies>
 	  <tags>SportingSolutions GTP  Connect  SportingSolutionsConnect SDK SportingIndex Sporting Solutions Index UnifiedDataAPI</tags>
