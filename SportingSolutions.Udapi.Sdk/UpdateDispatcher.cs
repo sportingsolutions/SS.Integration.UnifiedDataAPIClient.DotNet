@@ -215,7 +215,6 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 // it is important to first send the disconnect event, 
                 // and only then, remove the item from the list
-
                 c.Disconnect();
                 int tmp = Interlocked.Decrement(ref _subscribersCount);
                 _logger.InfoFormat("consumerId={0} removed from the dispatcher, count={1}", subscriber.Consumer.Id, tmp);
@@ -270,7 +269,8 @@ namespace SportingSolutions.Udapi.Sdk
             ConsumerQueue c = null;
             if (!_subscribers.TryGetValue(consumerId, out c) || c == null)
             {
-                _logger.WarnFormat("Update not dispatched to consumerId={0} as it was not found", consumerId);
+                
+                _logger.WarnFormat("Update not dispatched to consumerId={0} as it was not found.", consumerId);
                 return false;
             }
 

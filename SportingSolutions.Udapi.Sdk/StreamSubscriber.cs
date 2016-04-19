@@ -92,7 +92,11 @@ namespace SportingSolutions.Udapi.Sdk
             if(!IsRunning)
                 return;
 
-            Dispatcher.DispatchMessage(consumerTag, Encoding.UTF8.GetString(body));
+            var success = 
+                Dispatcher.DispatchMessage(consumerTag, Encoding.UTF8.GetString(body));
+
+            if(!success)
+                StopConsuming();
         }
 
         public override void HandleModelShutdown(IModel model, ShutdownEventArgs reason)
