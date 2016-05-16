@@ -30,18 +30,18 @@ namespace SportingSolutions.Udapi.Sdk
             _sessions = new ConcurrentDictionary<string, ISession>();
         }
 
-        public static ISession CreateSession(Uri serverUri, ICredentials credentials)
+        public static ISession CreateSession(Uri serverUri, ICredentials credentials, bool controlLogic)
         {
-            return _sessionFactory.GetSession(serverUri, credentials);
+            return _sessionFactory.GetSession(serverUri, credentials, controlLogic);
         }
 
-        private ISession GetSession(Uri serverUri, ICredentials credentials)
+        private ISession GetSession(Uri serverUri, ICredentials credentials, bool controlLogic)
         {
             ISession session = null;
             _sessions.TryGetValue(serverUri + credentials.UserName, out session);
             if (session == null)
             {
-                var connectClient = new ConnectClient(serverUri, new Clients.Credentials(credentials.UserName, credentials.Password));
+                var connectClient = new ConnectClient(serverUri, new Clients.Credentials(credentials.UserName, credentials.Password), controlLogic);
                 session = new Session(connectClient);
                 _sessions.TryAdd(serverUri + credentials.UserName, session);
             }

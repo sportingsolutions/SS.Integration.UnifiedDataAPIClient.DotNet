@@ -32,6 +32,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
         private readonly Uri _baseUrl;
         private readonly ICredentials _credentials;
+        private readonly bool _controlLogic;
 
         private Parameter _xAuthTokenParameter;
 
@@ -41,12 +42,13 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
         private readonly ILog Logger;
 
-        public ConnectClient(Uri baseUrl, ICredentials credentials)
+        public ConnectClient(Uri baseUrl, ICredentials credentials, bool controlLogic)
         {
             if (baseUrl == null) throw new ArgumentNullException("baseUrl");
             if (credentials == null) throw new ArgumentNullException("credentials");
 
             _credentials = credentials;
+            _controlLogic = controlLogic;
             _baseUrl = baseUrl;
 
             Logger = LogManager.GetLogger(typeof(ConnectClient).ToString());
@@ -67,7 +69,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             return restClient;
         }
 
-        private static IRestRequest CreateRequest(Uri uri, Method method, object body, string contentType, int timeout)
+        private IRestRequest CreateRequest(Uri uri, Method method, object body, string contentType, int timeout)
         {
             IRestRequest request = new RestRequest(uri,method);
             
@@ -79,6 +81,9 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                 request.JsonSerializer = new ConnectConverter(contentType);
                 request.AddBody(body);
             }
+
+            if(_controlLogic)
+                request.AddHeader("ControlLogic", "...");
 
             return request;
         }
