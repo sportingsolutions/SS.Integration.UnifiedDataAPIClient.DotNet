@@ -44,7 +44,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
                         if (_theSession == null)
                         {
                             _logger.Info("Connecting to UDAPI....");
-                            _theSession = SessionFactory.CreateSession(_url, _credentials, false);
+                            _theSession = SessionFactory.CreateSession(_url, _credentials);
                             _logger.Info("Successfully connected to UDAPI.");
                         }
                     }
