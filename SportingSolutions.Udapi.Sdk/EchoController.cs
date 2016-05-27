@@ -45,7 +45,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             if(Enabled)
             {
-                _echoSender = Task.Factory.StartNew(CheckEchos, _cancellationTokenSource.Token);
+                _echoSender = Task.Factory.StartNew(CheckEchos, _cancellationTokenSource.Token).ContinueWith(task => {_logger.Warn("Echo Thread has stopped"); });
             }
 
             _logger.DebugFormat("EchoSender is {0}", Enabled ? "enabled" : "disabled");
@@ -99,52 +99,65 @@ namespace SportingSolutions.Udapi.Sdk
 
         private void CheckEchos()
         {
-            _logger.Debug("Starting EchoTask");
-
-            List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
-
-            // acquiring the consumer here prevents to put another lock on the
-            // dictionary
-            IStreamSubscriber sendEchoConsumer = null;
-
-            while(!_cancellationTokenSource.IsCancellationRequested)
+            try
             {
-                foreach(var consumer in _consumers)
+                _logger.Debug("Starting EchoTask");
+
+                List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
+
+                // acquiring the consumer here prevents to put another lock on the
+                // dictionary
+                IStreamSubscriber sendEchoConsumer = null;
+
+                while (!_cancellationTokenSource.IsCancellationRequested)
                 {
-                    if(sendEchoConsumer == null)
-                        sendEchoConsumer = consumer.Value.Subscriber;
-
-                    int tmp = consumer.Value.EchosCountDown;
-                    consumer.Value.EchosCountDown--;
-
-                    if(tmp != UDAPI.Configuration.MissedEchos)
+                    try
                     {
-                        _logger.WarnFormat("consumerId={0} missed count={1} echos", consumer.Key, UDAPI.Configuration.MissedEchos - tmp);
-
-                        if (tmp <= 1)
+                        foreach (var consumer in _consumers)
                         {
-                            _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected", consumer.Key, UDAPI.Configuration.MissedEchos);
-                            invalidConsumers.Add(consumer.Value.Subscriber);
+                            if (sendEchoConsumer == null)
+                                sendEchoConsumer = consumer.Value.Subscriber;
 
-                            if (sendEchoConsumer == consumer.Value.Subscriber)
-                                sendEchoConsumer = null;
+                            int tmp = consumer.Value.EchosCountDown;
+                            consumer.Value.EchosCountDown--;
+
+                            if (tmp != UDAPI.Configuration.MissedEchos)
+                            {
+                                _logger.WarnFormat("consumerId={0} missed count={1} echos", consumer.Key, UDAPI.Configuration.MissedEchos - tmp);
+
+                                if (tmp <= 1)
+                                {
+                                    _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected", consumer.Key, UDAPI.Configuration.MissedEchos);
+                                    invalidConsumers.Add(consumer.Value.Subscriber);
+
+                                    if (sendEchoConsumer == consumer.Value.Subscriber)
+                                        sendEchoConsumer = null;
+                                }
+                            }
                         }
+
+                        // this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
+                        // for the invalid consumers
+                        RemoveSubribers(invalidConsumers);
+
+                        invalidConsumers.Clear();
+
+                        SendEchos(sendEchoConsumer);
+
+                        _cancellationTokenSource.Token.WaitHandle.WaitOne(UDAPI.Configuration.EchoWaitInterval);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error("Check Echos loop has experienced a failure", ex);
                     }
                 }
 
-
-                // this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
-                // for the invalid consumers
-                RemoveSubribers(invalidConsumers);
-
-                invalidConsumers.Clear();
-
-                SendEchos(sendEchoConsumer);
-
-                _cancellationTokenSource.Token.WaitHandle.WaitOne(UDAPI.Configuration.EchoWaitInterval);
+                _logger.Debug("EchoTask terminated");
             }
-
-            _logger.Debug("EchoTask terminated");
+            catch (Exception ex)
+            {
+                _logger.Error("Check Echos has experienced a failure", ex);
+            }
         }
       
         private static void RemoveSubribers(IEnumerable<IStreamSubscriber> subscribers)
@@ -158,8 +171,11 @@ namespace SportingSolutions.Udapi.Sdk
         private void SendEchos(IStreamSubscriber item)
         {
             if (item == null)
+            {
+                _logger.Warn("Unable to send echo due to null stream subscriber");
                 return;
-
+            }
+                
             try
             {
                 item.Consumer.SendEcho();
