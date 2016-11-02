@@ -43,10 +43,10 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             _logger.Debug("UDAPI, Getting Service");
             var realService = Session.GetService("UnifiedDataAPI");
             _logger.Debug("UDAPI, Retrieved Service");
-            _logger.DebugFormat("UDAPI, Getting Feature {0}",_featureName);
+            _logger.DebugFormat("UDAPI, Getting Feature {0}", _featureName);
             var realFeature = realService.GetFeature(_featureName);
-            _logger.DebugFormat("UDAPI, Retrieved Feature {0}",_featureName);
-            _logger.DebugFormat("UDAPI, Getting Resource {0}",_resourceName);
+            _logger.DebugFormat("UDAPI, Retrieved Feature {0}", _featureName);
+            _logger.DebugFormat("UDAPI, Getting Resource {0}", _resourceName);
             _theRealObject = realFeature.GetResource(_resourceName);
             _logger.DebugFormat("UDAPI, Retrieved Resource {0}", _resourceName);
         }
@@ -56,12 +56,12 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             try
             {
                 var snapshot = ReconnectOnException(x => x.GetSnapshot(), _theRealObject);
-                _logger.DebugFormat("Snapshot - {0}",snapshot);
+                _logger.DebugFormat("Snapshot - {0}", _theRealObject);
                 return snapshot;
             }
             catch (Exception)
             {
-                _simpleLogger.ErrorFormat("{0} : {1} - Unable to retrieve Snapshot from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.",_featureName, _resourceName);
+                _simpleLogger.ErrorFormat("{0} : {1} - Unable to retrieve Snapshot from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName, _resourceName);
                 throw;
             }
         }
@@ -94,7 +94,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
 
         public void PauseStreaming()
         {
-           //do nothing this method is deprectaed
+            //do nothing this method is deprectaed
         }
 
         public void UnPauseStreaming()
@@ -125,23 +125,31 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             get { return ReconnectOnException(x => x.Name, _theRealObject); }
         }
 
+        public bool IsDisposed
+        {
+            get
+            {
+                return ReconnectOnException(x => x.IsDisposed, _theRealObject);
+            }
+        }
+
         public Summary Content
         {
             get { return ReconnectOnException(x => x.Content, _theRealObject); }
         }
-    
+
         public event EventHandler StreamConnected
         {
             add
             {
-                if(_theRealObject != null)
+                if (_theRealObject != null)
                 {
                     _theRealObject.StreamConnected += value;
                 }
             }
             remove
             {
-                if(_theRealObject != null)
+                if (_theRealObject != null)
                 {
                     _theRealObject.StreamConnected -= value;
                 }
@@ -152,14 +160,14 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
         {
             add
             {
-                if(_theRealObject != null)
+                if (_theRealObject != null)
                 {
                     _theRealObject.StreamDisconnected += value;
                 }
             }
             remove
             {
-                if(_theRealObject != null)
+                if (_theRealObject != null)
                 {
                     _theRealObject.StreamDisconnected -= value;
                 }

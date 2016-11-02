@@ -89,23 +89,32 @@ namespace SportingSolutions.Udapi.Sdk
 
         public override void HandleBasicDeliver(string consumerTag, ulong deliveryTag, bool redelivered, string exchange, string routingKey, IBasicProperties properties, byte[] body)
         {
-            if(!IsRunning)
+            if (!IsRunning)
                 return;
 
-            var success = 
+            var success =
                 Dispatcher.DispatchMessage(consumerTag, Encoding.UTF8.GetString(body));
 
-            if(!success)
+            if (!success)
                 StopConsuming();
         }
 
-        public override void HandleModelShutdown(IModel model, ShutdownEventArgs reason)
+        public override void HandleBasicCancel(string consumerTag)
         {
-            _logger.WarnFormat("Model shutdown for consumerId={0} - disconnection event will be raised", ConsumerTag);
-
-            base.HandleModelShutdown(model, reason);
+            base.HandleBasicCancel(consumerTag);
             Dispatcher.RemoveSubscriber(this);
         }
+
+        public override void HandleModelShutdown(object model, ShutdownEventArgs reason)
+        {
+            //Please note the disconnection is only raised if AutoReconnect is not enabled
+            _logger.WarnFormat("Model shutdown for consumerId={0} - disconnection event might be raised. Autoreconnect is enabled={1}", ConsumerTag,UDAPI.Configuration.AutoReconnect);
+            base.HandleModelShutdown(model, reason);
+
+            //if (!UDAPI.Configuration.AutoReconnect)
+            //    Dispatcher.RemoveSubscriber(this);
+        }
+
 
         #endregion
 
@@ -119,7 +128,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         protected virtual void Dispose(bool disposing)
         {
-            if(_isDisposed)
+            if (_isDisposed)
                 return;
 
             if (disposing)

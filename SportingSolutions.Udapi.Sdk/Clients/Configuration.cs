@@ -13,6 +13,8 @@
 //limitations under the License.
 
 
+using System;
+
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
     public class Configuration : IConfiguration
@@ -25,6 +27,8 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         private const int DEFAULT_MISSED_ECHOS = 3;
         private const bool DEFAULT_VERBOSE_LOGGING = true;
         private const ushort DEFAULT_AMQP_HEARTBEAT = 15;
+        private bool DEFAULT_ENABLE_AUTO_RECONNECT = true;
+        private int DEFAULT_DISCONNECTION_DELAY = 15;
 
         static Configuration()
         {
@@ -41,6 +45,8 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             EchoWaitInterval = DEFAULT_WAIT_INTERVAL_ECHOS_MILLISECONDS;
             VerboseLogging = DEFAULT_VERBOSE_LOGGING;
             AMQPMissedHeartbeat = DEFAULT_AMQP_HEARTBEAT;
+            AutoReconnect = DEFAULT_ENABLE_AUTO_RECONNECT;
+            DisconnectionDelay = DEFAULT_DISCONNECTION_DELAY;
         }
 
         public static IConfiguration Instance { get; private set; }
@@ -60,5 +66,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         public bool VerboseLogging { get; set; }
 
         public ushort AMQPMissedHeartbeat { get; set; }
+        public bool AutoReconnect { get; set; }
+        public int DisconnectionDelay { get; set; }
     }
 }

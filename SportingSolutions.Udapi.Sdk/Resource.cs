@@ -68,6 +68,8 @@ namespace SportingSolutions.Udapi.Sdk
             get { return State.Content; }
         }
 
+        public bool IsDisposed { get; internal set; }
+
         public string GetSnapshot()
         {
             var loggingStringBuilder = new StringBuilder();
@@ -114,8 +116,9 @@ namespace SportingSolutions.Udapi.Sdk
         public void Dispose()
         {            
             StopStreaming();
+            IsDisposed = true;
         }
-
+        
         #endregion
 
         #region IConsumer Members

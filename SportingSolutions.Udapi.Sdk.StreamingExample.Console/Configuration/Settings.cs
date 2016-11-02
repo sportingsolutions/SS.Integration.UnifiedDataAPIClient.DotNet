@@ -30,6 +30,12 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Configuration
 
             value = ConfigurationManager.AppSettings["echoMaxDelay"];
             EchoMaxDelay = value == "" ? 3000 : Convert.ToInt32(value);
+
+            value = ConfigurationManager.AppSettings["autoReconnect"];
+            AutoReconnect = Convert.ToBoolean(value);
+
+            value = ConfigurationManager.AppSettings["disconnectionDelayInSecs"];
+            DisconnectionDelayInSecs = value == "" ? 10 : Convert.ToInt32(value);
         }
 
         public string User { get; private set; }
@@ -41,5 +47,8 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Configuration
         public int MaxRetryAttempts { get; private set; }
         public int EchoInterval { get; private set; }
         public int EchoMaxDelay { get; private set; }
+        public int DisconnectionDelayInSecs { get; }
+
+        public bool AutoReconnect { get; private set; }
     }
 }

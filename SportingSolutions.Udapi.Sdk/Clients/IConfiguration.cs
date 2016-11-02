@@ -12,6 +12,8 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+using System;
+
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
     public interface IConfiguration
@@ -54,5 +56,12 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
 
         ushort AMQPMissedHeartbeat { get; }
+
+        /// <summary>
+        /// Enables auto reconnection on RabbitMQ.Client
+        /// </summary>
+        bool AutoReconnect { get;  }
+
+        int DisconnectionDelay { get; }
     }
 }
