@@ -31,6 +31,11 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         string Name { get; }
 
         /// <summary>
+        /// This is set once the clean up is completed
+        /// </summary>
+        bool IsDisposed { get; }
+
+        /// <summary>
         ///     Returns the resource's summary
         /// </summary>
         Summary Content { get; }

@@ -14,6 +14,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using RabbitMQ.Client;
 using log4net;
 using SportingSolutions.Udapi.Sdk.Interfaces;
@@ -57,7 +58,7 @@ namespace SportingSolutions.Udapi.Sdk
             CONNECTING = 1,
             CONNECTED = 2
         }
-
+        
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamController));
         private static readonly TimeSpan _lockingTimeout = TimeSpan.FromSeconds(3);
 
@@ -67,26 +68,34 @@ namespace SportingSolutions.Udapi.Sdk
         private bool _canPerformChannelOperations;
 
         private readonly CancellationTokenSource _cancellationTokenSource;
-        
+
         private IConnection _streamConnection;
         private volatile ConnectionState _state;
 
+
         internal StreamController(IDispatcher dispatcher)
         {
-            if(dispatcher == null)
+            if (dispatcher == null)
                 throw new ArgumentNullException("dispatcher");
 
             Dispatcher = dispatcher;
             _cancellationTokenSource = new CancellationTokenSource();
             _canPerformChannelOperations = true;
             State = ConnectionState.DISCONNECTED;
+            AutoReconnect = UDAPI.Configuration.AutoReconnect;
 
             _logger.DebugFormat("StreamController initialised");
         }
 
+
+
         private StreamController()
             : this(new UpdateDispatcher()) { }
 
+        /// <summary>
+        /// Is AutoReconnect enabled
+        /// </summary>
+        public bool AutoReconnect { get; private set; }
 
         public static StreamController Instance { get; internal set; }
 
@@ -98,17 +107,17 @@ namespace SportingSolutions.Udapi.Sdk
         /// </summary>
         internal IDispatcher Dispatcher { get; private set; }
 
-        internal ConnectionState State 
-        { 
-            get 
-            { 
+        internal ConnectionState State
+        {
+            get
+            {
                 // as it is volatile, reading this property is thread-safe
-                return _state; 
-            } 
-            private set 
-            { 
-                _state = value; 
-            } 
+                return _state;
+            }
+            private set
+            {
+                _state = value;
+            }
         }
 
         internal bool CanPerformChannelOperations
@@ -196,7 +205,7 @@ namespace SportingSolutions.Udapi.Sdk
 
                         newstate = ConnectionState.CONNECTED;
                         result = true;
-                        
+
                         CanPerformChannelOperations = true;
 
                     }
@@ -229,7 +238,7 @@ namespace SportingSolutions.Udapi.Sdk
                     while (State == ConnectionState.CONNECTING)
                     {
                         // wait until the connection is established
-                        Monitor.Wait(_connectionLock); 
+                        Monitor.Wait(_connectionLock);
                     }
 
                     if (State == ConnectionState.CONNECTED || _cancellationTokenSource.IsCancellationRequested)
@@ -256,7 +265,7 @@ namespace SportingSolutions.Udapi.Sdk
                     queue = consumer.GetQueueDetails();
                     if (queue == null || string.IsNullOrEmpty(queue.Name))
                     {
-                        throw new Exception("queue's name is not valid for consumerId=" + consumer.Id);   
+                        throw new Exception("queue's name is not valid for consumerId=" + consumer.Id);
                     }
                 }
                 catch (Exception e)
@@ -265,27 +274,73 @@ namespace SportingSolutions.Udapi.Sdk
                     OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
                     throw;
                 }
-
-
-                var factory = new ConnectionFactory {
+                
+                var factory = new ConnectionFactory
+                {
                     RequestedHeartbeat = UDAPI.Configuration.AMQPMissedHeartbeat,
                     HostName = queue.Host,
+                    AutomaticRecoveryEnabled = UDAPI.Configuration.AutoReconnect,
                     Port = queue.Port,
                     UserName = queue.UserName,
                     Password = queue.Password,
                     VirtualHost = "/" + queue.VirtualHost // this is not used anymore, we keep it for retro-compatibility
                 };
-
+                
                 EstablishConnection(factory);
-            }            
+            }
         }
 
         protected virtual void OnConnectionShutdown(object sender, ShutdownEventArgs sea)
-        {            
-            _logger.Error("The AMQP connection was shutdown: " + sea);
-            CloseConnection();
+        {
+            _logger.ErrorFormat("The AMQP connection was shutdown: {0}. AutoReconnect is enabled={1}", sea, AutoReconnect);
+
+            if (!AutoReconnect)
+            {
+                CloseConnection();
+            }
+            else
+            {
+                ValidateConnection();
+            }
         }
 
+        public void ValidateConnection()
+        {
+            //if autoreconnect is enabled and connection is closed we should proceed with the wait otherwise the connection is valid
+            if (!AutoReconnect || _streamConnection.IsOpen)
+            {
+                CloseConnection();
+            }
+
+            //validate in the background whether the reconnection was successful 
+            Task.Run(() =>
+            {
+                _logger.InfoFormat("Starting validation for reconnection connHash={0}",_streamConnection.GetHashCode());
+                Task.Delay(TimeSpan.FromSeconds(UDAPI.Configuration.DisconnectionDelay)).Wait();
+
+                //avoid closure gotcha
+                var testConnection = _streamConnection;
+
+                if (testConnection == null)
+                {
+                    _logger.WarnFormat("Reconnection failed, connection has been disposed, the disconnection event needs to be raised");
+                    return;
+                }
+
+                _logger.InfoFormat("Veryfing that connection is open open={0}", testConnection.IsOpen);
+
+                if (testConnection.IsOpen)
+                { 
+                    _logger.InfoFormat("Reconnecction successful, disconnection event will not be raised");
+                }
+                else
+                {
+                    CloseConnection();
+                }
+            });
+
+            
+        }
         protected virtual void OnConnectionStatusChanged(ConnectionState newState)
         {
             // wake up any sleeping threads
@@ -302,7 +357,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void AddConsumer(IConsumer consumer, int echoInterval, int echoMaxDelay)
         {
-            if(consumer == null)
+            if (consumer == null)
                 throw new ArgumentNullException("consumer");
 
             // Note that between Connect() and AddConsumerToQueue()
@@ -318,10 +373,10 @@ namespace SportingSolutions.Udapi.Sdk
             if (State != ConnectionState.CONNECTED)
                 throw new Exception("Connection is not open - cannot register consumerId=" + consumer.Id);
 
-            if(Dispatcher.HasSubscriber(consumer.Id))
+            if (Dispatcher.HasSubscriber(consumer.Id))
                 throw new InvalidOperationException("consumerId=" + consumer.Id + " cannot be registred twice");
 
-            AddConsumerToQueue(consumer);            
+            AddConsumerToQueue(consumer);
         }
 
         protected virtual void AddConsumerToQueue(IConsumer consumer)
@@ -332,14 +387,14 @@ namespace SportingSolutions.Udapi.Sdk
                 throw new Exception("Invalid queue details");
 
 
-            if(!CanPerformChannelOperations)
+            if (!CanPerformChannelOperations)
                 throw new InvalidOperationException("Cannot accept new consumers at the moment");
 
             var model = _streamConnection.CreateModel();
             StreamSubscriber subscriber = null;
 
             try
-            {                 
+            {
                 subscriber = new StreamSubscriber(model, consumer, Dispatcher);
                 subscriber.StartConsuming(queue.Name);
             }
@@ -351,22 +406,22 @@ namespace SportingSolutions.Udapi.Sdk
                 throw;
             }
         }
-           
+
         public void RemoveConsumer(IConsumer consumer)
         {
-            if(consumer == null)
+            if (consumer == null)
                 throw new ArgumentNullException("consumer");
 
             RemoveConsumerFromQueue(consumer);
         }
-        
+
         protected virtual void RemoveConsumerFromQueue(IConsumer consumer)
         {
-            if(!CanPerformChannelOperations)
+            if (!CanPerformChannelOperations)
                 return;
 
             var sub = Dispatcher.GetSubscriber(consumer.Id);
-            if(sub != null)
+            if (sub != null)
                 sub.StopConsuming();
         }
 
