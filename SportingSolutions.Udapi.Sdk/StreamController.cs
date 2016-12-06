@@ -330,8 +330,11 @@ namespace SportingSolutions.Udapi.Sdk
                 _logger.InfoFormat("Veryfing that connection is open open={0}", testConnection.IsOpen);
 
                 if (testConnection.IsOpen)
-                { 
+                {
+                    (Dispatcher as UpdateDispatcher).EchoManager.ResetAll();
                     _logger.InfoFormat("Reconnection successful, disconnection event will not be raised");
+                    
+                    
                 }
                 else
                 {
