@@ -20,9 +20,9 @@ using SportingSolutions.Udapi.Sdk.Model.Message;
 
 namespace SportingSolutions.Udapi.Sdk.Tests
 {
-    internal class MockedStreamSubscriber : TestKit, IStreamSubscriber
+    internal class MockedStreamSubscriberOLD : TestKit, IStreamSubscriber
     {
-        public MockedStreamSubscriber(IConsumer consumer, IActorRef dispatcher)
+        public MockedStreamSubscriberOLD(IConsumer consumer, IDispatcher dispatcher)
         {
             Consumer = consumer;
             Dispatcher = dispatcher;
@@ -32,17 +32,17 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         public IConsumer Consumer { get; set; }
 
-        public IActorRef Dispatcher { get; set; }
+        public IDispatcher Dispatcher { get; set; }
 
         public void StopConsuming()
         {
-            Dispatcher.Tell(new RemoveSubscriberMessage() { Subscriber = this });
+            Sys.ActorSelection(SdkActorSystem.UpdateDispatcherPath).Tell(new RemoveSubscriberMessage() { Subscriber = this });
 
         }
 
         public void StartConsuming(string queueName)
         {
-            Dispatcher.Tell(new NewSubscriberMessage() { Subscriber = this });
+            Sys.ActorSelection(SdkActorSystem.UpdateDispatcherPath).Tell(new NewSubscriberMessage() { Subscriber = this });
         }
 
         #endregion

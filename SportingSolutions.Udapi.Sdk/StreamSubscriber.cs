@@ -15,9 +15,11 @@
 
 using System;
 using System.Text;
+using Akka.Actor;
 using log4net;
 using RabbitMQ.Client;
 using SportingSolutions.Udapi.Sdk.Interfaces;
+using SportingSolutions.Udapi.Sdk.Model.Message;
 
 
 namespace SportingSolutions.Udapi.Sdk
@@ -29,7 +31,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         private bool _isDisposed;
 
-        public StreamSubscriber(IModel model, IConsumer consumer, IDispatcher dispatcher)
+        public StreamSubscriber(IModel model, IConsumer consumer, IActorRef dispatcher)
             : base(model)
         {
             Consumer = consumer;
@@ -63,8 +65,8 @@ namespace SportingSolutions.Udapi.Sdk
             }
             finally
             {
-                Dispatcher.RemoveSubscriber(this);
-
+                Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this});
+                
                 try
                 {
                     Dispose();
@@ -77,13 +79,14 @@ namespace SportingSolutions.Udapi.Sdk
 
         public IConsumer Consumer { get; private set; }
 
-        public IDispatcher Dispatcher { get; private set; }
+        public IActorRef Dispatcher { get; private set; }
 
         #region DefaultBasicConsumer
 
         public override void HandleBasicConsumeOk(string consumerTag)
         {
-            Dispatcher.AddSubscriber(this);
+            Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
+            
             base.HandleBasicConsumeOk(consumerTag);
         }
 
@@ -92,9 +95,11 @@ namespace SportingSolutions.Udapi.Sdk
             if (!IsRunning)
                 return;
 
-            var success =
-                Dispatcher.DispatchMessage(consumerTag, Encoding.UTF8.GetString(body));
+            //TODO FIX THIS!
+            var success = true; //Dispatcher.DispatchMessage(consumerTag, Encoding.UTF8.GetString(body));
 
+            Dispatcher.Tell(new StreamUpdateMessage() {Id = consumerTag, Message = Encoding.UTF8.GetString(body)});
+                
             if (!success)
                 StopConsuming();
         }
@@ -102,7 +107,7 @@ namespace SportingSolutions.Udapi.Sdk
         public override void HandleBasicCancel(string consumerTag)
         {
             base.HandleBasicCancel(consumerTag);
-            Dispatcher.RemoveSubscriber(this);
+            Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
         }
 
         public override void HandleModelShutdown(object model, ShutdownEventArgs reason)

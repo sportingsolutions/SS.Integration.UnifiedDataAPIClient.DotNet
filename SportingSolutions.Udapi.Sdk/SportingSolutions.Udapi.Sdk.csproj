@@ -74,12 +74,16 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Akka, Version=1.1.3.31, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Akka.1.1.3\lib\net45\Akka.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="log4net, Version=1.2.13.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.6.0.5\lib\net40\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="RabbitMQ.Client, Version=3.6.5.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
@@ -91,6 +95,10 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Collections.Immutable, Version=1.1.36.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Collections.Immutable.1.1.36\lib\portable-net45+win8+wp8+wpa81\System.Collections.Immutable.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq" />
@@ -100,6 +108,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Actors\EchoControllerActor.cs" />
+    <Compile Include="Model\Message\DisposeMessage.cs" />
+    <Compile Include="Model\Message\NotFoundMessage.cs" />
+    <Compile Include="Model\Message\RemoveSubscriberMessage.cs" />
+    <Compile Include="Model\Message\NewSubscriberMessage.cs" />
+    <Compile Include="Model\Message\RemoveConsumerMessage.cs" />
+    <Compile Include="Model\Message\ConnectStreamMessage.cs" />
+    <Compile Include="Model\Message\NewConsumerMessage.cs" />
+    <Compile Include="Actors\ResourceActor.cs" />
+    <Compile Include="Model\Message\ResetAllMessage.cs" />
+    <Compile Include="Model\Message\StopStreamingMessage.cs" />
+    <Compile Include="Actors\StreamControllerActor.cs" />
     <Compile Include="Clients\Configuration.cs" />
     <Compile Include="Clients\ConnectClient.cs" />
     <Compile Include="Clients\ConnectConverter.cs" />
@@ -108,6 +128,8 @@
     <Compile Include="Clients\IConnectClient.cs" />
     <Compile Include="Clients\ICredentials.cs" />
     <Compile Include="Clients\RestErrorHelper.cs" />
+    <Compile Include="Model\Message\DisconnectMessage.cs" />
+    <Compile Include="Model\Message\ConnectMessage.cs" />
     <Compile Include="Credentials.cs" />
     <Compile Include="EchoController.cs" />
     <Compile Include="Extensions\JsonHelper.cs" />
@@ -116,6 +138,7 @@
     <Compile Include="Interfaces\IConsumer.cs" />
     <Compile Include="Interfaces\IStreamStatistics.cs" />
     <Compile Include="Interfaces\IStreamSubscriber.cs" />
+    <Compile Include="Model\Message\EchoMessage.cs" />
     <Compile Include="QueueDetails.cs" />
     <Compile Include="StreamController.cs" />
     <Compile Include="Endpoint.cs" />
@@ -138,8 +161,11 @@
     <Compile Include="SessionFactory.cs" />
     <Compile Include="Model\Summary.cs" />
     <Compile Include="StreamSubscriber.cs" />
+    <Compile Include="Model\Message\StreamUpdateMessage.cs" />
+    <Compile Include="SdkActorSystem.cs" />
     <Compile Include="UDAPI.cs" />
     <Compile Include="UpdateDispatcher.cs" />
+    <Compile Include="Actors\UpdateDispatcherActor.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config">
