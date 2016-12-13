@@ -58,7 +58,7 @@ namespace SportingSolutions.Udapi.Sdk
             CONNECTING = 1,
             CONNECTED = 2
         }
-        
+
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamController));
         private static readonly TimeSpan _lockingTimeout = TimeSpan.FromSeconds(3);
 
@@ -274,7 +274,7 @@ namespace SportingSolutions.Udapi.Sdk
                     OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
                     throw;
                 }
-                
+
                 var factory = new ConnectionFactory
                 {
                     RequestedHeartbeat = UDAPI.Configuration.AMQPMissedHeartbeat,
@@ -285,7 +285,7 @@ namespace SportingSolutions.Udapi.Sdk
                     Password = queue.Password,
                     VirtualHost = "/" + queue.VirtualHost // this is not used anymore, we keep it for retro-compatibility
                 };
-                
+
                 EstablishConnection(factory);
             }
         }
@@ -315,7 +315,17 @@ namespace SportingSolutions.Udapi.Sdk
             //validate in the background whether the reconnection was successful 
             Task.Run(() =>
             {
-                _logger.InfoFormat("Starting validation for reconnection connHash={0}",_streamConnection.GetHashCode());
+                //reconnection might be in progress but can't access the object yet
+                if (_streamConnection != null)
+                {
+                    _logger.InfoFormat("Starting validation for reconnection connHash={0}",
+                        _streamConnection.GetHashCode());
+                }
+                else
+                {
+                    _logger.InfoFormat("Starting validation for reconnection, conn is null");
+                }
+
                 Task.Delay(TimeSpan.FromSeconds(UDAPI.Configuration.DisconnectionDelay)).Wait();
 
                 //avoid closure gotcha
@@ -330,7 +340,7 @@ namespace SportingSolutions.Udapi.Sdk
                 _logger.InfoFormat("Veryfing that connection is open open={0}", testConnection.IsOpen);
 
                 if (testConnection.IsOpen)
-                { 
+                {
                     _logger.InfoFormat("Reconnection successful, disconnection event will not be raised");
                 }
                 else
@@ -339,7 +349,7 @@ namespace SportingSolutions.Udapi.Sdk
                 }
             });
 
-            
+
         }
         protected virtual void OnConnectionStatusChanged(ConnectionState newState)
         {
