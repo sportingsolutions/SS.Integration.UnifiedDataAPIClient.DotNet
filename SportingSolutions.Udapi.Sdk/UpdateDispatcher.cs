@@ -24,7 +24,7 @@ using SportingSolutions.Udapi.Sdk.Interfaces;
 namespace SportingSolutions.Udapi.Sdk
 {
 
-    internal class UpdateDispatcher: IDispatcher
+    internal class UpdateDispatcher : IDispatcher
     {
 
         #region Consumer Queue Internal
@@ -47,7 +47,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             public IStreamSubscriber Subscriber { get; private set; }
 
-            public IConsumer Consumer { get {  return Subscriber.Consumer; } }
+            public IConsumer Consumer { get { return Subscriber.Consumer; } }
 
             public void Add(string message)
             {
@@ -69,7 +69,8 @@ namespace SportingSolutions.Udapi.Sdk
             private void Process()
             {
 
-                Task.Factory.StartNew(() => {
+                Task.Factory.StartNew(() =>
+                {
 
                     bool go = true;
 
@@ -177,7 +178,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void AddSubscriber(IStreamSubscriber subscriber)
         {
-            if(subscriber == null)
+            if (subscriber == null)
                 return;
 
             int tmp = Interlocked.Increment(ref _subscribersCount);
@@ -192,7 +193,7 @@ namespace SportingSolutions.Udapi.Sdk
         public IStreamSubscriber GetSubscriber(string subscriberId)
         {
             ConsumerQueue c = null;
-            if(_subscribers.TryGetValue(subscriberId, out c) && c != null)
+            if (_subscribers.TryGetValue(subscriberId, out c) && c != null)
                 return c.Subscriber;
 
             return null;
@@ -200,7 +201,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void RemoveSubscriber(IStreamSubscriber subscriber)
         {
-            if(subscriber == null)
+            if (subscriber == null)
                 return;
 
             ConsumerQueue c = null;
@@ -218,11 +219,14 @@ namespace SportingSolutions.Udapi.Sdk
                 c.Disconnect();
                 int tmp = Interlocked.Decrement(ref _subscribersCount);
                 _logger.InfoFormat("consumerId={0} removed from the dispatcher, count={1}", subscriber.Consumer.Id, tmp);
-
-                _subscribers.TryRemove(subscriber.Consumer.Id, out c);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("RemoveSubscriber errored",ex);
             }
             finally
             {
+                _subscribers.TryRemove(subscriber.Consumer.Id, out c);
                 EchoManager.RemoveConsumer(c.Subscriber);
             }
         }
@@ -269,7 +273,7 @@ namespace SportingSolutions.Udapi.Sdk
             ConsumerQueue c = null;
             if (!_subscribers.TryGetValue(consumerId, out c) || c == null)
             {
-                
+
                 _logger.WarnFormat("Update not dispatched to consumerId={0} as it was not found.", consumerId);
                 return false;
             }
