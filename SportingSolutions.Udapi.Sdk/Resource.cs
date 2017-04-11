@@ -109,6 +109,8 @@ namespace SportingSolutions.Udapi.Sdk
         {
             //StreamController.Instance.RemoveConsumer(this);
             Logger.DebugFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
+            
+            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new RemoveConsumerMessage() { Consumer = this });
         }
 
         #endregion
