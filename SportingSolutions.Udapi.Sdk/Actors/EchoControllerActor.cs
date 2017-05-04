@@ -198,11 +198,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
         }
 
-        private static void RemoveSubribers(IEnumerable<IStreamSubscriber> subscribers)
+        private void RemoveSubribers(IEnumerable<IStreamSubscriber> subscribers)
         {
             foreach (var s in subscribers)
             {
                 s.StopConsuming();
+                Self.Tell(new RemoveSubscriberMessage() { Subscriber = s});
             }
         }
 
