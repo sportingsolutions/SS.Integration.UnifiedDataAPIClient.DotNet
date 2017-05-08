@@ -43,8 +43,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             _subscribers[message.Id].Resource.Tell(message);
             _subscribers.Remove(message.Id);
+            _logger.DebugFormat("subscriberId={0} removed from UpdateDispatcherActor", message.Id);
             //_subscribers[message.Id].Resource = Context.ActorOf(Props.Create<ResourceActor>(message.Consumer));
-            
+
         }
 
         private void Connect(IStreamSubscriber subscriber)
@@ -118,7 +119,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _subscribers.TryGetValue(subscriber.Consumer.Id, out resourceSubscriber);
             if (resourceSubscriber == null)
             {
-                _logger.WarnFormat($"consumerId={subscriber.Consumer.Id} can't be removed from the dispatcher cause it was not found");
+                _logger.WarnFormat($"consumerId={subscriber.Consumer.Id} can't be removed from the dispatcher cause it was not found. _subscribers.ContainsKey({subscriber.Consumer.Id})={_subscribers.ContainsKey(subscriber.Consumer.Id)} ");
                 return;
             }
 
