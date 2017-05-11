@@ -144,7 +144,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 if (_streamConnection != null)
                 {
                     _streamConnection.ConnectionShutdown -= OnConnectionShutdown;
-                    _streamConnection.Close();
+                    if (_streamConnection.IsOpen)
+                        _streamConnection.Close();
                     _streamConnection = null;
                 }
             }
