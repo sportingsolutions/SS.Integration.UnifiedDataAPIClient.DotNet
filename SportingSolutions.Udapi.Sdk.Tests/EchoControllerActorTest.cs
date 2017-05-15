@@ -99,7 +99,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         {
             var testing = new EchoControllerActor();
             testing.AddConsumer(null);
-            testing.CoinsumerCount.ShouldBeEquivalentTo(0);
+            testing.ConsumerCount.ShouldBeEquivalentTo(0);
 
         }
 
@@ -116,7 +116,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
             
             testing.AddConsumer(subsctiber.Object);
-            testing.CoinsumerCount.ShouldBeEquivalentTo(1);
+            testing.ConsumerCount.ShouldBeEquivalentTo(1);
             
 
         }
@@ -142,7 +142,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             testing.AddConsumer(subsctiber1.Object);
             testing.AddConsumer(subsctiber2.Object);
-            testing.CoinsumerCount.ShouldBeEquivalentTo(1);
+            testing.ConsumerCount.ShouldBeEquivalentTo(1);
 
         }
 
@@ -162,10 +162,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
 
             testing.AddConsumer(subsctiber.Object);
-            testing.CoinsumerCount.ShouldBeEquivalentTo(1);
+            testing.ConsumerCount.ShouldBeEquivalentTo(1);
 
             testing.RemoveConsumer(subsctiber.Object);
-            testing.CoinsumerCount.ShouldBeEquivalentTo(0);
+            testing.ConsumerCount.ShouldBeEquivalentTo(0);
 
         }
 
@@ -189,9 +189,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
 
             testing.AddConsumer(subsctiber1.Object);
-            testing.CoinsumerCount.ShouldBeEquivalentTo(1);
+            testing.ConsumerCount.ShouldBeEquivalentTo(1);
             testing.RemoveConsumer(subsctiber2.Object);
-            testing.CoinsumerCount.ShouldBeEquivalentTo(1);
+            testing.ConsumerCount.ShouldBeEquivalentTo(1);
 
         }
 
@@ -232,7 +232,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var testing = GetMockedEchoControllerActorWith1Consumer(id1);
             AddConsumer(testing, id2);
 
-            testing.As<EchoControllerActor>().CoinsumerCount.ShouldBeEquivalentTo(2);
+            testing.As<EchoControllerActor>().ConsumerCount.ShouldBeEquivalentTo(2);
 
             var message = new EchoControllerActor.SendEchoMessage();
             for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
@@ -240,7 +240,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 testing.Tell(message);
             }
 
-            testing.As<EchoControllerActor>().CoinsumerCount.ShouldBeEquivalentTo(0);
+            testing.As<EchoControllerActor>().ConsumerCount.ShouldBeEquivalentTo(0);
 
         }
 
