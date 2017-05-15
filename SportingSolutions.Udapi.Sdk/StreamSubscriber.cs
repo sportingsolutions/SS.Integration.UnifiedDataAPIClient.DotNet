@@ -61,7 +61,7 @@ namespace SportingSolutions.Udapi.Sdk
             }
             catch (Exception e)
             {
-                _logger.Error("Error stopping stream for consumedId=" + ConsumerTag, e);
+                _logger.Error("Error stopping stream for consumerId=" + ConsumerTag, e);
             }
             finally
             {

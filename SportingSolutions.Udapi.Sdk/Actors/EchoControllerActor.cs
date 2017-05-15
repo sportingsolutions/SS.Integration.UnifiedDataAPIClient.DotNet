@@ -26,7 +26,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 {
     internal class EchoControllerActor : ReceiveActor, IEchoController
     {
-        internal class EchoEntry
+        private class EchoEntry
         {
             public IStreamSubscriber Subscriber;
             public int EchosCountDown;
@@ -38,8 +38,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
 
         private readonly ConcurrentDictionary<string, EchoEntry> _consumers;
-        public int CoinsumerCount => _consumers.Count;
-
         ICancelable _echoCancellation = new Cancelable(Context.System.Scheduler);
 
         public EchoControllerActor()
@@ -76,9 +74,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             return new SendEchoMessage() { Subscriber = _consumers.First().Value.Subscriber };
         }
 
-        public bool Enabled { get; internal set; }
+        public bool Enabled { get; private set; }
 
-        public virtual void AddConsumer(IStreamSubscriber subscriber)
+        public void AddConsumer(IStreamSubscriber subscriber)
         {
             if (!Enabled || subscriber == null)
                 return;
@@ -205,13 +203,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             foreach (var s in subscribers)
             {
                 s.StopConsuming();
-                Self.Tell(new RemoveSubscriberMessage() { Subscriber = s });
-            }
-
-            foreach(var s in subscribers)
-            {
-                Context.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new RemoveConsumerMessage() { Consumer = s.Consumer });
-                Self.Tell(new RemoveSubscriberMessage() { Subscriber = s });
+                Self.Tell(new RemoveSubscriberMessage() { Subscriber = s});
             }
         }
 
@@ -233,16 +225,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.Error("Error sending echo-request", e);
             }
 
-        }
-
-        internal int? GetEchosCountDown(string subscriberId)
-        {
-            EchoEntry entry;
-            if (!string.IsNullOrEmpty(subscriberId) && _consumers.TryGetValue(subscriberId, out entry))
-            {
-                return entry.EchosCountDown;
-            }
-            return null;
         }
 
         public void Dispose()
