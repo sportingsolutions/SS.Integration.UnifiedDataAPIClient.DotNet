@@ -84,6 +84,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="EchoControllerActorTest.cs" />
+    <Compile Include="MockedEchoControllerActor.cs" />
     <Compile Include="MockedStreamControllerActor.cs" />
     <Compile Include="MockedStreamSubscriber - Copy.cs" />
     <Compile Include="MockedStreamSubscriber.cs" />
