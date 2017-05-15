@@ -62,7 +62,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         private TestActorRef<MockedEchoControllerActor> GetMockedEchoControllerActorWith1Consumer(string consumerId)
         {
-            var testing = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
+            var mock = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
 
             //testing = new EchoControllerActor();
 
@@ -73,9 +73,24 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
             subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
 
-            testing.As<EchoControllerActor>().AddConsumer(subsctiber.Object);
+            var testing = mock.As<EchoControllerActor>();
 
-            return testing;
+            testing.AddConsumer(subsctiber.Object);
+
+            return mock;
+        }
+
+        private void AddConsumer(TestActorRef<MockedEchoControllerActor> actor, string consumerId)
+        {
+            Mock<IConsumer> consumer = new Mock<IConsumer>();
+            consumer.Setup(x => x.Id).Returns(consumerId);
+
+
+            Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
+            subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
+
+            actor.As<EchoControllerActor>().AddConsumer(subsctiber.Object);
+
         }
 
 
@@ -84,7 +99,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         {
             var testing = new EchoControllerActor();
             testing.AddConsumer(null);
-            testing._consumers.Count.ShouldBeEquivalentTo(0);
+            testing.CoinsumerCount.ShouldBeEquivalentTo(0);
 
         }
 
@@ -101,7 +116,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
             
             testing.AddConsumer(subsctiber.Object);
-            testing._consumers.Count.ShouldBeEquivalentTo(1);
+            testing.CoinsumerCount.ShouldBeEquivalentTo(1);
             
 
         }
@@ -127,7 +142,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             testing.AddConsumer(subsctiber1.Object);
             testing.AddConsumer(subsctiber2.Object);
-            testing._consumers.Count.ShouldBeEquivalentTo(1);
+            testing.CoinsumerCount.ShouldBeEquivalentTo(1);
 
         }
 
@@ -147,10 +162,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
 
             testing.AddConsumer(subsctiber.Object);
-            testing._consumers.Count.ShouldBeEquivalentTo(1);
+            testing.CoinsumerCount.ShouldBeEquivalentTo(1);
 
             testing.RemoveConsumer(subsctiber.Object);
-            testing._consumers.Count.ShouldBeEquivalentTo(0);
+            testing.CoinsumerCount.ShouldBeEquivalentTo(0);
 
         }
 
@@ -174,9 +189,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
 
             testing.AddConsumer(subsctiber1.Object);
-            testing._consumers.Count.ShouldBeEquivalentTo(1);
+            testing.CoinsumerCount.ShouldBeEquivalentTo(1);
             testing.RemoveConsumer(subsctiber2.Object);
-            testing._consumers.Count.ShouldBeEquivalentTo(1);
+            testing.CoinsumerCount.ShouldBeEquivalentTo(1);
 
         }
 
@@ -206,6 +221,26 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             testing.Tell(message);
             testing.As<EchoControllerActor>().GetEchosCountDown(id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos-1);
+
+        }
+
+        [Test]
+        public void CheckEchosUntillAllSubscribersClearTest()
+        {
+            var id1 = "Id1";
+            var id2 = "Id2";
+            var testing = GetMockedEchoControllerActorWith1Consumer(id1);
+            AddConsumer(testing, id2);
+
+            testing.As<EchoControllerActor>().CoinsumerCount.ShouldBeEquivalentTo(2);
+
+            var message = new EchoControllerActor.SendEchoMessage();
+            for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
+            {
+                testing.Tell(message);
+            }
+
+            testing.As<EchoControllerActor>().CoinsumerCount.ShouldBeEquivalentTo(0);
 
         }
 

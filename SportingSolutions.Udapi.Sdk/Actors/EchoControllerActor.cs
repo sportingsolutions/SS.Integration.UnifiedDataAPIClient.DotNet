@@ -37,7 +37,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private readonly ILog _logger = LogManager.GetLogger(typeof(EchoControllerActor));
 
 
-        internal readonly ConcurrentDictionary<string, EchoEntry> _consumers;
+        private readonly ConcurrentDictionary<string, EchoEntry> _consumers;
+        public int CoinsumerCount => _consumers.Count;
+
         ICancelable _echoCancellation = new Cancelable(Context.System.Scheduler);
 
         public EchoControllerActor()
