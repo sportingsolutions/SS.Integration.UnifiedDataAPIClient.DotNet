@@ -25,8 +25,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<StreamUpdateMessage>(message => ProcessMessage(message));
             
             Receive<DisconnectMessage>(message => Disconnect(message));
-            Receive<NewSubscriberMessage>(message => AddSubscriber(message.Subscriber));
-            Receive<RemoveSubscriberMessage>(message => RemoveSubscriber(message.Subscriber));
+            //Receive<NewSubscriberMessage>(message => AddSubscriber(message.Subscriber));
+            Receive<NewConsumerMessage>(message => NewConsumerMessageHandler(message));
+            //Receive<RemoveSubscriberMessage>(message => RemoveSubscriber(message.Subscriber));
 
             Receive<RetrieveSubscriberMessage>(x => AskForSubscriber(x.Id));
             Receive<SubscribersCountMessage>(x => AskSubsbscribersCount());
@@ -35,8 +36,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<DisposeMessage>(x => Dispose());
         }
 
-        
-
         private void Disconnect(DisconnectMessage message)
         {
             if (!_subscribers.ContainsKey(message.Id)) return;
@@ -44,8 +43,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _subscribers[message.Id].Resource.Tell(message);
             _subscribers.Remove(message.Id);
             _logger.DebugFormat("subscriberId={0} removed from UpdateDispatcherActor", message.Id);
-            //_subscribers[message.Id].Resource = Context.ActorOf(Props.Create<ResourceActor>(message.Consumer));
 
+            if (_subscribers.Count == 0)
+                Sender.Tell(new AllSubscribersDisconnectedMessage());
         }
 
         private void Connect(IStreamSubscriber subscriber)
@@ -65,7 +65,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (!_subscribers.ContainsKey(message.Id))
             {
                 //_subscribers[message.Id] = Context.ActorOf(Props.Create<ResourceActor>());
-                throw new InvalidOperationException($"Subscriber doesn't exist for {message.Id}");
+                //throw new InvalidOperationException($"Subscriber doesn't exist for {message.Id}");
+                return;
             }
 
             // is this an echo message?
@@ -74,7 +75,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
                 _logger.DebugFormat($"Echo arrived with {message.Id}");
                 Context.ActorSelection(SdkActorSystem.EchoControllerActorPath)
-                    .Tell(new EchoMessage {Id = message.Id, Message = message.Message});
+                    .Tell(new EchoMessage { Id = message.Id, Message = message.Message });
             }
             else
             {
@@ -83,18 +84,32 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
         }
 
-        private void AddSubscriber(IStreamSubscriber subscriber)
+        private void NewConsumerMessageHandler(NewConsumerMessage message)
         {
-            if (subscriber == null)
-                return;
-            
-            Connect(subscriber);
-            
-            Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(new NewSubscriberMessage {Subscriber = subscriber} );
-            
-            //TODO : Fix logging
-            _logger.InfoFormat($"consumerId={subscriber.Consumer.Id} added to the dispatcher, count={_subscribers.Count}");
+            var resourceActor = Context.ActorOf(Props.Create<ResourceActor>(message.Consumer));
+            if (!_subscribers.ContainsKey(message.Consumer.Id))
+            {
+                _subscribers.Add(message.Consumer.Id, new ResourceSubscriber
+                {
+                    Resource = resourceActor,
+                    StreamSubscriber = null
+                });
+            }
+            resourceActor.Tell(new ConnectMessage() { Id = message.Consumer.Id, Consumer = message.Consumer });
         }
+
+        //private void AddSubscriber(IStreamSubscriber subscriber)
+        //{
+        //    if (subscriber == null)
+        //        return;
+            
+        //    Connect(subscriber);
+            
+        //    //Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(new NewSubscriberMessage {Subscriber = subscriber} );
+            
+        //    //TODO : Fix logging
+        //    _logger.InfoFormat($"consumerId={subscriber.Consumer.Id} added to the dispatcher, count={_subscribers.Count}");
+        //}
 
         private void AskSubsbscribersCount()
         {
@@ -110,31 +125,31 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 Sender.Tell(new NotFoundMessage());
         }
 
-        private void RemoveSubscriber(IStreamSubscriber subscriber)
-        {
-            if (subscriber == null)
-                return;
+        //private void RemoveSubscriber(IStreamSubscriber subscriber)
+        //{
+        //    if (subscriber == null)
+        //        return;
 
-            ResourceSubscriber resourceSubscriber = null;
-            _subscribers.TryGetValue(subscriber.Consumer.Id, out resourceSubscriber);
-            if (resourceSubscriber == null)
-            {
-                _logger.WarnFormat($"consumerId={subscriber.Consumer.Id} can't be removed from the dispatcher cause it was not found. _subscribers.ContainsKey({subscriber.Consumer.Id})={_subscribers.ContainsKey(subscriber.Consumer.Id)} ");
-                return;
-            }
+        //    ResourceSubscriber resourceSubscriber = null;
+        //    _subscribers.TryGetValue(subscriber.Consumer.Id, out resourceSubscriber);
+        //    if (resourceSubscriber == null)
+        //    {
+        //        _logger.WarnFormat($"consumerId={subscriber.Consumer.Id} can't be removed from the dispatcher cause it was not found. _subscribers.ContainsKey({subscriber.Consumer.Id})={_subscribers.ContainsKey(subscriber.Consumer.Id)} ");
+        //        return;
+        //    }
 
-            try
-            {
-                var disconnectMsg = new DisconnectMessage { Id = subscriber.Consumer.Id, Consumer = subscriber.Consumer };
-                Self.Tell(disconnectMsg);
+        //    try
+        //    {
+        //        var disconnectMsg = new DisconnectMessage { Id = subscriber.Consumer.Id, Consumer = subscriber.Consumer };
+        //        Self.Tell(disconnectMsg);
                
-                _logger.InfoFormat($"consumerId={subscriber.Consumer.Id} removed from the dispatcher, count={_subscribers.Count}");
-            }
-            finally
-            {
-                Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(new RemoveSubscriberMessage { Subscriber = subscriber } );
-            }
-        }
+        //        _logger.InfoFormat($"consumerId={subscriber.Consumer.Id} removed from the dispatcher, count={_subscribers.Count}");
+        //    }
+        //    finally
+        //    {
+        //        Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(new RemoveSubscriberMessage { Subscriber = subscriber } );
+        //    }
+        //}
 
         private void RemoveAll()
         {
@@ -192,6 +207,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
     }
 
     internal class RemoveAllSubscribers
+    {
+
+    }
+
+    internal class AllSubscribersDisconnectedMessage
     {
 
     }

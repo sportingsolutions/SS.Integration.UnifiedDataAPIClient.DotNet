@@ -38,6 +38,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
     internal class StreamControllerActor : ReceiveActor, IWithUnboundedStash
     {
         public const string ActorName = "StreamControllerActor";
+        public const string QueueName = "TestQueue";
 
         internal enum ConnectionState
         {
@@ -50,9 +51,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         
         private IConnection _streamConnection;
         private volatile ConnectionState _state;
-        private ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
+        private readonly ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
+        private StreamSubscriber _subscriber = null;
         
-
         public StreamControllerActor(IActorRef dispatcherActor)
         {
             if (dispatcherActor == null)
@@ -87,8 +88,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             State = ConnectionState.DISCONNECTED;
         }
 
-
-
         private void ConnectedState()
         {
             Receive<NewConsumerMessage>(x => ProcessNewConsumer(x));
@@ -96,21 +95,38 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
             Receive<ValidateMessage>(x => ValidateConnection());
+            Receive<AllSubscribersDisconnectedMessage>(x => StopConsumingMessages());
 
             Stash.UnstashAll();
+        }
+
+        private void StreamingState()
+        {
+            Receive<NewConsumerMessage>(x => Dispatcher.Tell(x));
+            Receive<DisconnectedMessage>(x => Become(DisconnectedState));
+            Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
+            Receive<DisposeMessage>(x => Dispose());
+            Receive<ValidateMessage>(x => ValidateConnection());
+            Receive<AllSubscribersDisconnectedMessage>(x => StopConsumingMessages());
+        }
+
+        private void StopConsumingMessages()
+        {
+            _subscriber.StopConsuming();
+            CloseConnection();
         }
 
         private void ProcessNewConsumer(NewConsumerMessage newConsumerMessage)
         {
             AddConsumerToQueue(newConsumerMessage.Consumer);
+            Dispatcher.Tell(new NewConsumerMessage { Consumer = newConsumerMessage.Consumer });
+            Become(StreamingState);
         }
-        
+
         /// <summary>
         /// Is AutoReconnect enabled
         /// </summary>
         public bool AutoReconnect { get; private set; }
-
-        
 
         /// <summary>
         /// 
@@ -149,13 +165,14 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     _streamConnection = null;
                 }
             }
-            // }
             catch
             {
             }
             finally
             {
                 _streamConnection = null;
+                _subscriber?.Dispose();
+                _subscriber = null;
             }
 
             OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
@@ -378,23 +395,21 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected virtual void AddConsumerToQueue(IConsumer consumer)
         {
-
             var queue = consumer.GetQueueDetails();
             if (queue == null || string.IsNullOrEmpty(queue.Name))
                 throw new Exception("Invalid queue details");
             
             var model = _streamConnection.CreateModel();
-            StreamSubscriber subscriber = null;
 
             try
             {
-                subscriber = new StreamSubscriber(model, consumer, Dispatcher);
-                subscriber.StartConsuming(queue.Name);
+                _subscriber = new StreamSubscriber(model, consumer, Dispatcher);
+                _subscriber.StartConsuming(QueueName);
             }
             catch
             {
-                if (subscriber != null)
-                    subscriber.Dispose();
+                _subscriber?.Dispose();
+                _subscriber = null;
 
                 throw;
             }
@@ -410,9 +425,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected virtual void RemoveConsumerFromQueue(IConsumer consumer)
         {
-            var sub = Dispatcher.Ask(new RetrieveSubscriberMessage {Id = consumer.Id }).Result as IStreamSubscriber;
-            if (sub != null)
-                sub.StopConsuming();
+            var disconnectMsg = new DisconnectMessage { Id = consumer.Id, Consumer = consumer };
+            Dispatcher.Tell(disconnectMsg);
         }
 
         #endregion
@@ -454,8 +468,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         }
 
         #endregion
-
-        
     }
 
     #region Messages

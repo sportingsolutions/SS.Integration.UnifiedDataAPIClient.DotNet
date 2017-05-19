@@ -15,9 +15,11 @@
 
 using System;
 using System.Text;
+using System.Text.RegularExpressions;
 using Akka.Actor;
 using log4net;
 using RabbitMQ.Client;
+using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
 
@@ -35,7 +37,7 @@ namespace SportingSolutions.Udapi.Sdk
             : base(model)
         {
             Consumer = consumer;
-            ConsumerTag = consumer.Id;
+            ConsumerTag = "StreamUpdates";
             Dispatcher = dispatcher;
             _isDisposed = false;
         }
@@ -44,7 +46,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             try
             {
-                Model.BasicConsume(queueName, true, Consumer.Id, this);
+                Model.BasicConsume(queueName, true, ConsumerTag, this);
             }
             catch (Exception e)
             {
@@ -65,8 +67,8 @@ namespace SportingSolutions.Udapi.Sdk
             }
             finally
             {
-                Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this});
-                
+                //Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
+
                 try
                 {
                     Dispose();
@@ -85,8 +87,8 @@ namespace SportingSolutions.Udapi.Sdk
 
         public override void HandleBasicConsumeOk(string consumerTag)
         {
-            Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
-            
+            //Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
+
             base.HandleBasicConsumeOk(consumerTag);
         }
 
@@ -97,23 +99,29 @@ namespace SportingSolutions.Udapi.Sdk
 
             //TODO FIX THIS!
             var success = true; //Dispatcher.DispatchMessage(consumerTag, Encoding.UTF8.GetString(body));
+            var fixtureId = ExtractFixtureId(routingKey);
 
-            Dispatcher.Tell(new StreamUpdateMessage() {Id = consumerTag, Message = Encoding.UTF8.GetString(body)});
-                
+            Dispatcher.Tell(new StreamUpdateMessage() { Id = fixtureId, Message = Encoding.UTF8.GetString(body) });
+
             if (!success)
                 StopConsuming();
+        }
+
+        private string ExtractFixtureId(string routingKey)
+        {
+            return routingKey.Split('.')[2];
         }
 
         public override void HandleBasicCancel(string consumerTag)
         {
             base.HandleBasicCancel(consumerTag);
-            Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
+            //Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
         }
 
         public override void HandleModelShutdown(object model, ShutdownEventArgs reason)
         {
             //Please note the disconnection is only raised if AutoReconnect is not enabled
-            _logger.WarnFormat("Model shutdown for consumerId={0} - disconnection event might be raised. Autoreconnect is enabled={1}", ConsumerTag,UDAPI.Configuration.AutoReconnect);
+            _logger.WarnFormat("Model shutdown for consumerId={0} - disconnection event might be raised. Autoreconnect is enabled={1}", ConsumerTag, UDAPI.Configuration.AutoReconnect);
             base.HandleModelShutdown(model, reason);
 
             //if (!UDAPI.Configuration.AutoReconnect)
