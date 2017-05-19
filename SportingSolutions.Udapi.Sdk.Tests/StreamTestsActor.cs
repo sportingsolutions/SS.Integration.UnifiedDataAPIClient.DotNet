@@ -35,6 +35,16 @@ namespace SportingSolutions.Udapi.Sdk.Tests
     {
         private MockedStreamControllerActor _streamControllerAct;
 
+        private QueueDetails _queryDetails = new QueueDetails
+        {
+            Host = "testhost",
+            Name = "testname",
+            Password = "testpassword",
+            Port = 5672,
+            UserName = "testuser",
+            VirtualHost = "vhost"
+        };
+
         [SetUp]
         public void Initialise()
         {
@@ -46,19 +56,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         public void EstablishConnectionTest()
         {
             // STEP 1: prepare mocked data
-            QueueDetails details = new QueueDetails
-            {
-                Host = "testhost",
-                Name = "testname",
-                Password = "testpassword",
-                Port = 5672,
-                UserName = "testuser",
-                VirtualHost = "vhost"
-            };
+            
 
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns("testing");
-            consumer.Setup(x => x.GetQueueDetails()).Returns(details);
+            consumer.Setup(x => x.GetQueueDetails()).Returns(_queryDetails);
 
             var updateDispatcherActor = ActorOf(() => new UpdateDispatcherActor());
 
@@ -84,13 +86,13 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
         }
 
-        //TODO: VALIDATE actor received an error
         [Test]
         public void HandleFailedConnectionAttemptTest()
         {
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns("testing");
-            consumer.Setup(x => x.GetQueueDetails()).Throws(new Exception("Cannot find queue details"));
+            var e = new Exception("Cannot find queue details");
+            consumer.Setup(x => x.GetQueueDetails()).Throws(e);
 
             var updateDispatcherActor = ActorOf(() => new UpdateDispatcherActor());
 
@@ -101,17 +103,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
 
-            bool exceptionRaised = false;
-            try
-            {
-                streamCtrlActorTestRef.Tell(new NewConsumerMessage() { Consumer = consumer.Object });
-            }
-            catch
-            {
-                exceptionRaised = true;
-            }
-
+            streamCtrlActorTestRef.Tell(new NewConsumerMessage() { Consumer = consumer.Object });
+            
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.ConnectionError.ShouldBeEquivalentTo(e);
 
         }
 
@@ -119,19 +114,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         public void RemoveConsumerTest()
         {
             // STEP 1: prepare mocked data
-            QueueDetails details = new QueueDetails
-            {
-                Host = "testhost",
-                Name = "testname",
-                Password = "testpassword",
-                Port = 5672,
-                UserName = "testuser",
-                VirtualHost = "vhost"
-            };
+            
 
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns("testing");
-            consumer.Setup(x => x.GetQueueDetails()).Returns(details);
+            consumer.Setup(x => x.GetQueueDetails()).Returns(_queryDetails);
             consumer.Setup(x => x.OnStreamConnected());
 
             var updateDispatcherActor = ActorOf<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
@@ -180,19 +167,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             for (int i = 0; i < 100; i++)
             {
-                QueueDetails details = new QueueDetails
-                {
-                    Host = "testhost",
-                    Name = "testname",
-                    Password = "testpassword",
-                    Port = 5672,
-                    UserName = "testuser",
-                    VirtualHost = "vhost"
-                };
-
+                
                 Mock<IConsumer> consumer = new Mock<IConsumer>();
                 consumer.Setup(x => x.Id).Returns("testing_" + i);
-                consumer.Setup(x => x.GetQueueDetails()).Returns(details);
+                consumer.Setup(x => x.GetQueueDetails()).Returns(_queryDetails);
                 consumers[i] = consumer;
 
                 // STEP 2: add the consumers
@@ -256,21 +234,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             Mock<IConsumer>[] consumers = new Mock<IConsumer>[testIterations];
 
-            QueueDetails details = new QueueDetails
-            {
-                Host = "testhost",
-                Name = "testname",
-                Password = "testpassword",
-                Port = 5672,
-                UserName = "testuser",
-                VirtualHost = "vhost"
-            };
-
             for (int i = 0; i < testIterations; i++)
             {
                 Mock<IConsumer> consumer = new Mock<IConsumer>();
                 consumer.Setup(x => x.Id).Returns("testing_" + i);
-                consumer.Setup(x => x.GetQueueDetails()).Returns(details);
+                consumer.Setup(x => x.GetQueueDetails()).Returns(_queryDetails);
                 consumers[i] = consumer;
 
                 // when the stream connected event is raised, just wait...
