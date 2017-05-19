@@ -12,7 +12,6 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -36,9 +35,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private readonly ILog _logger = LogManager.GetLogger(typeof(EchoControllerActor));
 
-
         private readonly ConcurrentDictionary<string, EchoEntry> _consumers;
-        ICancelable _echoCancellation = new Cancelable(Context.System.Scheduler);
+        private readonly ICancelable _echoCancellation = new Cancelable(Context.System.Scheduler);
 
         public EchoControllerActor()
         {
@@ -58,9 +56,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<EchoMessage>(x => ProcessEcho(x.Id));
             Receive<SendEchoMessage>(x => CheckEchos());
             Receive<DisposeMessage>(x => Dispose());
-
         }
-        
 
         private SendEchoMessage GetEchoMessage()
         {
@@ -99,7 +95,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 echoEntry.EchosCountDown = UDAPI.Configuration.MissedEchos;
             }
-
         }
 
         public void RemoveConsumer(IStreamSubscriber subscriber)
@@ -122,13 +117,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         public void ProcessEcho(string subscriberId)
         {
-            EchoEntry entry;
-            if (!string.IsNullOrEmpty(subscriberId) && _consumers.TryGetValue(subscriberId, out entry))
+            if (!_consumers.IsEmpty)
             {
-                if (UDAPI.Configuration.VerboseLogging)
-                    _logger.DebugFormat("Resetting echo information for consumerId={0}", subscriberId);
-
-                entry.EchosCountDown = UDAPI.Configuration.MissedEchos;
+                _consumers.First().Value.EchosCountDown = UDAPI.Configuration.MissedEchos;
             }
         }
 
@@ -147,8 +138,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 // dictionary
                 IStreamSubscriber sendEchoConsumer = null;
 
-                //while (!_cancellationTokenSource.IsCancellationRequested)
-                //{
                 try
                 {
                     foreach (var consumer in _consumers)
@@ -181,16 +170,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     invalidConsumers.Clear();
 
                     SendEchos(sendEchoConsumer);
-
-                    //      _cancellationTokenSource.Token.WaitHandle.WaitOne(UDAPI.Configuration.EchoWaitInterval);
                 }
                 catch (Exception ex)
                 {
                     _logger.Error("Check Echos loop has experienced a failure", ex);
                 }
-                // }
-
-                //_logger.Debug("EchoTask terminated");
             }
             catch (Exception ex)
             {
@@ -209,7 +193,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void SendEchos(IStreamSubscriber item)
         {
-
             if (item == null)
             {
                 _logger.Warn("Unable to send echo due to null stream subscriber");

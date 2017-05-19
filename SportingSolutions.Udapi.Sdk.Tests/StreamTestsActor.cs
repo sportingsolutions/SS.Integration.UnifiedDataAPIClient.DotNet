@@ -146,9 +146,6 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             // STEP 3: check that up to now, everythin is ok
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
-            var streamSubscriberObj = updateDispatcherActor.Ask<IStreamSubscriber>(new RetrieveSubscriberMessage { Id = "testing" }).Result;
-
-            streamSubscriberObj.Should().NotBeNull();
 
             // STEP 4: remove the consumer
             streamCtrlActorTestRef.Tell(new RemoveConsumerMessage { Consumer = consumer.Object });
@@ -158,9 +155,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             updateDispatcherActor.Ask(new SubscribersCountMessage()).Result.Should().Be(0);
 
-            var subscriberResult = updateDispatcherActor.Ask(new RetrieveSubscriberMessage { Id = "testing" }, TimeSpan.FromSeconds(9));
             Thread.Sleep(2000);
-            subscriberResult.Result.Should().BeOfType<NotFoundMessage>();
 
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
         }

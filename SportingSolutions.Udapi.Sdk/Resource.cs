@@ -31,7 +31,6 @@ namespace SportingSolutions.Udapi.Sdk
         private const int DEFAULT_ECHO_INTERVAL_MS = 10000;
         private const int DEFAULT_ECHO_MAX_DELAY_MS = 3000;
 
-
         public event EventHandler StreamConnected;
         public event EventHandler StreamDisconnected;
         public event EventHandler<StreamEventArgs> StreamEvent;
@@ -54,20 +53,11 @@ namespace SportingSolutions.Udapi.Sdk
 
         #region IResource Members
 
-        public string Id
-        {
-            get { return State.Content.Id; }
-        }
+        public string Id => State.Content.Id;
 
-        public string Name
-        {
-            get { return State.Name; }
-        }
+        public string Name => State.Name;
 
-        public Summary Content
-        {
-            get { return State.Content; }
-        }
+        public Summary Content => State.Content;
 
         public bool IsDisposed { get; internal set; }
 
@@ -89,7 +79,6 @@ namespace SportingSolutions.Udapi.Sdk
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
             SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new NewConsumerMessage() { Consumer = this});
-            //StreamController.Instance.AddConsumer(this, echoInterval, echoMaxDelay);
             Logger.DebugFormat("Streaming request queued for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
         }
 
@@ -107,9 +96,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StopStreaming()
         {
-            //StreamController.Instance.RemoveConsumer(this);
             Logger.DebugFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
-            
             SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new RemoveConsumerMessage() { Consumer = this });
         }
 
@@ -209,7 +196,7 @@ namespace SportingSolutions.Udapi.Sdk
             if (response.ErrorException != null || response.Content == null)
             {
                 RestErrorHelper.LogRestError(Logger, response, "Error sending echo request");
-                throw new Exception(string.Format("Error calling {0}", echouri), response.ErrorException);
+                throw new Exception($"Error calling {echouri}", response.ErrorException);
             }
         }
 

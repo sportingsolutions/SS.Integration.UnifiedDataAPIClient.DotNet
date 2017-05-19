@@ -49,16 +49,5 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         {
             new MockedStreamSubscriber(consumer, Dispatcher).StartConsuming("");
         }
-
-        protected override void RemoveConsumerFromQueue(IConsumer consumer)
-        {
-            var s =
-                Dispatcher.Ask(new RetrieveSubscriberMessage() {Id = consumer.Id}).Result as IStreamSubscriber;
-
-            if(s == null)
-                throw new Exception("Subscriber with Id=" + consumer.Id + " not found");
-
-            s.StopConsuming();
-        }
     }
 }

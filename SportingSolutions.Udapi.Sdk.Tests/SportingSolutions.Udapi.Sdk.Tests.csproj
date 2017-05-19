@@ -94,7 +94,6 @@
     <Compile Include="MockedStreamController.cs" />
     <Compile Include="StreamTestsActor.cs" />
     <Compile Include="StreamTests.cs" />
-    <Compile Include="StupidActor.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

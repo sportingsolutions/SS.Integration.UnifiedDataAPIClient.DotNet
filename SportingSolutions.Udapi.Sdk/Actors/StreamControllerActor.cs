@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Akka.Actor;
 using log4net;
 using RabbitMQ.Client;
@@ -44,7 +40,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             DISCONNECTED = 0,
             CONNECTING = 1,
-            CONNECTED = 2
+            CONNECTED = 2,
+            STREAMING = 2
         }
 
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamControllerActor));
@@ -71,7 +68,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void DisconnectedState()
         {
-            Receive<ConnectStreamMessage>(x => ConnectStream(x));
             Receive<ValidateMessage>(x => ValidateConnection());
 
             Receive<ConnectedMessage>(x => Become(ConnectedState));
@@ -80,12 +76,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 Stash.Stash();
                 Connect(x.Consumer);
-
             });
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
 
             State = ConnectionState.DISCONNECTED;
+
+            _logger.Info("Moved to Disconnected State");
         }
 
         private void ConnectedState()
@@ -98,6 +95,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<AllSubscribersDisconnectedMessage>(x => StopConsumingMessages());
 
             Stash.UnstashAll();
+
+            _logger.Info("Moved to Connected State");
         }
 
         private void StreamingState()
@@ -108,12 +107,17 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<DisposeMessage>(x => Dispose());
             Receive<ValidateMessage>(x => ValidateConnection());
             Receive<AllSubscribersDisconnectedMessage>(x => StopConsumingMessages());
+
+            OnConnectionStatusChanged(ConnectionState.STREAMING);
+
+            _logger.Info("Moved to Streaming State");
         }
 
         private void StopConsumingMessages()
         {
             _subscriber.StopConsuming();
             CloseConnection();
+            _logger.Info("Stopped Consuming Messages / Closed Connection");
         }
 
         private void ProcessNewConsumer(NewConsumerMessage newConsumerMessage)
@@ -171,6 +175,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             finally
             {
                 _streamConnection = null;
+                Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath)
+                    .Tell(new RemoveSubscriberMessage {Subscriber = _subscriber});
                 _subscriber?.Dispose();
                 _subscriber = null;
             }
@@ -230,11 +236,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 // notify any sleeping threads
                 OnConnectionStatusChanged(newstate);
             }
-        }
-
-        private void ConnectStream(ConnectStreamMessage connectStreamMessage)
-        {
-            Connect(connectStreamMessage.Consumer);
         }
 
         private void Connect(IConsumer consumer)
@@ -367,32 +368,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         #region Consumer
 
-        protected void AddConsumer(IConsumer consumer, int echoInterval, int echoMaxDelay)
-        {
-            if (consumer == null)
-                throw new ArgumentNullException("consumer");
-
-            // Note that between Connect() and AddConsumerToQueue()
-            // error could be raised (i.e. connection went down), 
-            // so by the time we reach AddConsumerToQueue(),
-            // nothing can be assumed
-
-            Connect(consumer);
-
-            if (_connectionCancellation.IsCancellationRequested)
-                throw new InvalidOperationException("StreamController is shutting down");
-
-            if (State != ConnectionState.CONNECTED)
-                throw new Exception("Connection is not open - cannot register consumerId=" + consumer.Id);
-
-            var subscriberResponseResult = Dispatcher.Ask(new RetrieveSubscriberMessage() {Id = consumer.Id}).Result;
-
-            if (subscriberResponseResult is StreamSubscriber)
-                throw new InvalidOperationException("consumerId=" + consumer.Id + " cannot be registred twice");
-
-            AddConsumerToQueue(consumer);
-        }
-
         protected virtual void AddConsumerToQueue(IConsumer consumer)
         {
             var queue = consumer.GetQueueDetails();
@@ -404,10 +379,14 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             try
             {
                 _subscriber = new StreamSubscriber(model, consumer, Dispatcher);
+                Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath)
+                    .Tell(new NewSubscriberMessage {Subscriber = _subscriber});
                 _subscriber.StartConsuming(QueueName);
             }
             catch
             {
+                Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath)
+                    .Tell(new RemoveSubscriberMessage {Subscriber = _subscriber});
                 _subscriber?.Dispose();
                 _subscriber = null;
 
@@ -436,6 +415,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         public virtual void Shutdown()
         {
             _logger.Debug("Shutting down StreamController");
+
             _connectionCancellation.Cancel();
 
             Dispatcher.Tell(new DisposeMessage());
@@ -469,9 +449,5 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         #endregion
     }
-
-    #region Messages
-
-    #endregion
 }
 
