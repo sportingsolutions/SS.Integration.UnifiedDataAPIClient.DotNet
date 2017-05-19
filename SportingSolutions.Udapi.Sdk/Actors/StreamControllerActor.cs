@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using Akka.Actor;
+using Akka.Event;
 using log4net;
 using RabbitMQ.Client;
 using SportingSolutions.Udapi.Sdk.Interfaces;
@@ -142,6 +143,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         public IStash Stash { get; set; }
 
+        internal Exception ConnectionError;
+
         internal ConnectionState State
         {
             get
@@ -263,13 +266,16 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 queue = consumer.GetQueueDetails();
                 if (queue == null || string.IsNullOrEmpty(queue.Name))
                 {
-                    throw new Exception("queue's name is not valid for consumerId=" + consumer.Id);
+                    var e = new Exception("queue's name is not valid for consumerId=" + consumer.Id);
+                    ConnectionError = e;
+                    throw e;
                 }
             }
             catch (Exception e)
             {
                 _logger.Error("Error acquiring queue details for consumerId=" + consumer.Id, e);
                 OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
+                ConnectionError = e;
                 throw;
             }
 
@@ -358,6 +364,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     break;
                 case ConnectionState.CONNECTED:
                     Self.Tell(new ConnectedMessage());
+                    ConnectionError = null;
                     break;
                 case ConnectionState.CONNECTING:
                     break;
