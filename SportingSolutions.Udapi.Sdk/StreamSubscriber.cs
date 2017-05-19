@@ -31,6 +31,8 @@ namespace SportingSolutions.Udapi.Sdk
 
         private bool _isDisposed;
 
+        internal bool IsDisposed => _isDisposed;
+
         public StreamSubscriber(IModel model, IConsumer consumer, IActorRef dispatcher)
             : base(model)
         {
