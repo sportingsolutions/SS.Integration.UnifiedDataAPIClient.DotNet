@@ -40,7 +40,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
 
             int startConsume = 0;
-            model.Setup(x => x.BasicConsume("test", true, consumer.Object.Id, test)).Callback(() => startConsume++);
+            model.Setup(x => x.BasicConsume("test", true, test.ConsumerTag, test)).Callback(() => startConsume++);
             test.StartConsuming("test");
 
            startConsume.ShouldBeEquivalentTo(1);

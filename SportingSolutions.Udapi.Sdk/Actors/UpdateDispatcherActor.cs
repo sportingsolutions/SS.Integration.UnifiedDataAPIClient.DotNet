@@ -75,9 +75,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void RemoveAll()
         {
-            _logger.DebugFormat("Sending disconnection to count={0} consumers", _subscribers.Count);
-            _subscribers.Values.ForEach(x => Self.Tell(new DisconnectMessage() { Id = x.StreamSubscriber.Consumer.Id, Consumer = x.StreamSubscriber.Consumer }));
-            _logger.Info("All consumers are notified about disconnection");
+            _subscribers.Clear();
+            Sender.Tell(new AllSubscribersDisconnectedMessage());
+            _logger.Info("All consumers have been removed");
         }
 
         private void Dispose()

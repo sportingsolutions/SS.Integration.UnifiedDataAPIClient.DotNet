@@ -86,8 +86,8 @@
   <ItemGroup>
     <Compile Include="EchoControllerActorTest.cs" />
     <Compile Include="MockedEchoControllerActor.cs" />
+    <Compile Include="MockedUpdateDispatcherActor.cs" />
     <Compile Include="MockedStreamControllerActor.cs" />
-    <Compile Include="MockedStreamSubscriber - Copy.cs" />
     <Compile Include="MockedStreamSubscriber.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ResourceTests.cs" />

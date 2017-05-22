@@ -66,13 +66,13 @@ namespace SportingSolutions.Udapi.Sdk
             }
             finally
             {
-                //Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
-
                 try
                 {
                     Dispose();
                 }
-                catch { }
+                catch
+                {
+                }
 
                 _logger.DebugFormat("Streaming stopped for consumerId={0}", ConsumerTag);
             }

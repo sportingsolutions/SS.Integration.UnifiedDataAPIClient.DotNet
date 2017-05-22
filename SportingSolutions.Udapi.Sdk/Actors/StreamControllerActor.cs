@@ -185,8 +185,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
 
             OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
-            
-
         }
 
         protected virtual void EstablishConnection(ConnectionFactory factory)

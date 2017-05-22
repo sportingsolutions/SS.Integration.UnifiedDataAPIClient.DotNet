@@ -36,13 +36,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         public void StopConsuming()
         {
-            Dispatcher.Tell(new RemoveSubscriberMessage() { Subscriber = this });
-
+            Dispatcher.Tell(new RemoveConsumerMessage { Consumer = Consumer });
         }
 
         public void StartConsuming(string queueName)
         {
-            Dispatcher.Tell(new NewSubscriberMessage() { Subscriber = this });
+            Dispatcher.Tell(new NewConsumerMessage { Consumer = Consumer});
         }
 
         #endregion
