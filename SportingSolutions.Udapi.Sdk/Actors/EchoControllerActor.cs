@@ -146,9 +146,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 // acquiring the consumer here prevents to put another lock on the
                 // dictionary
                 IStreamSubscriber sendEchoConsumer = null;
-
-                //while (!_cancellationTokenSource.IsCancellationRequested)
-                //{
+                
                 try
                 {
                     foreach (var consumer in _consumers)
@@ -181,16 +179,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     invalidConsumers.Clear();
 
                     SendEchos(sendEchoConsumer);
-
-                    //      _cancellationTokenSource.Token.WaitHandle.WaitOne(UDAPI.Configuration.EchoWaitInterval);
+                    
                 }
                 catch (Exception ex)
                 {
                     _logger.Error("Check Echos loop has experienced a failure", ex);
                 }
-                // }
-
-                //_logger.Debug("EchoTask terminated");
             }
             catch (Exception ex)
             {
@@ -202,7 +196,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             foreach (var s in subscribers)
             {
-                s.StopConsuming();
+                Context.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new RemoveConsumerMessage() { Consumer = s.Consumer });
                 Self.Tell(new RemoveSubscriberMessage() { Subscriber = s});
             }
         }
