@@ -76,7 +76,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         public bool Enabled { get; private set; }
 
-        public void AddConsumer(IStreamSubscriber subscriber)
+        public virtual void AddConsumer(IStreamSubscriber subscriber)
         {
             if (!Enabled || subscriber == null)
                 return;
@@ -237,6 +237,18 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             internal IStreamSubscriber Subscriber { get; set; }
         }
+
+        internal int? GetEchosCountDown(string subscriberId)
+        {
+            EchoEntry entry;
+            if (!string.IsNullOrEmpty(subscriberId) && _consumers.TryGetValue(subscriberId, out entry))
+            {
+                return entry.EchosCountDown;
+            }
+            return null;
+        }
+
+        internal int ConsumerCount => _consumers.Count;
 
         #endregion
     }

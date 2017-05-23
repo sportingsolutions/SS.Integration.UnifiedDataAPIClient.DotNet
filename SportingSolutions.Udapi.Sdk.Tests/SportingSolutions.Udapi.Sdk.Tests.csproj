@@ -84,12 +84,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="EchoControllerActorTest.cs" />
+    <Compile Include="MockedEchoControllerActor.cs" />
     <Compile Include="MockedStreamControllerActor.cs" />
     <Compile Include="MockedStreamSubscriber - Copy.cs" />
     <Compile Include="MockedStreamSubscriber.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ResourceTests.cs" />
     <Compile Include="MockedStreamController.cs" />
+    <Compile Include="ScenarioTest.cs" />
+    <Compile Include="StreamSubscriberTest.cs" />
     <Compile Include="StreamTestsActor.cs" />
     <Compile Include="StreamTests.cs" />
     <Compile Include="StupidActor.cs" />

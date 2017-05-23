@@ -17,6 +17,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         public const string ActorName = "UpdateDispatcherActor";
         
         private readonly Dictionary<string, ResourceSubscriber> _subscribers;
+
+        internal int SubscribersCout => _subscribers.Count;
         private readonly ILog _logger = LogManager.GetLogger(typeof(UpdateDispatcherActor));
 
         public UpdateDispatcherActor()
