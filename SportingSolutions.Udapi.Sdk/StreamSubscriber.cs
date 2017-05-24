@@ -122,10 +122,8 @@ namespace SportingSolutions.Udapi.Sdk
         {
             //Please note the disconnection is only raised if AutoReconnect is not enabled
             _logger.WarnFormat("Model shutdown for consumerId={0} - disconnection event might be raised. Autoreconnect is enabled={1}", ConsumerTag,UDAPI.Configuration.AutoReconnect);
+            StopConsuming();
             base.HandleModelShutdown(model, reason);
-
-            //if (!UDAPI.Configuration.AutoReconnect)
-            //    Dispatcher.RemoveSubscriber(this);
         }
 
 
