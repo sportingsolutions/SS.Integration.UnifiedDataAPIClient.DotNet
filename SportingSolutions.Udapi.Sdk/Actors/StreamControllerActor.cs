@@ -292,7 +292,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         public void StartConnectionValidation()
         {
             //if autoreconnect is enabled and connection is closed we should proceed with the wait otherwise the connection is valid
-            if (!AutoReconnect || _streamConnection.IsOpen)
+            if (!AutoReconnect || _streamConnection == null || _streamConnection.IsOpen)
             {
                 CloseConnection();
             }
@@ -310,7 +310,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         public void ValidateConnection()
         {
             //validate whether the reconnection was successful 
-            _logger.InfoFormat("Starting validation for reconnection connHash={0}", _streamConnection.GetHashCode());
+            _logger.InfoFormat("Starting validation for reconnection connHash={0}",
+                _streamConnection?.GetHashCode().ToString() ?? "null");
 
             //in case the connection is swapped by RMQ library while the check is running
             var testConnection = _streamConnection;
@@ -329,6 +330,14 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(new ResetAllEchoesMessage());
                 _logger.InfoFormat("Reconnection successful, disconnection event will not be raised");
             }
+            else if (AutoReconnect)
+            {
+                SdkActorSystem.ActorSystem.Scheduler.ScheduleTellOnce(
+                    TimeSpan.FromSeconds(1),
+                    SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath),
+                    new ValidateMessage(),
+                    ActorRefs.NoSender);
+            }
             else
             {
                 CloseConnection();
@@ -338,18 +347,29 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         protected virtual void OnConnectionStatusChanged(ConnectionState newState)
         {
             State = newState;
-                  
+            object message = null;
+
             switch (newState)
             {
                 case ConnectionState.DISCONNECTED:
-                    Self.Tell(new DisconnectedMessage());
+                    message = new DisconnectedMessage();
                     break;
                 case ConnectionState.CONNECTED:
-                    Self.Tell(new ConnectedMessage());
+                    message = new ConnectedMessage();
                     ConnectionError = null;
                     break;
                 case ConnectionState.CONNECTING:
                     break;
+            }
+
+            try
+            {
+                Self.Tell(message);
+            }
+            catch (NotSupportedException)
+            {
+                var selfActorSel = SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath);
+                selfActorSel.Tell(message);
             }
         }
 
@@ -389,8 +409,19 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             var queue = consumer.GetQueueDetails();
             if (queue == null || string.IsNullOrEmpty(queue.Name))
                 throw new Exception("Invalid queue details");
-            
+
+            if (_streamConnection != null && !_streamConnection.IsOpen)
+            {
+                SdkActorSystem.ActorSystem.Scheduler.ScheduleTellOnce(
+                    TimeSpan.FromSeconds(1), 
+                    SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath), 
+                    new NewConsumerMessage { Consumer = consumer }, 
+                    ActorRefs.NoSender);
+                return;
+            }
+
             var model = _streamConnection.CreateModel();
+
             StreamSubscriber subscriber = null;
 
             try
