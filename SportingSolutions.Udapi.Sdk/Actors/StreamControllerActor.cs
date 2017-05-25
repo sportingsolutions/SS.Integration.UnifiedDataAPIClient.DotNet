@@ -120,21 +120,20 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<DisconnectedMessage>(x => Become(DisconnectedState));
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
-            Receive<ValidateMessage>(x => ValidateConnection());
-            Receive<ValidateMessage>(x => ValidateConnection());
+            Receive<ValidateMessage>(x => ValidateConnection(x));
             Receive<AllSubscribersDisconnectedMessage>(x => StopConsumingMessages());
             Stash.UnstashAll();
         }
 
         private void StreamingState()
         {
-            logger.Info("Moved to Streaming State");
+            _logger.Info("Moved to Streaming State");
 
             Receive<NewConsumerMessage>(x => Dispatcher.Tell(x));
             Receive<DisconnectedMessage>(x => Become(DisconnectedState));
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
-            Receive<ValidateMessage>(x => ValidateConnection());
+            Receive<ValidateMessage>(x => ValidateConnection(x));
             Receive<AllSubscribersDisconnectedMessage>(x => StopConsumingMessages());
 
             OnConnectionStatusChanged(ConnectionState.STREAMING);
@@ -268,11 +267,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 // notify any sleeping threads
                 OnConnectionStatusChanged(newstate);
             }
-        }
-
-        private void ConnectStream(ConnectStreamMessage connectStreamMessage)
-        {
-            Connect(connectStreamMessage.Consumer);
         }
 
         private void Connect(IConsumer consumer)
@@ -434,7 +428,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected virtual void RemoveConsumerFromQueue(IConsumer consumer)
         {
-            var disconnectMsg = new DisconnectMessage { Id = consumer.Id, Consumer = consumer };
+            var disconnectMsg = new DisconnectMessage { Id = consumer.Id };
             Dispatcher.Tell(disconnectMsg);
         }
 
