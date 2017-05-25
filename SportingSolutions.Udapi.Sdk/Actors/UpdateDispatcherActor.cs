@@ -1,7 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Akka.Actor;
+using Akka.IO;
 using Akka.Util.Internal;
 using log4net;
+using log4net.Config;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
 
@@ -10,7 +15,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
     public class UpdateDispatcherActor : ReceiveActor
     {
         public const string ActorName = "UpdateDispatcherActor";
-
+        
         private readonly Dictionary<string, ResourceSubscriber> _subscribers;
         private readonly ILog _logger = LogManager.GetLogger(typeof(UpdateDispatcherActor));
 
@@ -18,6 +23,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             _subscribers = new Dictionary<string, ResourceSubscriber>();
             Receive<StreamUpdateMessage>(message => ProcessMessage(message));
+            
             Receive<DisconnectMessage>(message => Disconnect(message));
             Receive<NewConsumerMessage>(message => NewConsumerMessageHandler(message));
             Receive<SubscribersCountMessage>(x => AskSubsbscribersCount());

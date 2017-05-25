@@ -20,14 +20,10 @@ namespace SportingSolutions.Udapi.Sdk
 
         public static Props BuildUpdateDispatcherActor = Props.Create<UpdateDispatcherActor>();
 
-        //public static Props BuildStreamControllerActor =
-        //    Props.Create<StreamControllerActor>(() => new StreamControllerActor(new UpdateDispatcher()));
         
-
         static SdkActorSystem()
         {
-            //_actorSystem = ActorSystem.Create("SDKSystem");
-            
+          
         }
         
         /// <summary>
