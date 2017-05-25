@@ -48,7 +48,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         }
 
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamControllerActor));
-        
+
         private IConnection _streamConnection;
         private volatile ConnectionState _state;
         private ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
@@ -275,7 +275,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             EstablishConnection(factory);
         }
         
-        protected virtual void OnConnectionShutdown(object sender, ShutdownEventArgs sea)
+        internal virtual void OnConnectionShutdown(object sender, ShutdownEventArgs sea)
         {
             _logger.ErrorFormat("The AMQP connection was shutdown: {0}. AutoReconnect is enabled={1}", sea, AutoReconnect);
 

@@ -12,6 +12,7 @@ using RabbitMQ.Client;
 using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Interfaces;
+using SportingSolutions.Udapi.Sdk.Model.Message;
 
 namespace SportingSolutions.Udapi.Sdk.Tests
 {
@@ -79,6 +80,47 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             updateDispatcherActor.UnderlyingActor.SubscribersCout.ShouldBeEquivalentTo(0);
 
 
+
+        }
+
+        [Test]
+        public void DisconnectWithoutReconnectTest()
+        {
+            ((Configuration)UDAPI.Configuration).AutoReconnect = false;
+
+
+            Mock<IConsumer> consumer = new Mock<IConsumer>();
+            consumer.Setup(x => x.Id).Returns(id1);
+            consumer.Setup(x => x.GetQueueDetails()).Returns(Querydetails);
+
+            var model = new Mock<IModel>();
+
+            var echoControllerActor = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
+            var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
+
+            var subsctiber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
+
+            var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(
+                Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor)),
+                StreamControllerActor.ActorName);
+
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
+
+            //register new consumer
+            var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
+            streamCtrlActorTestRef.Tell(newConsumerMessage);
+
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+
+            //subsctiber.HandleBasicConsumeOk("Connect");
+
+            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
+            updateDispatcherActor.UnderlyingActor.SubscribersCout.ShouldBeEquivalentTo(1);
+
+            streamCtrlActorTestRef.UnderlyingActor.OnConnectionShutdown(null,new ShutdownEventArgs(ShutdownInitiator.Application, 541, "TestException"));
+                //_streamConnection.Abort(541, "Test exception");
+
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
 
         }
 
