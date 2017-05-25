@@ -127,7 +127,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             try
             {
-                var disconnectMsg = new DisconnectMessage { Id = subscriber.Consumer.Id, Consumer = subscriber.Consumer };
+                var disconnectMsg = new DisconnectMessage { Id = subscriber.Consumer.Id };
                 Self.Tell(disconnectMsg);
                
                 _logger.InfoFormat($"consumerId={subscriber.Consumer.Id} removed from the dispatcher, count={_subscribers.Count}");
@@ -143,7 +143,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             try
             {
                 _logger.DebugFormat("Sending disconnection to count={0} consumers", _subscribers.Count);
-                _subscribers.Values.ForEach(x=> Self.Tell(new DisconnectMessage() { Id = x.StreamSubscriber.Consumer.Id, Consumer = x.StreamSubscriber.Consumer } ));
+                _subscribers.Values.ForEach(x=> Self.Tell(new DisconnectMessage() { Id = x.StreamSubscriber.Consumer.Id } ));
                 _logger.Info("All consumers are notified about disconnection");
 
             }

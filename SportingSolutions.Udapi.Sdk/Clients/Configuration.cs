@@ -28,7 +28,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         private const bool DEFAULT_VERBOSE_LOGGING = true;
         private const ushort DEFAULT_AMQP_HEARTBEAT = 15;
         private bool DEFAULT_ENABLE_AUTO_RECONNECT = true;
-        private int DEFAULT_DISCONNECTION_DELAY = 15;
+        private int DEFAULT_DISCONNECTION_DELAY = 10;
 
         static Configuration()
         {
