@@ -46,16 +46,16 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             DISCONNECTED = 0,
             CONNECTING = 1,
             CONNECTED = 2,
-            STREAMING = 2
+            STREAMING = 3
         }
 
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamControllerActor));
-        
+
         private IConnection _streamConnection;
         private volatile ConnectionState _state;
         private readonly ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
         private StreamSubscriber _subscriber = null;
-        
+
         public StreamControllerActor(IActorRef dispatcherActor)
         {
             if (dispatcherActor == null)
@@ -65,9 +65,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             //Start in Disconnected state
             DisconnectedState();
-            
+
             AutoReconnect = UDAPI.Configuration.AutoReconnect;
-            
+
             _logger.DebugFormat("StreamController initialised");
         }
 
@@ -103,7 +103,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             Receive<DisconnectedMessage>(x => Become(DisconnectedState));
             Receive<ValidateMessage>(x => ValidateConnection(x));
-            Receive<ValidationSucceededMessage>(x => Become(ConnectedState));
+            Receive<ValidationSucceededMessage>(x => ValidationSucceededHandler(x));
             Receive<NewConsumerMessage>(x => Stash.Stash());
             Receive<RemoveConsumerMessage>(x => Stash.Stash());
             Receive<DisposeMessage>(x => Dispose());
@@ -111,11 +111,31 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             State = ConnectionState.DISCONNECTED;
         }
 
+        private void ValidationSucceededHandler(ValidationSucceededMessage message)
+        {
+            switch (message.RestoredConnectionState)
+            {
+                case ConnectionState.CONNECTED:
+                    {
+                        Become(ConnectedState);
+                        break;
+                    }
+                case ConnectionState.STREAMING:
+                    {
+                        Become(StreamingState);
+                        break;
+                    }
+            }
+        }
+
         /// <summary>
         /// this is the state when the connection is open
         /// </summary>
         private void ConnectedState()
         {
+            _logger.Info("Moved to Connected State");
+
+            Receive<ValidationStartMessage>(x => ValidationStart(ConnectionState.CONNECTED));
             Receive<NewConsumerMessage>(x => ProcessNewConsumer(x));
             Receive<DisconnectedMessage>(x => Become(DisconnectedState));
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
@@ -123,12 +143,15 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<ValidateMessage>(x => ValidateConnection(x));
             Receive<AllSubscribersDisconnectedMessage>(x => StopConsumingMessages());
             Stash.UnstashAll();
+
+            State = ConnectionState.CONNECTED;
         }
 
         private void StreamingState()
         {
             _logger.Info("Moved to Streaming State");
 
+            Receive<ValidationStartMessage>(x => ValidationStart(ConnectionState.STREAMING));
             Receive<NewConsumerMessage>(x => Dispatcher.Tell(x));
             Receive<DisconnectedMessage>(x => Become(DisconnectedState));
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
@@ -136,7 +159,21 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<ValidateMessage>(x => ValidateConnection(x));
             Receive<AllSubscribersDisconnectedMessage>(x => StopConsumingMessages());
 
-            OnConnectionStatusChanged(ConnectionState.STREAMING);
+            State = ConnectionState.STREAMING;
+        }
+
+        private void ValidationStart(ConnectionState connectionState)
+        {
+            Become(ValidationState);
+
+            //schedule check in the near future (10s by default) whether the connection has recovered
+            //DO NOT use Context in here as this code is likely going to be called as a result of event being raised on a separate thread 
+            //Calling Context.Scheduler will result in exception as it's not run within Actor context - this code communicates with the actor via ActorSystem instead
+            SdkActorSystem.ActorSystem.Scheduler.ScheduleTellOnce(
+                TimeSpan.FromSeconds(UDAPI.Configuration.DisconnectionDelay)
+                , SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath)
+                , new ValidateMessage { RestoredConnectionState = connectionState }
+                , ActorRefs.NoSender);
         }
 
         private void StopConsumingMessages()
@@ -152,13 +189,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Dispatcher.Tell(new NewConsumerMessage { Consumer = newConsumerMessage.Consumer });
             Become(StreamingState);
         }
-        
+
         /// <summary>
         /// Is AutoReconnect enabled
         /// </summary>
         public bool AutoReconnect { get; private set; }
 
-        
+
 
         /// <summary>
         /// 
@@ -184,7 +221,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _state = value;
             }
         }
-        
+
         #region Connection management
 
         protected virtual void CloseConnection()
@@ -207,13 +244,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _streamConnection = null;
                 Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath)
-                    .Tell(new RemoveSubscriberMessage {Subscriber = _subscriber});
+                    .Tell(new RemoveSubscriberMessage { Subscriber = _subscriber });
                 _subscriber?.Dispose();
                 _subscriber = null;
             }
 
             OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
-            
+
 
         }
 
@@ -272,12 +309,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private void Connect(IConsumer consumer)
         {
             if (State == ConnectionState.CONNECTED) return;
-            
+
             if (State == ConnectionState.CONNECTED || _connectionCancellation.IsCancellationRequested)
                 return;
 
             State = ConnectionState.CONNECTING;
-            
+
             // GetQueueDetails() returns the credentials for connecting to the AMQP server
             // but it also asks the server to create an AMQP queue for the caller.
             // As the time to establish a connection could take a while (just think about
@@ -320,7 +357,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             EstablishConnection(factory);
         }
-        
+
         protected virtual void OnConnectionShutdown(object sender, ShutdownEventArgs sea)
         {
             _logger.ErrorFormat("The AMQP connection was shutdown: {0}. AutoReconnect is enabled={1}", sea, AutoReconnect);
@@ -344,8 +381,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _logger.WarnFormat(
                     "Reconnection failed, connection has been disposed, the disconnection event needs to be raised");
+                _subscriber?.StopConsuming();
                 CloseConnection();
-                validateMessage.StreamSubscriber.StopConsuming();
                 return;
             }
 
@@ -356,12 +393,15 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(new ResetAllEchoesMessage());
                 _logger.InfoFormat("Reconnection successful, disconnection event will not be raised");
 
-                Self.Tell(new ValidationSucceededMessage());
+                Self.Tell(new ValidationSucceededMessage
+                {
+                    RestoredConnectionState = validateMessage.RestoredConnectionState
+                });
             }
             else
             {
+                _subscriber?.StopConsuming();
                 CloseConnection();
-                validateMessage.StreamSubscriber.StopConsuming();
             }
         }
 
@@ -383,7 +423,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     break;
             }
 
-            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(message);
+            if (message != null)
+                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(message);
         }
 
         #endregion
@@ -396,7 +437,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             var queue = consumer.GetQueueDetails();
             if (string.IsNullOrEmpty(queue?.Name))
                 throw new Exception("Invalid queue details");
-            
+
             var model = _streamConnection.CreateModel();
             StreamSubscriber subscriber = null;
 
@@ -404,13 +445,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _subscriber = new StreamSubscriber(model, consumer, Dispatcher);
                 Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath)
-                    .Tell(new NewSubscriberMessage {Subscriber = _subscriber});
+                    .Tell(new NewSubscriberMessage { Subscriber = _subscriber });
                 _subscriber.StartConsuming(QueueName);
             }
             catch
             {
                 Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath)
-                    .Tell(new RemoveSubscriberMessage {Subscriber = _subscriber});
+                    .Tell(new RemoveSubscriberMessage { Subscriber = _subscriber });
                 _subscriber?.Dispose();
                 _subscriber = null;
 
@@ -453,7 +494,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         }
 
         #endregion
-        
+
         #region Private messages
         private class ConnectedMessage
         {
@@ -467,23 +508,23 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private class ValidateMessage
         {
-            internal StreamSubscriber StreamSubscriber { get; set; }
+            internal ConnectionState RestoredConnectionState { get; set; }
         }
 
         private class ValidationSucceededMessage
         {
+            internal ConnectionState RestoredConnectionState { get; set; }
         }
 
         #endregion
 
-        
+
     }
 
     #region Messages
 
     internal class ValidationStartMessage
     {
-        internal StreamSubscriber StreamSubscriber { get; set; }
     }
 
     #endregion

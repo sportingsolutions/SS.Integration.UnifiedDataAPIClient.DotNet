@@ -123,7 +123,7 @@ namespace SportingSolutions.Udapi.Sdk
             else
             {
                 SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath)
-                    .Tell(new ValidationStartMessage {StreamSubscriber = this});
+                    .Tell(new ValidationStartMessage());
             }
             base.HandleModelShutdown(model, reason);
         }
