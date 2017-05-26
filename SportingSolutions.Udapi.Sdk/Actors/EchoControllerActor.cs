@@ -27,8 +27,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
     {
         private class EchoEntry
         {
-            public IStreamSubscriber Subscriber;
+            public IConsumer Consumer;
             public int EchosCountDown;
+        }
+
+        internal class SendEchoMessage
+        {
         }
 
         public const string ActorName = "EchoControllerActor";
@@ -46,44 +50,39 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (Enabled)
             {
                 //this will send Echo Message to the EchoControllerActor (Self) at the specified interval
-                Context.System.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromSeconds(0), TimeSpan.FromMilliseconds(UDAPI.Configuration.EchoWaitInterval), Self, GetEchoMessage(), ActorRefs.Nobody);
+                Context.System.Scheduler.ScheduleTellRepeatedly(
+                    TimeSpan.FromSeconds(0),
+                    TimeSpan.FromMilliseconds(UDAPI.Configuration.EchoWaitInterval),
+                    Self,
+                    new SendEchoMessage(),
+                    ActorRefs.Nobody);
             }
 
             _logger.DebugFormat("EchoSender is {0}", Enabled ? "enabled" : "disabled");
 
-            Receive<NewSubscriberMessage>(x => AddConsumer(x.Subscriber));
-            Receive<RemoveSubscriberMessage>(x => RemoveConsumer(x.Subscriber));
+            Receive<NewConsumerMessage>(x => AddConsumer(x.Consumer));
+            Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
+            Receive<RemoveAllConsumersMessage>(x => RemoveAll());
             Receive<EchoMessage>(x => ProcessEcho(x.Id));
             Receive<SendEchoMessage>(x => CheckEchos());
+            Receive<ResetAllEchoesMessage>(x => ResetAll());
             Receive<DisposeMessage>(x => Dispose());
         }
 
-        private SendEchoMessage GetEchoMessage()
+        public bool Enabled { get; }
+
+        public virtual void AddConsumer(IConsumer consumer)
         {
-            if (_consumers.IsEmpty)
-            {
-                _logger.WarnFormat("Can't send echo - there are no subscribers");
-                return new SendEchoMessage { Subscriber = null };
-            }
-
-            //this should only return message to send
-            return new SendEchoMessage() { Subscriber = _consumers.First().Value.Subscriber };
-        }
-
-        public bool Enabled { get; private set; }
-
-        public virtual void AddConsumer(IStreamSubscriber subscriber)
-        {
-            if (!Enabled || subscriber == null)
+            if (!Enabled || consumer == null)
                 return;
 
-            _consumers[subscriber.Consumer.Id] = new EchoEntry
+            _consumers[consumer.Id] = new EchoEntry
             {
-                Subscriber = subscriber,
+                Consumer = consumer,
                 EchosCountDown = UDAPI.Configuration.MissedEchos
             };
 
-            _logger.DebugFormat("consumerId={0} added to echos manager", subscriber.Consumer.Id);
+            _logger.DebugFormat("consumerId={0} added to echos manager", consumer.Id);
         }
 
         public void ResetAll()
@@ -97,14 +96,14 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
         }
 
-        public void RemoveConsumer(IStreamSubscriber subscriber)
+        public void RemoveConsumer(IConsumer consumer)
         {
-            if (!Enabled || subscriber == null)
+            if (!Enabled || consumer == null)
                 return;
 
             EchoEntry tmp;
-            if (_consumers.TryRemove(subscriber.Consumer.Id, out tmp))
-                _logger.DebugFormat("consumerId={0} removed from echos manager", subscriber.Consumer.Id);
+            if (_consumers.TryRemove(consumer.Id, out tmp))
+                _logger.DebugFormat("consumerId={0} removed from echos manager", consumer.Id);
         }
 
         public void RemoveAll()
@@ -115,11 +114,18 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _consumers.Clear();
         }
 
-        public void ProcessEcho(string subscriberId)
+        public void ProcessEcho(string consumerId)
         {
-            if (!_consumers.IsEmpty)
+            EchoEntry echoEntry;
+            if (_consumers.TryGetValue(consumerId, out echoEntry))
             {
-                _consumers.First().Value.EchosCountDown = UDAPI.Configuration.MissedEchos;
+                echoEntry.EchosCountDown = UDAPI.Configuration.MissedEchos;
+            }
+            else
+            {
+                _logger.WarnFormat(
+                    "Failed process echo for consumer with id {0} as it could not be found...",
+                    consumerId);
             }
         }
 
@@ -132,32 +138,34 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             try
             {
-                List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
+                List<IConsumer> invalidConsumers = new List<IConsumer>();
 
                 // acquiring the consumer here prevents to put another lock on the
                 // dictionary
-                IStreamSubscriber sendEchoConsumer = null;
+                IConsumer sendEchoConsumer = null;
 
                 try
                 {
                     foreach (var consumer in _consumers)
                     {
                         if (sendEchoConsumer == null)
-                            sendEchoConsumer = consumer.Value.Subscriber;
+                            sendEchoConsumer = consumer.Value.Consumer;
 
                         int tmp = consumer.Value.EchosCountDown;
                         consumer.Value.EchosCountDown--;
 
                         if (tmp != UDAPI.Configuration.MissedEchos)
                         {
-                            _logger.WarnFormat("consumerId={0} missed count={1} echos", consumer.Key, UDAPI.Configuration.MissedEchos - tmp);
+                            _logger.WarnFormat("consumerId={0} missed count={1} echos", consumer.Key,
+                                UDAPI.Configuration.MissedEchos - tmp);
 
                             if (tmp <= 1)
                             {
-                                _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected", consumer.Key, UDAPI.Configuration.MissedEchos);
-                                invalidConsumers.Add(consumer.Value.Subscriber);
+                                _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected",
+                                    consumer.Key, UDAPI.Configuration.MissedEchos);
+                                invalidConsumers.Add(consumer.Value.Consumer);
 
-                                if (sendEchoConsumer == consumer.Value.Subscriber)
+                                if (sendEchoConsumer == consumer.Value.Consumer)
                                     sendEchoConsumer = null;
                             }
                         }
@@ -165,7 +173,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
                     // this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
                     // for the invalid consumers
-                    RemoveSubribers(invalidConsumers);
+                    RemoveConsumers(invalidConsumers);
 
                     invalidConsumers.Clear();
 
@@ -182,26 +190,27 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
         }
 
-        private void RemoveSubribers(IEnumerable<IStreamSubscriber> subscribers)
+        private void RemoveConsumers(IEnumerable<IConsumer> consumers)
         {
-            foreach (var s in subscribers)
+            foreach (var consumer in consumers)
             {
-                Context.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new RemoveConsumerMessage() { Consumer = s.Consumer });
-                Self.Tell(new RemoveSubscriberMessage() { Subscriber = s });
+                Context.ActorSelection(SdkActorSystem.StreamControllerActorPath)
+                    .Tell(new RemoveConsumerMessage {Consumer = consumer});
+                Self.Tell(new RemoveConsumerMessage {Consumer = consumer});
             }
         }
 
-        private void SendEchos(IStreamSubscriber item)
+        private void SendEchos(IConsumer item)
         {
             if (item == null)
             {
-                _logger.Warn("Unable to send echo due to null stream subscriber");
+                _logger.Warn("Unable to send echo due to null consumer object reference");
                 return;
             }
             try
             {
-                _logger.DebugFormat("Sending batch echoe");
-                item.Consumer.SendEcho();
+                _logger.DebugFormat("Sending batch echo");
+                item.SendEcho();
             }
             catch (Exception e)
             {
@@ -220,13 +229,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _logger.InfoFormat("EchoSender correctly disposed");
         }
 
-        #region Private messages
-
-        internal class SendEchoMessage
-        {
-            internal IStreamSubscriber Subscriber { get; set; }
-        }
-
         internal int? GetEchosCountDown(string subscriberId)
         {
             EchoEntry entry;
@@ -238,7 +240,5 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         }
 
         internal int ConsumerCount => _consumers.Count;
-
-        #endregion
     }
 }

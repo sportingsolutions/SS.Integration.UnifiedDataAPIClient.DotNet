@@ -78,8 +78,8 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
-            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new NewConsumerMessage() { Consumer = this});
             Logger.DebugFormat("Streaming request queued for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
+            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new NewConsumerMessage() { Consumer = this });
         }
 
         public void PauseStreaming()

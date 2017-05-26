@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Akka.Actor;
-using Akka.Util.Internal;
 using log4net;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
@@ -12,33 +10,34 @@ namespace SportingSolutions.Udapi.Sdk.Actors
     {
         public const string ActorName = "UpdateDispatcherActor";
         
-        private readonly Dictionary<string, ResourceSubscriber> _subscribers;
+        private readonly Dictionary<string, ResourceConsumer> _consumers;
 
-        internal int SubscribersCount => _subscribers.Count;
+        internal int SubscribersCount => _consumers.Count;
         private readonly ILog _logger = LogManager.GetLogger(typeof(UpdateDispatcherActor));
 
         public UpdateDispatcherActor()
         {
-            _subscribers = new Dictionary<string, ResourceSubscriber>();
+            _consumers = new Dictionary<string, ResourceConsumer>();
             Receive<StreamUpdateMessage>(message => ProcessMessage(message));
-            
             Receive<DisconnectMessage>(message => Disconnect(message));
             Receive<NewConsumerMessage>(message => NewConsumerMessageHandler(message));
-            Receive<SubscribersCountMessage>(x => AskSubsbscribersCount());
-            Receive<RemoveAllSubscribers>(x => RemoveAll());
+            Receive<ConsumersCountMessage>(x => AskConsumersCount());
+            Receive<RemoveAllConsumersMessage>(x => RemoveAll());
             Receive<DisposeMessage>(x => Dispose());
         }
 
         private void Disconnect(DisconnectMessage message)
         {
-            if (!_subscribers.ContainsKey(message.Id)) return;
+            if (!_consumers.ContainsKey(message.Id)) return;
 
-            var subscriber = _subscribers[message.Id];
-            _subscribers.Remove(message.Id);
+            var consumer = _consumers[message.Id];
+            _consumers.Remove(message.Id);
+            consumer.Resource.Tell(message);
+
             _logger.DebugFormat("subscriberId={0} removed from UpdateDispatcherActor", message.Id);
 
-            if (_subscribers.Count == 0)
-                Sender.Tell(new AllSubscribersDisconnectedMessage());
+            if (_consumers.Count == 0)
+                Sender.Tell(new AllConsumersDisconnectedMessage());
         }
 
         private void ProcessMessage(StreamUpdateMessage message)
@@ -50,9 +49,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 Context.ActorSelection(SdkActorSystem.EchoControllerActorPath)
                     .Tell(new EchoMessage { Id = message.Id, Message = message.Message });
             }
-            else if (_subscribers.ContainsKey(message.Id))
+            else if (_consumers.ContainsKey(message.Id))
             {
-                _subscribers[message.Id].Resource.Tell(message);
+                _consumers[message.Id].Resource.Tell(message);
             }
             else
                 _logger.Warn($"The subscriber with id {message.Id} couldn't be found");
@@ -61,26 +60,19 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private void NewConsumerMessageHandler(NewConsumerMessage message)
         {
             var resourceActor = Context.ActorOf(Props.Create<ResourceActor>(message.Consumer));
-            if (!_subscribers.ContainsKey(message.Consumer.Id))
-            {
-                _subscribers.Add(message.Consumer.Id, new ResourceSubscriber
-                {
-                    Resource = resourceActor,
-                    StreamSubscriber = null
-                });
-            }
+            _consumers[message.Consumer.Id] = new ResourceConsumer {Resource = resourceActor};
             resourceActor.Tell(new ConnectMessage() { Id = message.Consumer.Id, Consumer = message.Consumer });
         }
 
-        private void AskSubsbscribersCount()
+        private void AskConsumersCount()
         {
-            Sender.Tell(_subscribers.Count);
+            Sender.Tell(_consumers.Count);
         }
 
         private void RemoveAll()
         {
-            _subscribers.Clear();
-            Sender.Tell(new AllSubscribersDisconnectedMessage());
+            _consumers.Clear();
+            Sender.Tell(new AllConsumersDisconnectedMessage());
             _logger.Info("All consumers have been removed");
         }
 
@@ -98,27 +90,22 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
         }
 
-        private class ResourceSubscriber
+        private class ResourceConsumer
         {
             internal IActorRef Resource { get; set; }
-            internal IStreamSubscriber StreamSubscriber { get; set; }
+            internal IConsumer Consumer { get; set; }
         }
     }
 
     #region Messages specific to UpdateDispatcherActor (non resusable by other actors)
 
     //Message used to get count if subscribers
-    internal class SubscribersCountMessage
+    internal class ConsumersCountMessage
     {
 
     }
 
-    internal class RemoveAllSubscribers
-    {
-
-    }
-
-    internal class AllSubscribersDisconnectedMessage
+    internal class AllConsumersDisconnectedMessage
     {
 
     }

@@ -24,193 +24,193 @@ using SportingSolutions.Udapi.Sdk.Interfaces;
 
 namespace SportingSolutions.Udapi.Sdk
 {
-    internal class EchoController : IEchoController
-    {
-        private class EchoEntry
-        {
-            public IStreamSubscriber Subscriber;
-            public int EchosCountDown;
-        }
+    //internal class EchoController : IEchoController
+    //{
+    //    private class EchoEntry
+    //    {
+    //        public IStreamSubscriber Subscriber;
+    //        public int EchosCountDown;
+    //    }
 
 
-        private readonly ILog _logger = LogManager.GetLogger(typeof(EchoController));
-        private readonly ConcurrentDictionary<string, EchoEntry> _consumers; 
-        private readonly Task _echoSender;
-        private readonly CancellationTokenSource _cancellationTokenSource;
+    //    private readonly ILog _logger = LogManager.GetLogger(typeof(EchoController));
+    //    private readonly ConcurrentDictionary<string, EchoEntry> _consumers; 
+    //    private readonly Task _echoSender;
+    //    private readonly CancellationTokenSource _cancellationTokenSource;
 
-        public EchoController()
-        {
-            Enabled = UDAPI.Configuration.UseEchos;
-            _consumers = new ConcurrentDictionary<string, EchoEntry>();
-            _cancellationTokenSource = new CancellationTokenSource();
+    //    public EchoController()
+    //    {
+    //        Enabled = UDAPI.Configuration.UseEchos;
+    //        _consumers = new ConcurrentDictionary<string, EchoEntry>();
+    //        _cancellationTokenSource = new CancellationTokenSource();
 
-            if(Enabled)
-            {
-                _echoSender = Task.Factory.StartNew(CheckEchos, _cancellationTokenSource.Token).ContinueWith(task => {_logger.Warn("Echo Thread has stopped"); });
-            }
+    //        if(Enabled)
+    //        {
+    //            _echoSender = Task.Factory.StartNew(CheckEchos, _cancellationTokenSource.Token).ContinueWith(task => {_logger.Warn("Echo Thread has stopped"); });
+    //        }
 
-            _logger.DebugFormat("EchoSender is {0}", Enabled ? "enabled" : "disabled");
-        }
+    //        _logger.DebugFormat("EchoSender is {0}", Enabled ? "enabled" : "disabled");
+    //    }
 
-        public bool Enabled { get; private set; }
+    //    public bool Enabled { get; private set; }
 
-        public void AddConsumer(IStreamSubscriber subscriber)
-        {
-            if (!Enabled || subscriber == null)
-                return;
+    //    public void AddConsumer(IStreamSubscriber subscriber)
+    //    {
+    //        if (!Enabled || subscriber == null)
+    //            return;
 
-            _consumers[subscriber.Consumer.Id] = new EchoEntry 
-                {
-                    Subscriber = subscriber, 
-                    EchosCountDown = UDAPI.Configuration.MissedEchos 
-                };
+    //        _consumers[subscriber.Consumer.Id] = new EchoEntry 
+    //            {
+    //                Subscriber = subscriber, 
+    //                EchosCountDown = UDAPI.Configuration.MissedEchos 
+    //            };
 
-            _logger.DebugFormat("consumerId={0} added to echos manager", subscriber.Consumer.Id);
-        }
+    //        _logger.DebugFormat("consumerId={0} added to echos manager", subscriber.Consumer.Id);
+    //    }
 
-        public void ResetAll()
-        {
-            //this is used on disconnection when auto-reconnection is used
-            //some echoes will usually be missed in the process 
-            //once the connection is restarted it makes sense to reset echo counter
-            foreach (var echoEntry in _consumers.Values)
-            {
-                echoEntry.EchosCountDown = UDAPI.Configuration.MissedEchos;
-            }
+    //    public void ResetAll()
+    //    {
+    //        //this is used on disconnection when auto-reconnection is used
+    //        //some echoes will usually be missed in the process 
+    //        //once the connection is restarted it makes sense to reset echo counter
+    //        foreach (var echoEntry in _consumers.Values)
+    //        {
+    //            echoEntry.EchosCountDown = UDAPI.Configuration.MissedEchos;
+    //        }
              
-        }
+    //    }
 
-        public void RemoveConsumer(IStreamSubscriber subscriber)
-        {
-            if (!Enabled || subscriber == null)
-                return;
+    //    public void RemoveConsumer(IStreamSubscriber subscriber)
+    //    {
+    //        if (!Enabled || subscriber == null)
+    //            return;
 
-            EchoEntry tmp;
-            if (_consumers.TryRemove(subscriber.Consumer.Id, out tmp))
-                _logger.DebugFormat("consumerId={0} removed from echos manager", subscriber.Consumer.Id);
-        }
+    //        EchoEntry tmp;
+    //        if (_consumers.TryRemove(subscriber.Consumer.Id, out tmp))
+    //            _logger.DebugFormat("consumerId={0} removed from echos manager", subscriber.Consumer.Id);
+    //    }
 
-        public void RemoveAll()
-        {
-            if(!Enabled)
-                return;
+    //    public void RemoveAll()
+    //    {
+    //        if(!Enabled)
+    //            return;
 
-            _consumers.Clear();
-        }
+    //        _consumers.Clear();
+    //    }
 
-        public void ProcessEcho(string subscriberId)
-        {
-            EchoEntry entry;
-            if (!string.IsNullOrEmpty(subscriberId) && _consumers.TryGetValue(subscriberId, out entry))
-            {
-                if(UDAPI.Configuration.VerboseLogging)
-                    _logger.DebugFormat("Resetting echo information for consumerId={0}", subscriberId);
+    //    public void ProcessEcho(string subscriberId)
+    //    {
+    //        EchoEntry entry;
+    //        if (!string.IsNullOrEmpty(subscriberId) && _consumers.TryGetValue(subscriberId, out entry))
+    //        {
+    //            if(UDAPI.Configuration.VerboseLogging)
+    //                _logger.DebugFormat("Resetting echo information for consumerId={0}", subscriberId);
 
-                entry.EchosCountDown = UDAPI.Configuration.MissedEchos;
-            }
-        }
+    //            entry.EchosCountDown = UDAPI.Configuration.MissedEchos;
+    //        }
+    //    }
 
-        private void CheckEchos()
-        {
-            try
-            {
-                _logger.Debug("Starting EchoTask");
+    //    private void CheckEchos()
+    //    {
+    //        try
+    //        {
+    //            _logger.Debug("Starting EchoTask");
 
-                List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
+    //            List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
 
-                // acquiring the consumer here prevents to put another lock on the
-                // dictionary
-                IStreamSubscriber sendEchoConsumer = null;
+    //            // acquiring the consumer here prevents to put another lock on the
+    //            // dictionary
+    //            IStreamSubscriber sendEchoConsumer = null;
 
-                while (!_cancellationTokenSource.IsCancellationRequested)
-                {
-                    try
-                    {
-                        foreach (var consumer in _consumers)
-                        {
-                            if (sendEchoConsumer == null)
-                                sendEchoConsumer = consumer.Value.Subscriber;
+    //            while (!_cancellationTokenSource.IsCancellationRequested)
+    //            {
+    //                try
+    //                {
+    //                    foreach (var consumer in _consumers)
+    //                    {
+    //                        if (sendEchoConsumer == null)
+    //                            sendEchoConsumer = consumer.Value.Subscriber;
 
-                            int tmp = consumer.Value.EchosCountDown;
-                            consumer.Value.EchosCountDown--;
+    //                        int tmp = consumer.Value.EchosCountDown;
+    //                        consumer.Value.EchosCountDown--;
 
-                            if (tmp != UDAPI.Configuration.MissedEchos)
-                            {
-                                _logger.WarnFormat("consumerId={0} missed count={1} echos", consumer.Key, UDAPI.Configuration.MissedEchos - tmp);
+    //                        if (tmp != UDAPI.Configuration.MissedEchos)
+    //                        {
+    //                            _logger.WarnFormat("consumerId={0} missed count={1} echos", consumer.Key, UDAPI.Configuration.MissedEchos - tmp);
 
-                                if (tmp <= 1)
-                                {
-                                    _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected", consumer.Key, UDAPI.Configuration.MissedEchos);
-                                    invalidConsumers.Add(consumer.Value.Subscriber);
+    //                            if (tmp <= 1)
+    //                            {
+    //                                _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected", consumer.Key, UDAPI.Configuration.MissedEchos);
+    //                                invalidConsumers.Add(consumer.Value.Subscriber);
 
-                                    if (sendEchoConsumer == consumer.Value.Subscriber)
-                                        sendEchoConsumer = null;
-                                }
-                            }
-                        }
+    //                                if (sendEchoConsumer == consumer.Value.Subscriber)
+    //                                    sendEchoConsumer = null;
+    //                            }
+    //                        }
+    //                    }
 
-                        // this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
-                        // for the invalid consumers
-                        RemoveSubribers(invalidConsumers);
+    //                    // this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
+    //                    // for the invalid consumers
+    //                    RemoveSubribers(invalidConsumers);
 
-                        invalidConsumers.Clear();
+    //                    invalidConsumers.Clear();
 
-                        SendEchos(sendEchoConsumer);
+    //                    SendEchos(sendEchoConsumer);
 
-                        _cancellationTokenSource.Token.WaitHandle.WaitOne(UDAPI.Configuration.EchoWaitInterval);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error("Check Echos loop has experienced a failure", ex);
-                    }
-                }
+    //                    _cancellationTokenSource.Token.WaitHandle.WaitOne(UDAPI.Configuration.EchoWaitInterval);
+    //                }
+    //                catch (Exception ex)
+    //                {
+    //                    _logger.Error("Check Echos loop has experienced a failure", ex);
+    //                }
+    //            }
 
-                _logger.Debug("EchoTask terminated");
-            }
-            catch (Exception ex)
-            {
-                _logger.Error("Check Echos has experienced a failure", ex);
-            }
-        }
+    //            _logger.Debug("EchoTask terminated");
+    //        }
+    //        catch (Exception ex)
+    //        {
+    //            _logger.Error("Check Echos has experienced a failure", ex);
+    //        }
+    //    }
       
-        private static void RemoveSubribers(IEnumerable<IStreamSubscriber> subscribers)
-        {
-            foreach(var s in subscribers)
-            {
-                s.StopConsuming();
-            }
-        }
+    //    private static void RemoveSubribers(IEnumerable<IStreamSubscriber> subscribers)
+    //    {
+    //        foreach(var s in subscribers)
+    //        {
+    //            s.StopConsuming();
+    //        }
+    //    }
 
-        private void SendEchos(IStreamSubscriber item)
-        {
-            if (item == null)
-            {
-                _logger.Warn("Unable to send echo due to null stream subscriber");
-                return;
-            }
+    //    private void SendEchos(IStreamSubscriber item)
+    //    {
+    //        if (item == null)
+    //        {
+    //            _logger.Warn("Unable to send echo due to null stream subscriber");
+    //            return;
+    //        }
                 
-            try
-            {
-                item.Consumer.SendEcho();
-            }
-            catch (Exception e)
-            {
-                _logger.Error("Error sending echo-request", e);
-            }
+    //        try
+    //        {
+    //            item.Consumer.SendEcho();
+    //        }
+    //        catch (Exception e)
+    //        {
+    //            _logger.Error("Error sending echo-request", e);
+    //        }
 
-        }
+    //    }
 
-        public void Dispose()
-        { 
-            _logger.DebugFormat("Disposing EchoSender");
-            _cancellationTokenSource.Cancel();
+    //    public void Dispose()
+    //    { 
+    //        _logger.DebugFormat("Disposing EchoSender");
+    //        _cancellationTokenSource.Cancel();
 
-            RemoveAll();
+    //        RemoveAll();
 
-            if(_echoSender != null)
-                _echoSender.Wait();
+    //        if(_echoSender != null)
+    //            _echoSender.Wait();
 
-            _logger.InfoFormat("EchoSender correctly disposed");
-        }
-    }
+    //        _logger.InfoFormat("EchoSender correctly disposed");
+    //    }
+    //}
 }

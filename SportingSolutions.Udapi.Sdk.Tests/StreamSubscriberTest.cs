@@ -95,8 +95,6 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             test.StartConsuming("test");
             test.StopConsuming();
-
-            //TODO check RemoveSubscriberMessage
         }
 
         [Test]

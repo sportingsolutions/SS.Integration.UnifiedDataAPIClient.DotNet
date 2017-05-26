@@ -146,8 +146,6 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             // STEP 5: check the outcome
             mockConsumer.Verify(x => x.OnStreamDisconnected(), Times.Once, "Consumer was not disconnect on connection shutdonw");
 
-            //updateDispatcherActor.Ask(new SubscribersCountMessage()).Result.Should().Be(0);
-
             Thread.Sleep(1000);
 
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
@@ -249,7 +247,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             }
 
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
-            updateDispatcherActor.Ask<int>(new SubscribersCountMessage()).Result.Should().Be(testIterations);
+            updateDispatcherActor.Ask<int>(new ConsumersCountMessage()).Result.Should().Be(testIterations);
 
             // send some messages
             for (int i = 0; i < testIterations; i++)
@@ -260,7 +258,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 }
             }
 
-            updateDispatcherActor.Tell(new RemoveAllSubscribers());
+            updateDispatcherActor.Tell(new RemoveAllConsumersMessage());
 
             Thread.Sleep(1000);
 

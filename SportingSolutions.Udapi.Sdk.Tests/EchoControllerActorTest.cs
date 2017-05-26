@@ -43,11 +43,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(consumerId);
 
-
-            Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
-            subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
-
-            testing.AddConsumer(subsctiber.Object);
+            testing.AddConsumer(consumer.Object);
 
             return testing;
         }
@@ -59,11 +55,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(consumerId);
 
-
-            Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
-            subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
-
-            actor.AddConsumer(subsctiber.Object);
+            actor.AddConsumer(consumer.Object);
 
         }
 
@@ -74,10 +66,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(consumerId);
 
-            Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
-            subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
-
-            mock.UnderlyingActor.AddConsumer(subsctiber.Object);
+            mock.UnderlyingActor.AddConsumer(consumer.Object);
 
             return mock;
         }
@@ -87,11 +76,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(consumerId);
 
-
-            Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
-            subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
-
-            actor.UnderlyingActor.AddConsumer(subsctiber.Object);
+            actor.UnderlyingActor.AddConsumer(consumer.Object);
 
         }
 
@@ -113,11 +98,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(id1);
 
-
-            Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
-            subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
-
-            testing.AddConsumer(subsctiber.Object);
+            testing.AddConsumer(consumer.Object);
             testing.ConsumerCount.ShouldBeEquivalentTo(1);
 
 
@@ -140,16 +121,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(id1);
 
-
-            Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
-            subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
-
-
-
-            testing.AddConsumer(subsctiber.Object);
+            testing.AddConsumer(consumer.Object);
             testing.ConsumerCount.ShouldBeEquivalentTo(1);
 
-            testing.RemoveConsumer(subsctiber.Object);
+            testing.RemoveConsumer(consumer.Object);
             testing.ConsumerCount.ShouldBeEquivalentTo(0);
 
         }
@@ -166,16 +141,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             consumer2.Setup(x => x.Id).Returns(id2);
 
 
-            Mock<IStreamSubscriber> subsctiber1 = new Mock<IStreamSubscriber>();
-            subsctiber1.Setup(x => x.Consumer).Returns(consumer1.Object);
-
-            Mock<IStreamSubscriber> subsctiber2 = new Mock<IStreamSubscriber>();
-            subsctiber2.Setup(x => x.Consumer).Returns(consumer2.Object);
-
-
-            testing.AddConsumer(subsctiber1.Object);
+            testing.AddConsumer(consumer1.Object);
             testing.ConsumerCount.ShouldBeEquivalentTo(1);
-            testing.RemoveConsumer(subsctiber2.Object);
+            testing.RemoveConsumer(consumer2.Object);
             testing.ConsumerCount.ShouldBeEquivalentTo(1);
 
         }
@@ -189,11 +157,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(id1);
 
-
-            Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
-            subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
-
-            testing.AddConsumer(subsctiber.Object);
+            testing.AddConsumer(consumer.Object);
             testing.GetEchosCountDown(id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos);
         }
 
@@ -256,10 +220,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             int sendEchoCallCount = 0;
             consumer.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount++);
 
-            Mock<IStreamSubscriber> subsctiber1 = new Mock<IStreamSubscriber>();
-            subsctiber1.Setup(x => x.Consumer).Returns(consumer.Object);
-
-            testing.UnderlyingActor.AddConsumer(subsctiber1.Object);
+            testing.UnderlyingActor.AddConsumer(consumer.Object);
 
             testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
 
