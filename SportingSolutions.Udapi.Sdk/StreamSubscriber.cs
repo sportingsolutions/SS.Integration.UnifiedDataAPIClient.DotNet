@@ -112,22 +112,6 @@ namespace SportingSolutions.Udapi.Sdk
             return rks.Length > 2 ? routingKey.Split('.')[2] : null;
         }
 
-        public override void HandleModelShutdown(object model, ShutdownEventArgs reason)
-        {
-            //Please note the disconnection is only raised if AutoReconnect is not enabled
-            _logger.WarnFormat("Model shutdown for consumerId={0} - disconnection event might be raised. Autoreconnect is enabled={1}", ConsumerTag, UDAPI.Configuration.AutoReconnect);
-            if (!UDAPI.Configuration.AutoReconnect)
-            {
-                StopConsuming();
-            }
-            else
-            {
-                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath)
-                    .Tell(new ValidationStartMessage());
-            }
-            base.HandleModelShutdown(model, reason);
-        }
-
         #endregion
 
         #region IDisposable

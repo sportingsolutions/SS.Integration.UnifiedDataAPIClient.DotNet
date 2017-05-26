@@ -51,7 +51,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamControllerActor));
 
-        private IConnection _streamConnection;
+        protected IConnection _streamConnection;
         private volatile ConnectionState _state;
         private readonly ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
         private StreamSubscriber _subscriber = null;
@@ -366,6 +366,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 CloseConnection();
             }
+            else
+            {
+                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath)
+                    .Tell(new ValidationStartMessage());
+            }
         }
 
         private void ValidateConnection(ValidateMessage validateMessage)
@@ -400,7 +405,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
             else
             {
-                _subscriber?.StopConsuming();
+                _logger.Warn(
+                    "Connection validation failed, connection is not open - calling CloseConnection() to dispose it");
                 CloseConnection();
             }
         }
@@ -526,7 +532,4 @@ namespace SportingSolutions.Udapi.Sdk.Actors
     internal class ValidationStartMessage
     {
     }
-
-    #endregion
-}
 

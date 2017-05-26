@@ -1,12 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Akka.Actor;
-using Akka.IO;
 using Akka.Util.Internal;
 using log4net;
-using log4net.Config;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
 
@@ -17,6 +13,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         public const string ActorName = "UpdateDispatcherActor";
         
         private readonly Dictionary<string, ResourceSubscriber> _subscribers;
+
+        internal int SubscribersCount => _subscribers.Count;
         private readonly ILog _logger = LogManager.GetLogger(typeof(UpdateDispatcherActor));
 
         public UpdateDispatcherActor()
@@ -35,7 +33,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             if (!_subscribers.ContainsKey(message.Id)) return;
 
-            _subscribers[message.Id].Resource.Tell(message);
+            var subscriber = _subscribers[message.Id];
             _subscribers.Remove(message.Id);
             _logger.DebugFormat("subscriberId={0} removed from UpdateDispatcherActor", message.Id);
 
