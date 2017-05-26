@@ -129,18 +129,24 @@ namespace SportingSolutions.Udapi.Sdk
 
         public virtual void OnStreamDisconnected()
         {
-            if(StreamDisconnected != null)
+            Logger.DebugFormat("Resource \"{0}\" OnStreamDisconnected()", Id);
+
+            if (StreamDisconnected != null)
                 StreamDisconnected(this, EventArgs.Empty);
         }
 
         public virtual void OnStreamConnected()
         {
-            if(StreamConnected != null)
+            Logger.DebugFormat("Resource \"{0}\" OnStreamConnected()", Id);
+
+            if (StreamConnected != null)
                 StreamConnected(this, EventArgs.Empty);
         }
 
         public virtual void OnStreamEvent(StreamEventArgs e)
         {
+            Logger.DebugFormat("Resource \"{0}\" OnStreamEvent()", Id);
+
             if (StreamEvent != null)
                 StreamEvent(this, e);
         }

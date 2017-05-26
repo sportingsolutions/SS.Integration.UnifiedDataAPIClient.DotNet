@@ -135,7 +135,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             SdkActorSystem.ActorSystem.Scheduler.ScheduleTellOnce(
                 TimeSpan.FromSeconds(UDAPI.Configuration.DisconnectionDelay)
                 , SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath)
-                , new ValidateMessage { StreamSubscriber = validationStartMessage.StreamSubscriber }
+                , new ValidateMessage()
                 , ActorRefs.NoSender);
         }
 
@@ -198,6 +198,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             finally
             {
                 _streamConnection = null;
+                Dispatcher.Tell(new RemoveAllSubscribers());
             }
 
             OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
@@ -322,6 +323,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 CloseConnection();
             }
+            else
+            {
+                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath)
+                    .Tell(new ValidationStartMessage());
+            }
         }
 
         private void ValidateConnection(ValidateMessage validateMessage)
@@ -338,7 +344,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.WarnFormat(
                     "Reconnection failed, connection has been disposed, the disconnection event needs to be raised");
                 CloseConnection();
-                validateMessage.StreamSubscriber.StopConsuming();
+                
                 return;
             }
 
@@ -353,8 +359,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
             else
             {
+                _logger.Warn(
+                    "Connection validation failed, connection is not open - calling CloseConnection() to dispose it");
                 CloseConnection();
-                validateMessage.StreamSubscriber.StopConsuming();
             }
         }
 
@@ -458,7 +465,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private class ValidateMessage
         {
-            internal StreamSubscriber StreamSubscriber { get; set; }
+        }
+
+        private class ValidationStartMessage
+        {
         }
 
         private class ValidationSucceededMessage
@@ -469,14 +479,5 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
 
     }
-
-    #region Messages
-
-    internal class ValidationStartMessage
-    {
-        internal StreamSubscriber StreamSubscriber { get; set; }
-    }
-
-    #endregion
 }
 

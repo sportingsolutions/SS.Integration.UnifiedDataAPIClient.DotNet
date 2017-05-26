@@ -43,11 +43,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             if (!_subscribers.ContainsKey(message.Id)) return;
 
-            _subscribers[message.Id].Resource.Tell(message);
+            var subscriber = _subscribers[message.Id];
             _subscribers.Remove(message.Id);
-            _logger.DebugFormat("subscriberId={0} removed from UpdateDispatcherActor", message.Id);
-            //_subscribers[message.Id].Resource = Context.ActorOf(Props.Create<ResourceActor>(message.Consumer));
 
+            subscriber.Resource.Tell(message);
+            subscriber.StreamSubscriber.StopConsuming();
+
+            _logger.DebugFormat("subscriberId={0} removed from UpdateDispatcherActor", message.Id);
         }
 
         private void Connect(IStreamSubscriber subscriber)
