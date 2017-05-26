@@ -49,7 +49,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamControllerActor));
 
-        private IConnection _streamConnection;
+        protected IConnection _streamConnection;
         private volatile ConnectionState _state;
         private ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
         

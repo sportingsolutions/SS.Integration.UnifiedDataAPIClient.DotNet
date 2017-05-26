@@ -14,7 +14,9 @@
 
 using System;
 using Akka.Actor;
+using Moq;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Framing.Impl;
 using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 
@@ -43,6 +45,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         protected override void EstablishConnection(ConnectionFactory factory)
         {
             OnConnectionStatusChanged(ConnectionState.CONNECTED);
+            _streamConnection = (new Mock<IConnection>()).Object;
         }
 
         protected override void AddConsumerToQueue(IConsumer consumer)
