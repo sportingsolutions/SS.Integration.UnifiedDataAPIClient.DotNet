@@ -1,12 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Akka.Actor;
-using Akka.IO;
 using Akka.Util.Internal;
 using log4net;
-using log4net.Config;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
 
@@ -18,7 +14,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         
         private readonly Dictionary<string, ResourceSubscriber> _subscribers;
 
-        internal int SubscribersCout => _subscribers.Count;
+        internal int SubscribersCount => _subscribers.Count;
         private readonly ILog _logger = LogManager.GetLogger(typeof(UpdateDispatcherActor));
 
         public UpdateDispatcherActor()

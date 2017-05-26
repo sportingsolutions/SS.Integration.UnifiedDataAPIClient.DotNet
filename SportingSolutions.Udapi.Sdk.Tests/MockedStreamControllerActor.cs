@@ -35,7 +35,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         public static StreamControllerActor Instance { get; set; }
-        
+
+        public Mock<IConnection> StreamConnectionMock { get; set; } = new Mock<IConnection>();
 
         public void ForceCloseConnection()
         {
@@ -45,7 +46,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         protected override void EstablishConnection(ConnectionFactory factory)
         {
             OnConnectionStatusChanged(ConnectionState.CONNECTED);
-            _streamConnection = (new Mock<IConnection>()).Object;
+            _streamConnection = StreamConnectionMock.Object;
         }
 
         protected override void AddConsumerToQueue(IConsumer consumer)
