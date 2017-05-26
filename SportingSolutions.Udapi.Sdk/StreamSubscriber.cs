@@ -19,6 +19,7 @@ using Akka.Actor;
 using log4net;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
+using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
 
@@ -103,13 +104,7 @@ namespace SportingSolutions.Udapi.Sdk
             if (!IsRunning)
                 return;
 
-            //TODO FIX THIS!
-            var success = true; //Dispatcher.DispatchMessage(consumerTag, Encoding.UTF8.GetString(body));
-
             Dispatcher.Tell(new StreamUpdateMessage() {Id = consumerTag, Message = Encoding.UTF8.GetString(body)});
-                
-            if (!success)
-                StopConsuming();
         }
 
         public override void HandleBasicCancel(string consumerTag)
@@ -123,7 +118,14 @@ namespace SportingSolutions.Udapi.Sdk
             //Please note the disconnection is only raised if AutoReconnect is not enabled
             _logger.WarnFormat("Model shutdown for consumerId={0} - disconnection event might be raised. Autoreconnect is enabled={1}", ConsumerTag, UDAPI.Configuration.AutoReconnect);
             if (!UDAPI.Configuration.AutoReconnect)
+            {
                 StopConsuming();
+            }
+            else
+            {
+                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath)
+                    .Tell(new ValidationStartMessage {StreamSubscriber = this});
+            }
             base.HandleModelShutdown(model, reason);
         }
 
