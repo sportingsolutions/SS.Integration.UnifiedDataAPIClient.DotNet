@@ -51,12 +51,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private readonly ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
         private StreamSubscriber _subscriber;
 
-        public StreamControllerActor(IActorRef dispatcherActor)
+        public StreamControllerActor(IActorRef dispatcherActorRefActor)
         {
-            if (dispatcherActor == null)
+            if (dispatcherActorRefActor == null)
                 throw new ArgumentNullException("dispatcher");
 
-            Dispatcher = dispatcherActor;
+            Dispatcher = dispatcherActorRefActor;
 
             //Start in Disconnected state
             DisconnectedState();
@@ -132,7 +132,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
             Receive<ValidateMessage>(x => ValidateConnection(x));
-            Receive<AllConsumersDisconnectedMessage>(x => StopConsumingMessages());
+            Receive<AllConsumersDisconnectedMessage>(x => CloseConnection());
             Stash.UnstashAll();
 
             State = ConnectionState.CONNECTED;
@@ -147,7 +147,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
             Receive<ValidateMessage>(x => ValidateConnection(x));
-            Receive<AllConsumersDisconnectedMessage>(x => StopConsumingMessages());
+            Receive<AllConsumersDisconnectedMessage>(x => CloseConnection());
 
             State = ConnectionState.STREAMING;
             _logger.Info("Moved to Streaming State");
@@ -165,13 +165,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 , SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath)
                 , new ValidateMessage {RestoredConnectionState = connectionState}
                 , ActorRefs.NoSender);
-        }
-
-        private void StopConsumingMessages()
-        {
-            _subscriber.StopConsuming();
-            CloseConnection();
-            _logger.Info("Stopped Consuming Messages / Closed Connection");
         }
 
         private void ProcessNewConsumer(NewConsumerMessage newConsumerMessage)
@@ -222,19 +215,28 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     if (_streamConnection.IsOpen)
                         _streamConnection.Close();
                     _streamConnection.Dispose();
-                    _streamConnection = null;
                 }
             }
-            catch
+            catch (Exception)
+            {
+            }
+
+            try
+            {
+                if (_subscriber != null)
+                {
+                    _subscriber.StopConsuming();
+                    _subscriber.Dispose();
+                }
+            }
+            catch (Exception)
             {
             }
             finally
             {
-                _streamConnection = null;
-                Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath)
-                    .Tell(new RemoveAllConsumersMessage());
-                _subscriber?.Dispose();
+                Dispatcher.Tell(new RemoveAllConsumersMessage());
                 _subscriber = null;
+                _streamConnection = null;
             }
 
             OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
@@ -374,7 +376,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _logger.WarnFormat(
                     "Reconnection failed, connection has been disposed, the disconnection event needs to be raised");
-                _subscriber?.StopConsuming();
                 CloseConnection();
                 return;
             }
@@ -383,7 +384,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             if (testConnection.IsOpen)
             {
-                Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(new ResetAllEchoesMessage());
+                Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(new ResetEchoesMessage());
                 _logger.InfoFormat("Reconnection successful, disconnection event will not be raised");
 
                 Self.Tell(new ValidationSucceededMessage
@@ -443,8 +444,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
             catch
             {
-                Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath)
-                    .Tell(new RemoveConsumerMessage {Consumer = consumer});
                 _subscriber?.Dispose();
                 _subscriber = null;
 

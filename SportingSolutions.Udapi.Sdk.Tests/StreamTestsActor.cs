@@ -62,10 +62,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             consumer.Setup(x => x.Id).Returns("testing");
             consumer.Setup(x => x.GetQueueDetails()).Returns(_queryDetails);
 
+            var echoControllerActor = ActorOfAsTestActorRef(() => new MockedEchoControllerActor(), EchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOf(() => new UpdateDispatcherActor());
 
             var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(
-                Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor)),
+                Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor, echoControllerActor)),
                 StreamControllerActor.ActorName);
 
             // is the controller in its initial state?
@@ -75,15 +76,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
 
-            //ExpectMsg<ConnectStreamMessage>();
-
-            //StreamController.Instance.AddConsumer(consumer.Object, -1, -1);
-
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.STREAMING);
 
             streamCtrlActorTestRef.Tell(new RemoveConsumerMessage { Consumer = consumer.Object });
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.STREAMING);
         }
 
         [Test]
@@ -123,11 +120,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             var resourceActor = ActorOf(() => new ResourceActor(mockConsumer.Object));
 
+            var echoControllerActor = ActorOfAsTestActorRef(() => new MockedEchoControllerActor(), EchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOf(() =>
                 new MockedUpdateDispatcherActor(resourceActor), UpdateDispatcherActor.ActorName);
 
             var streamCtrlActorTestRef = ActorOfAsTestActorRef(() =>
-                new MockedStreamControllerActor(updateDispatcherActor), StreamControllerActor.ActorName);
+                new MockedStreamControllerActor(updateDispatcherActor, echoControllerActor), StreamControllerActor.ActorName);
 
             // is the controller in its initial state?
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
@@ -136,7 +134,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             streamCtrlActorTestRef.Tell(new NewConsumerMessage() { Consumer = mockConsumer.Object });
 
             // STEP 3: check that up to now, everythin is ok
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.STREAMING);
 
             // STEP 4: remove the consumer
             streamCtrlActorTestRef.Tell(new RemoveConsumerMessage { Consumer = mockConsumer.Object });
@@ -148,7 +146,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             Thread.Sleep(1000);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.STREAMING);
         }
 
         [Test]
@@ -158,11 +156,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             Mock<IConsumer> mockConsumer = new Mock<IConsumer>();
             var resourceActor = ActorOf(() => new ResourceActor(mockConsumer.Object));
 
+            var echoControllerActor = ActorOfAsTestActorRef(() => new MockedEchoControllerActor(), EchoControllerActor.ActorName);
             var updateDispatcherActor =
                 ActorOf(() => new MockedUpdateDispatcherActor(resourceActor),
                     UpdateDispatcherActor.ActorName);
             var streamCtrlActorTestRef =
-                ActorOfAsTestActorRef(() => new MockedStreamControllerActor(updateDispatcherActor),
+                ActorOfAsTestActorRef(() => new MockedStreamControllerActor(updateDispatcherActor, echoControllerActor),
                     StreamControllerActor.ActorName);
 
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
@@ -175,7 +174,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             streamCtrlActorTestRef.Tell(new NewConsumerMessage { Consumer = mockConsumer.Object });
 
             // STEP 2: check if the connection was correctly established
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.STREAMING);
 
             Thread.Sleep(2000);
             Thread.Yield();
@@ -209,9 +208,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         {
             ThreadPool.SetMinThreads(5, 5);
 
+            var echoControllerActor = ActorOfAsTestActorRef(() => new MockedEchoControllerActor(), EchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOf<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
-            var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(() => new MockedStreamControllerActor(updateDispatcherActor), StreamControllerActor.ActorName);
+            var streamCtrlActorTestRef =
+                ActorOfAsTestActorRef(() => new MockedStreamControllerActor(updateDispatcherActor, echoControllerActor),
+                    StreamControllerActor.ActorName);
 
             // STEP 1: prepare mocked data
 
@@ -246,7 +248,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 streamCtrlActorTestRef.Tell(new NewConsumerMessage { Consumer = consumer.Object });
             }
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.STREAMING);
             updateDispatcherActor.Ask<int>(new ConsumersCountMessage()).Result.Should().Be(testIterations);
 
             // send some messages
@@ -259,7 +261,6 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             }
 
             updateDispatcherActor.Tell(new RemoveAllConsumersMessage());
-
             Thread.Sleep(1000);
 
             for (int i = 0; i < testIterations; i++)

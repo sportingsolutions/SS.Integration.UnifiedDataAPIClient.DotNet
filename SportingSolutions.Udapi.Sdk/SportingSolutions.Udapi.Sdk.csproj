@@ -111,12 +111,12 @@
     <Compile Include="Actors\EchoControllerActor.cs" />
     <Compile Include="Model\Message\DisposeMessage.cs" />
     <Compile Include="Model\Message\NotFoundMessage.cs" />
-    <Compile Include="Model\Message\RemoveAllConsumersMessage.cs" />
     <Compile Include="Model\Message\NewSubscriberMessage.cs" />
+    <Compile Include="Model\Message\RemoveAllConsumersMessage.cs" />
     <Compile Include="Model\Message\RemoveConsumerMessage.cs" />
     <Compile Include="Model\Message\NewConsumerMessage.cs" />
     <Compile Include="Actors\ResourceActor.cs" />
-    <Compile Include="Model\Message\ResetAllEchoesMessage.cs" />
+    <Compile Include="Model\Message\ResetEchoesMessage.cs" />
     <Compile Include="Model\Message\StopStreamingMessage.cs" />
     <Compile Include="Actors\StreamControllerActor.cs" />
     <Compile Include="Clients\Configuration.cs" />

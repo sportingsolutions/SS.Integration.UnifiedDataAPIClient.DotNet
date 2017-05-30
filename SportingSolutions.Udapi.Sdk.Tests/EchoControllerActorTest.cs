@@ -124,27 +124,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             testing.AddConsumer(consumer.Object);
             testing.ConsumerCount.ShouldBeEquivalentTo(1);
 
-            testing.RemoveConsumer(consumer.Object);
+            testing.RemoveConsumer();
             testing.ConsumerCount.ShouldBeEquivalentTo(0);
-
-        }
-
-        [Test]
-        public void RemoveConsumerNegativeTest()
-        {
-            var testing = new EchoControllerActor();
-
-            Mock<IConsumer> consumer1 = new Mock<IConsumer>();
-            consumer1.Setup(x => x.Id).Returns(id1);
-
-            Mock<IConsumer> consumer2 = new Mock<IConsumer>();
-            consumer2.Setup(x => x.Id).Returns(id2);
-
-
-            testing.AddConsumer(consumer1.Object);
-            testing.ConsumerCount.ShouldBeEquivalentTo(1);
-            testing.RemoveConsumer(consumer2.Object);
-            testing.ConsumerCount.ShouldBeEquivalentTo(1);
 
         }
 
@@ -158,7 +139,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             consumer.Setup(x => x.Id).Returns(id1);
 
             testing.AddConsumer(consumer.Object);
-            testing.GetEchosCountDown(id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos);
+            testing.GetEchosCountDown().ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos);
         }
 
         [Test]
@@ -168,7 +149,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var message = new EchoControllerActor.SendEchoMessage();
 
             testing.Tell(message);
-            testing.UnderlyingActor.GetEchosCountDown(id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos - 1);
+            testing.UnderlyingActor.GetEchosCountDown().ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos - 1);
 
         }
 
@@ -178,7 +159,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var testing = GetMockedEchoControllerActorWith1Consumer(id1);
             AddConsumer(testing, id2);
 
-            testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
+            testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
 
             var message = new EchoControllerActor.SendEchoMessage();
             for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
@@ -196,17 +177,17 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var testing = GetMockedEchoControllerActorWith1Consumer(id1);
             AddConsumer(testing, id2);
 
-            testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
+            testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
 
             var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
-            var echoMessage = new EchoMessage() { Id = id2 };
+            var echoMessage = new EchoMessage();
 
             testing.Tell(sendEchoMessage);
             testing.Tell(echoMessage);
             testing.Tell(sendEchoMessage);
 
-            testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
-            testing.UnderlyingActor.GetEchosCountDown(id2).ShouldBeEquivalentTo(1);
+            testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
+            testing.UnderlyingActor.GetEchosCountDown().ShouldBeEquivalentTo(2);
         }
 
 
@@ -225,17 +206,17 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
 
             var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
-            var echoMessage = new EchoMessage() { Id = id1 };
+            var echoMessage = new EchoMessage { Id = id1 };
 
             testing.Tell(sendEchoMessage);
-            sendEchoCallCount.Should().Be(1);
+            sendEchoCallCount.Should().BeGreaterThan(0);
             testing.UnderlyingActor
-                .GetEchosCountDown(consumer.Object.Id)
+                .GetEchosCountDown()
                 .Should()
                 .Be(UDAPI.Configuration.MissedEchos - 1);
             testing.Tell(echoMessage);
             testing.UnderlyingActor
-                .GetEchosCountDown(consumer.Object.Id)
+                .GetEchosCountDown()
                 .Should()
                 .Be(UDAPI.Configuration.MissedEchos);
         }

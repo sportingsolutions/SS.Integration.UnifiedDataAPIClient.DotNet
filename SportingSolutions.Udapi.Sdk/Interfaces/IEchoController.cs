@@ -19,41 +19,33 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
     internal interface IEchoController : IDisposable
     {
         /// <summary>
-        ///     Adds a new IConsumer to the IEchoController.
+        ///     Adds the IConsumer to the IEchoController.
         /// </summary>
         /// <param name="consumer"></param>
         void AddConsumer(IConsumer consumer);
 
         /// <summary>
         /// 
-        ///     Removes an IConsumer from the IEchoController.
+        ///     Removes the IConsumer from the IEchoController.
         /// 
         ///     Note that this method does not raise 
         ///     any disconnection event when called.
         /// 
         /// </summary>
-        /// <param name="consumer"></param>
-        void RemoveConsumer(IConsumer consumer);
-
-        /// <summary>
-        ///     Removes all the registred IConsumer objects
-        /// </summary>
-        void RemoveAll();
+        void RemoveConsumer();
 
         /// <summary>
         /// 
         ///     Allows to inform the IEchoController
         ///     that an echo message has arrived
-        ///     for the IConsumer whose Id is consumerId
         /// 
         /// </summary>
-        /// <param name="consumerId"></param>
-        void ProcessEcho(string consumerId);
+        void ProcessEcho();
 
         /// <summary>
-        ///     Resets all echoes 
+        ///     Resets the echoes for the consumer used to check if the queue is alive
         /// </summary>
-        void ResetAll();
+        void ResetEchoes();
 
     }
 }

@@ -37,7 +37,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
-        public void HandleBasicConsumeTest()
+        public void StartConsumingTest()
         {
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(Id1);
@@ -52,11 +52,20 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(),
                     UpdateDispatcherActor.ActorName);
 
-            var subsctiber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
-            subsctiber.HandleBasicConsumeOk("Connect");
+            var subscriber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
+            subscriber.StartConsuming(_queueDetails.Name);
 
-            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(0);
+            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(0);
+
+            model.Verify(x =>
+                    x.BasicConsume(
+                        _queueDetails.Name,
+                        true,
+                        "StreamUpdates",
+                        subscriber),
+                Times.Once,
+                "Consumer 1 was not disconnect on connection shutdown");
         }
 
         [Test]
@@ -71,16 +80,29 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var echoControllerActor = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
-            var subsctiber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
-            subsctiber.HandleBasicConsumeOk("Connect");
-
-            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
-
-            subsctiber.StopConsuming();
+            var subscriber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
+            subscriber.StartConsuming(_queueDetails.Name);
 
             echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(0);
             updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(0);
+
+            model.Verify(x =>
+                    x.BasicConsume(
+                        _queueDetails.Name,
+                        true,
+                        "StreamUpdates",
+                        subscriber),
+                Times.Once,
+                "Consumer 1 was not disconnect on connection shutdown");
+
+            subscriber.StopConsuming();
+
+            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(0);
+            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(0);
+
+            model.Verify(x => x.BasicCancel("StreamUpdates"),
+                Times.Once,
+                "Consumer 1 was not disconnect on connection shutdown");
         }
 
         [Test]
@@ -101,7 +123,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var subsctiber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
 
             var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(
-                Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor)),
+                Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor, echoControllerActor)),
                 StreamControllerActor.ActorName);
 
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
@@ -110,7 +132,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.STREAMING);
 
             //subsctiber.HandleBasicConsumeOk("Connect");
 
@@ -137,7 +159,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
             var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(
-                Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor)),
+                Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor, echoControllerActor)),
                 StreamControllerActor.ActorName);
 
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
@@ -146,7 +168,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.STREAMING);
 
             echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
             updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
@@ -157,7 +179,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             streamCtrlActorTestRef.UnderlyingActor.StreamConnectionMock.Setup(c => c.IsOpen).Returns(true);
 
-            Thread.Sleep((((Configuration)UDAPI.Configuration).DisconnectionDelay + 1) * 1000);
+            Thread.Sleep((((Configuration) UDAPI.Configuration).DisconnectionDelay + 1) * 1000);
 
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
         }
@@ -180,7 +202,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var updateDispatcherActor = ActorOfAsTestActorRef(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
             var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(
-                Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor)),
+                Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor, echoControllerActor)),
                 StreamControllerActor.ActorName);
 
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
@@ -192,9 +214,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             newConsumerMessage = new NewConsumerMessage { Consumer = consumer2.Object };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.STREAMING);
 
-            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
+            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
             updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(2);
 
             streamCtrlActorTestRef.UnderlyingActor.OnConnectionShutdown(null, new ShutdownEventArgs(ShutdownInitiator.Application, 541, "TestException"));

@@ -71,8 +71,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void RemoveAll()
         {
-            _consumers.Clear();
-            Sender.Tell(new AllConsumersDisconnectedMessage());
+            foreach (var consumerId in _consumers.Keys)
+            {
+                Self.Tell(new DisconnectMessage { Id = consumerId });
+            }
+
             _logger.Info("All consumers have been removed");
         }
 
@@ -93,7 +96,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private class ResourceConsumer
         {
             internal IActorRef Resource { get; set; }
-            internal IConsumer Consumer { get; set; }
         }
     }
 

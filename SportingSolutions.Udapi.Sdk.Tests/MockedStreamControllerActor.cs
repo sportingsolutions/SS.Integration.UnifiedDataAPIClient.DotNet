@@ -19,6 +19,7 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Framing.Impl;
 using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Interfaces;
+using SportingSolutions.Udapi.Sdk.Model.Message;
 
 namespace SportingSolutions.Udapi.Sdk.Tests
 {
@@ -28,10 +29,13 @@ namespace SportingSolutions.Udapi.Sdk.Tests
     /// </summary>
     internal class MockedStreamControllerActor : StreamControllerActor
     {
-        public MockedStreamControllerActor(IActorRef dispatcher)
-            : base(dispatcher)
+        private IActorRef _echoActorRef;
+
+        public MockedStreamControllerActor(IActorRef dispatcherActorRef, IActorRef echoActorRef)
+            : base(dispatcherActorRef)
         {
             Instance = this;
+            _echoActorRef = echoActorRef;
         }
 
         public static StreamControllerActor Instance { get; set; }
@@ -52,6 +56,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         protected override void AddConsumerToQueue(IConsumer consumer)
         {
             new MockedStreamSubscriber(consumer, Dispatcher).StartConsuming("");
+            _echoActorRef.Tell(new NewConsumerMessage { Consumer = consumer });
         }
     }
 }
