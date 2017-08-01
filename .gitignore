@@ -19,3 +19,4 @@ BuildOutput/
 *.ncrunchsolution
 html/
 *.ncrunchsolution
+/.vs
