@@ -24,6 +24,8 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Service : Endpoint, IService
     {
+        #region Constructors
+
         internal Service(RestItem restItem, IConnectClient connectClient)
             : base(restItem, connectClient)
         {
@@ -31,9 +33,22 @@ namespace SportingSolutions.Udapi.Sdk
             Logger.DebugFormat("Instantiated service={0}", restItem.Name);
         }
 
-        public string Name
+        #endregion
+
+        #region Implementation of IService
+
+        public string Name => State.Name;
+
+        public bool IsServiceCacheEnabled
         {
-            get { return State.Name; }
+            get => ServiceCache.Instance.IsEnabled;
+            set => ServiceCache.Instance.IsEnabled = value;
+        }
+
+        public int ServiceCacheInvalidationInterval
+        {
+            get => ServiceCache.Instance.InvalidationInterval;
+            set => ServiceCache.Instance.InvalidationInterval = value;
         }
 
         public List<IFeature> GetFeatures()
@@ -41,9 +56,21 @@ namespace SportingSolutions.Udapi.Sdk
             var loggingStringBuilder = new StringBuilder();
             loggingStringBuilder.Append("Get all available features - ");
 
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeatures Http error", loggingStringBuilder);
+            var featuresList = ServiceCache.Instance.GetCachedFeatures();
+            if (featuresList == null)
+            {
+                featuresList =
+                    FindRelationAndFollow(
+                            "http://api.sportingsolutions.com/rels/features/list",
+                            "GetFeatures Http error",
+                            loggingStringBuilder)
+                        .Select(restItem => new Feature(restItem, ConnectClient))
+                        .Cast<IFeature>()
+                        .ToList();
+                ServiceCache.Instance.CacheFeatures(featuresList);
+            }
             Logger.Debug(loggingStringBuilder);
-            return restItems.Select(restItem => new Feature(restItem, ConnectClient)).Cast<IFeature>().ToList();
+            return featuresList.ToList();
         }
 
         public IFeature GetFeature(string name)
@@ -51,9 +78,24 @@ namespace SportingSolutions.Udapi.Sdk
             var loggingStringBuilder = new StringBuilder();
             loggingStringBuilder.AppendFormat("Get feature={0} - ", name);
 
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeature Http error", loggingStringBuilder);
+            var featuresList = ServiceCache.Instance.GetCachedFeatures();
+            var feature = featuresList?.FirstOrDefault(f => f.Name.Equals(name));
+            if (feature == null)
+            {
+                var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeature Http error", loggingStringBuilder);
+                feature =
+                (
+                    from restItem in restItems
+                    where restItem.Name == name
+                    select new Feature(restItem, ConnectClient)
+                ).FirstOrDefault();
+                ServiceCache.Instance.CacheFeatures(new[] { feature });
+            }
+
             Logger.Debug(loggingStringBuilder);
-            return (from restItem in restItems where restItem.Name == name select new Feature(restItem, ConnectClient)).FirstOrDefault();
+            return feature;
         }
+
+        #endregion
     }
 }

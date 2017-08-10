@@ -140,6 +140,7 @@
     <Compile Include="Interfaces\IStreamSubscriber.cs" />
     <Compile Include="Model\Message\EchoMessage.cs" />
     <Compile Include="QueueDetails.cs" />
+    <Compile Include="ServiceCache.cs" />
     <Compile Include="StreamController.cs" />
     <Compile Include="Endpoint.cs" />
     <Compile Include="Events\StreamEventArgs.cs" />
