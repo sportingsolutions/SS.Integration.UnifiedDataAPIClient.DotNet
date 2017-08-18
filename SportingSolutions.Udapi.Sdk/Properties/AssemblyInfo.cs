@@ -19,7 +19,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyProduct("SportingSolutions.Udapi.Sdk")]
 [assembly: AssemblyCompany("Sporting Solutions Ltd.")]
-[assembly: AssemblyCopyright("Copyright (c) Sporting Solutions Ltd. 2015")]
+[assembly: AssemblyCopyright("Copyright (c) Sporting Solutions Ltd. 2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 [assembly: AssemblyVersion("2.0.0.0")]
