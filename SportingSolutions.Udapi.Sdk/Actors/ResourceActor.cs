@@ -32,7 +32,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             _resource = resource;
             
-            Logger = LogManager.GetLogger(typeof(ResourceActor).ToString());
+            Logger = LogManager.GetLogger(typeof(ResourceActor));
             Logger.DebugFormat("Instantiated fixtureName=\"{0}\" fixtureId=\"{1}\"", resource, Id);
 
             Become(DisconnectedState);

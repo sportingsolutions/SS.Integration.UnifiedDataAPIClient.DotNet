@@ -29,7 +29,7 @@ namespace SportingSolutions.Udapi.Sdk
         internal Service(RestItem restItem, IConnectClient connectClient)
             : base(restItem, connectClient)
         {
-            Logger = LogManager.GetLogger(typeof(Service).ToString());
+            Logger = LogManager.GetLogger(typeof(Service));
             Logger.DebugFormat("Instantiated service={0}", restItem.Name);
         }
 

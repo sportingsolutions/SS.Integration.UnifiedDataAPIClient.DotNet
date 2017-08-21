@@ -21,6 +21,7 @@ using SportingSolutions.Udapi.Sdk.Exceptions;
 using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
+using System.Threading.Tasks;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
@@ -49,12 +50,12 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             _credentials = credentials;
             _baseUrl = baseUrl;
 
-            Logger = LogManager.GetLogger(typeof(ConnectClient).ToString());
+            Logger = LogManager.GetLogger(typeof(ConnectClient));
         }
 
         private IRestClient CreateClient()
         {
-            var restClient = new RestClient();
+            var restClient = new RestClient();            
             restClient.BaseUrl = _baseUrl;
           
             restClient.ClearHandlers();
@@ -88,7 +89,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             var client = CreateClient();
             var request = CreateRequest(_baseUrl, Method.GET, null, UDAPI.Configuration.ContentType, UDAPI.Configuration.Timeout);
 
-            var response = client.Execute(request);
+            var response = ExecuteFromAsync(client, request);
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 var restItems = response.Content.FromJson<List<RestItem>>();
@@ -100,7 +101,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                     loginRequest.AddHeader(XAuthUser, _credentials.ApiUser);
                     loginRequest.AddHeader(XAuthKey, _credentials.ApiKey);
 
-                    response = client.Execute(loginRequest);
+                    response = ExecuteFromAsync(client, loginRequest);                       
 
                     if (response.StatusCode == HttpStatusCode.OK)
                     {
@@ -132,7 +133,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             loginRequest.AddHeader(XAuthUser, _credentials.ApiUser);
             loginRequest.AddHeader(XAuthKey, _credentials.ApiKey);
 
-            response = CreateClient().Execute<List<RestItem>>(loginRequest);
+            response = ExecuteFromAsync(CreateClient(),loginRequest);
 
             if (response.StatusCode == HttpStatusCode.OK)
             {
@@ -182,7 +183,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                 var client = CreateClient();
                 var oldAuth = client.DefaultParameters.FirstOrDefault(x => x.Name == XAuthToken);
 
-                response = client.Execute(request);
+                response = ExecuteFromAsync(client, request);
 
                 if (response.ResponseStatus == ResponseStatus.Error &&
                     response.ErrorException is WebException &&
@@ -215,7 +216,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                     if (authenticated)
                     {
                         request = CreateRequest(uri, method, body, contentType, timeout);
-                        response = CreateClient().Execute(request);
+                        response = ExecuteFromAsync(CreateClient(),request);
 
                         if (response.ResponseStatus == ResponseStatus.Error &&
                             response.ErrorException is WebException &&
@@ -235,6 +236,26 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
                 connectionClosedRetryCounter = DEFAULT_REQUEST_RETRY_ATTEMPTS;
             }
+
+            return response;
+        }
+
+        private T Execute<T>(IRestClient client, IRestRequest request) where T:new()
+        {
+            var completionSource = new TaskCompletionSource<T>();
+            client.ExecuteAsync<T>(request, callback => completionSource.SetResult(callback.Data));
+
+            var response = completionSource.Task.Result;
+
+            return response;
+        }
+
+        private IRestResponse ExecuteFromAsync(IRestClient client,IRestRequest request)
+        {
+            var completionSource = new TaskCompletionSource<IRestResponse>();
+            client.ExecuteAsync(request, callback => completionSource.SetResult(callback));
+
+            var response = completionSource.Task.Result;
 
             return response;
         }

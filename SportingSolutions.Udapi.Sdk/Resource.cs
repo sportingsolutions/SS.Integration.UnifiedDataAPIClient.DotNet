@@ -45,7 +45,7 @@ namespace SportingSolutions.Udapi.Sdk
         public Resource(RestItem restItem, IConnectClient client)
             : base(restItem, client)
         {
-            Logger = LogManager.GetLogger(typeof(Resource).ToString());
+            Logger = LogManager.GetLogger(typeof(Resource));
             Logger.DebugFormat("Instantiated fixtureName=\"{0}\" fixtureId=\"{1}\"", restItem.Name, Id);
 
             _pauseStream = new ManualResetEvent(true);
