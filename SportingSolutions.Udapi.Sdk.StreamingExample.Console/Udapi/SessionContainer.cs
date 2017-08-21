@@ -23,7 +23,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
         private static volatile ISession _theSession;
         private static readonly object _lock = new object();
 
-        private readonly ILog _logger = LogManager.GetLogger(typeof (SessionContainer).ToString());
+        private readonly ILog _logger = LogManager.GetLogger(typeof(SessionContainer));
         private readonly ICredentials _credentials;
         private readonly Uri _url;
 

@@ -37,7 +37,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 
         public StreamListener(IResource gtpFixture, int currentEpoch)
         {
-            _logger = LogManager.GetLogger(typeof(StreamListener).ToString());
+            _logger = LogManager.GetLogger(typeof(StreamListener));
             FixtureEnded = false;
             _gtpFixture = gtpFixture;
             _currentEpoch = currentEpoch;

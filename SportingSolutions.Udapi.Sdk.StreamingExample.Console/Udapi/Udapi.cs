@@ -26,8 +26,8 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
 
         internal Udapi()
         {
-            _logger = LogManager.GetLogger(typeof(Udapi).ToString());
-            _simpleLogger = LogManager.GetLogger("SimpleUDAPILogger");
+            _logger = LogManager.GetLogger(typeof(Udapi));
+            _simpleLogger = LogManager.GetLogger(typeof(Udapi));
             try
             {
                 //Assign the method that is needed to get a fresh instance of the real service

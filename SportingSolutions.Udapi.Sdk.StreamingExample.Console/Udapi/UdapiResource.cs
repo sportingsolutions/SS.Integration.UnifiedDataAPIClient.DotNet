@@ -29,8 +29,8 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
 
         internal UdapiResource(String featureName, String resourceName, IResource theResource)
         {
-            _logger = LogManager.GetLogger(typeof(UdapiResource).ToString());
-            _simpleLogger = LogManager.GetLogger("SimpleUDAPILogger");
+            _logger = LogManager.GetLogger(typeof(UdapiResource));
+            _simpleLogger = LogManager.GetLogger(typeof(UdapiResource));
             _featureName = featureName;
             _resourceName = resourceName;
             //Assign the method that is needed to get a fresh instance of the real resource

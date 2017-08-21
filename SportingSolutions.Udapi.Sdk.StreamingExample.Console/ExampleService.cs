@@ -18,7 +18,7 @@ using log4net;
 
 namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 {
-    partial class ExampleService : ServiceBase
+    partial class ExampleService 
     {
         private readonly ILog _logger;
         private GTPService _theService;
@@ -27,7 +27,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         {
             InitializeComponent();
             AppDomain.CurrentDomain.UnhandledException += CurrentDomainUnhandledException;
-            _logger = LogManager.GetLogger(typeof(ExampleService).ToString());
+            _logger = LogManager.GetLogger(typeof(ExampleService));
             _theService = new GTPService();
         }
 
@@ -41,12 +41,12 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             _theService.Start();
         }
 
-        protected override void OnStart(string[] args)
+        internal void OnStart(string[] args)
         {
             _theService.Start();
         }
 
-        protected override void OnStop()
+        internal void OnStop()
         {
             _theService.Stop();
         }

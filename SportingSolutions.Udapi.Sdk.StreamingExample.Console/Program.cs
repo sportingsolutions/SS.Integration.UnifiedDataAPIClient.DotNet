@@ -14,8 +14,9 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
-using System.ServiceProcess;
+//using System.ServiceProcess;
 using System.Threading.Tasks;
 using log4net;
 
@@ -28,37 +29,38 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             var path = Assembly.GetExecutingAssembly().Location;
             var fileInfo = new FileInfo(path);
             var dir = fileInfo.DirectoryName;
-            log4net.Config.XmlConfigurator.ConfigureAndWatch(new FileInfo(string.Format("{0}\\log4net.config", dir)));
-            var logger = LogManager.GetLogger(typeof(Program).ToString());
+            //log4net.Config.XmlConfigurator.ConfigureAndWatch(new FileInfo(string.Format("{0}\\log4net.config", dir)));
+            log4net.Config.XmlConfigurator.ConfigureAndWatch(LogManager.GetRepository(Assembly.GetEntryAssembly()) , new FileInfo(string.Format("{0}\\log4net.config", dir)));
             
+            var logger = LogManager.GetLogger(typeof(Program));
 
             try
-            {
-                TaskScheduler.UnobservedTaskException += (sender, eventArgs) =>
-                    { logger.ErrorFormat("Uncought exception was thrown", eventArgs.Exception); };
-
-                var servicesToRun = new ServiceBase[] 
-                { 
-                    new ExampleService() 
-                };
+            {                
+                //var servicesToRun = new ServiceBase[] 
+                //{ 
+                //    new ExampleService() 
+                //};
 
                 if (Environment.UserInteractive)
                 {
-                    var type = typeof(ServiceBase);
-                    const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
-                    var method = type.GetMethod("OnStart", flags);
+                    //var type = typeof(ServiceBase);
+                    //const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                    //var method = type.GetMethod("OnStart", flags);
 
-                    foreach (var service in servicesToRun)
-                    {
-                        method.Invoke(service, new object[] { null });
-                    }
+                    //foreach (var service in servicesToRun)
+                    //{
+                    //    method.Invoke(service, new object[] { null });
+                    //}
+
+                    var service = new ExampleService();
+                    service.OnStart(args);
 
                     logger.Debug(@"Service Started! - Press any key to stop");
                     System.Console.ReadLine();
                 }
                 else
                 {
-                    ServiceBase.Run(servicesToRun);
+                    //ServiceBase.Run(servicesToRun);
                 }
             }
             catch (Exception ex)
