@@ -20,3 +20,4 @@ BuildOutput/
 html/
 *.ncrunchsolution
 */obj/*
+*.ide
