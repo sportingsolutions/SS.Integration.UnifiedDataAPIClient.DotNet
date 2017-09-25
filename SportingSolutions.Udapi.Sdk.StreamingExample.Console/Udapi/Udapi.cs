@@ -80,5 +80,9 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
         {
             get { return ReconnectOnException(x => x.Name, _theRealObject); }
         }
+
+        public bool IsServiceCacheEnabled { get; set; } = false;
+
+        public int ServiceCacheInvalidationInterval { get; set; }
     }
 }

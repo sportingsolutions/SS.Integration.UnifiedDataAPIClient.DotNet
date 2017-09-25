@@ -12,13 +12,17 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+using Akka.Actor;
+using Akka.TestKit.NUnit;
+using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Interfaces;
+using SportingSolutions.Udapi.Sdk.Model.Message;
 
 namespace SportingSolutions.Udapi.Sdk.Tests
 {
-    internal class MockedStreamSubscriber : IStreamSubscriber
+    internal class MockedStreamSubscriber : TestKit, IStreamSubscriber
     {
-        public MockedStreamSubscriber(IConsumer consumer, IDispatcher dispatcher)
+        public MockedStreamSubscriber(IConsumer consumer, IActorRef dispatcher)
         {
             Consumer = consumer;
             Dispatcher = dispatcher;
@@ -28,16 +32,17 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         public IConsumer Consumer { get; set; }
 
-        public IDispatcher Dispatcher { get; set; }
+        public IActorRef Dispatcher { get; set; }
 
         public void StopConsuming()
         {
-            Dispatcher.RemoveSubscriber(this);
+            Dispatcher.Tell(new RemoveSubscriberMessage() { Subscriber = this });
+
         }
 
         public void StartConsuming(string queueName)
         {
-            Dispatcher.AddSubscriber(this);
+            Dispatcher.Tell(new NewSubscriberMessage() { Subscriber = this });
         }
 
         #endregion

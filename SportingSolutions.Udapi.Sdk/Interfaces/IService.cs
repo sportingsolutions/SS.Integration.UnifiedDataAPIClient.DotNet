@@ -24,6 +24,16 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         string Name { get; }
 
         /// <summary>
+        ///     Interval in seconds at which the service cache will be invalidated
+        /// </summary>
+        int ServiceCacheInvalidationInterval { get; set; }
+
+        /// <summary>
+        ///     Property to enable/disable service cache
+        /// </summary>
+        bool IsServiceCacheEnabled { get; set; }
+
+        /// <summary>
         ///     Returns a list of the features
         ///     for this service
         /// </summary>

@@ -16,6 +16,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using log4net;
@@ -65,6 +66,18 @@ namespace SportingSolutions.Udapi.Sdk
                 };
 
             _logger.DebugFormat("consumerId={0} added to echos manager", subscriber.Consumer.Id);
+        }
+
+        public void ResetAll()
+        {
+            //this is used on disconnection when auto-reconnection is used
+            //some echoes will usually be missed in the process 
+            //once the connection is restarted it makes sense to reset echo counter
+            foreach (var echoEntry in _consumers.Values)
+            {
+                echoEntry.EchosCountDown = UDAPI.Configuration.MissedEchos;
+            }
+             
         }
 
         public void RemoveConsumer(IStreamSubscriber subscriber)

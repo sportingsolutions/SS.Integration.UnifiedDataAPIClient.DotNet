@@ -22,6 +22,7 @@ using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
+using SportingSolutions.Udapi.Sdk.Model.Message;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -87,7 +88,8 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
-            StreamController.Instance.AddConsumer(this, echoInterval, echoMaxDelay);
+            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new NewConsumerMessage() { Consumer = this});
+            //StreamController.Instance.AddConsumer(this, echoInterval, echoMaxDelay);
             Logger.DebugFormat("Streaming request queued for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
         }
 
@@ -105,8 +107,10 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StopStreaming()
         {
-            StreamController.Instance.RemoveConsumer(this);
+            //StreamController.Instance.RemoveConsumer(this);
             Logger.DebugFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
+            
+            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new RemoveConsumerMessage() { Consumer = this });
         }
 
         #endregion
@@ -125,18 +129,24 @@ namespace SportingSolutions.Udapi.Sdk
 
         public virtual void OnStreamDisconnected()
         {
-            if(StreamDisconnected != null)
+            Logger.DebugFormat("Resource \"{0}\" OnStreamDisconnected()", Id);
+
+            if (StreamDisconnected != null)
                 StreamDisconnected(this, EventArgs.Empty);
         }
 
         public virtual void OnStreamConnected()
         {
-            if(StreamConnected != null)
+            Logger.DebugFormat("Resource \"{0}\" OnStreamConnected()", Id);
+
+            if (StreamConnected != null)
                 StreamConnected(this, EventArgs.Empty);
         }
 
         public virtual void OnStreamEvent(StreamEventArgs e)
         {
+            Logger.DebugFormat("Resource \"{0}\" OnStreamEvent()", Id);
+
             if (StreamEvent != null)
                 StreamEvent(this, e);
         }

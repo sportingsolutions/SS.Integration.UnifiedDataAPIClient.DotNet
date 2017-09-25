@@ -24,6 +24,7 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Feature : Endpoint, IFeature
     {
+        #region Constructors
 
         internal Feature(RestItem restItem, IConnectClient connectClient)
             : base(restItem, connectClient)
@@ -32,19 +33,33 @@ namespace SportingSolutions.Udapi.Sdk
             Logger.DebugFormat("Instantiated feature={0}", restItem.Name);
         }
 
-        public string Name
-        {
-            get { return State.Name; }
-        }
+        #endregion
+
+        #region Implementation of IFeature
+
+        public string Name => State.Name;
 
         public List<IResource> GetResources()
         {
             var loggingStringBuilder = new StringBuilder();
             loggingStringBuilder.AppendFormat("Get all available resources from feature={0} - ", Name);
 
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResources HTTP error", loggingStringBuilder);
+            var resourcesList = ServiceCache.Instance.GetCachedResources(Name);
+
+            if (resourcesList == null)
+            {
+                resourcesList =
+                    FindRelationAndFollow(
+                            "http://api.sportingsolutions.com/rels/resources/list",
+                            "GetResources HTTP error",
+                            loggingStringBuilder)
+                        .Select(restItem => new Resource(restItem, ConnectClient))
+                        .Cast<IResource>()
+                        .ToList();
+                ServiceCache.Instance.CacheResources(Name, resourcesList);
+            }
             Logger.Debug(loggingStringBuilder);
-            return restItems.Select(restItem => new Resource(restItem, ConnectClient)).Cast<IResource>().ToList();
+            return resourcesList;
         }
 
         public IResource GetResource(string name)
@@ -52,10 +67,24 @@ namespace SportingSolutions.Udapi.Sdk
             var loggingStringBuilder = new StringBuilder();
             loggingStringBuilder.AppendFormat("Get resource={0} from feature={1} - ", name, Name);
 
-            var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResource HTTP error", loggingStringBuilder);
+            var resourcesList = ServiceCache.Instance.GetCachedResources(Name);
+            var resource = resourcesList?.FirstOrDefault(r => r.Name.Equals(name));
+            if (resource == null)
+            {
+                var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResource HTTP error", loggingStringBuilder);
+                resource =
+                (
+                    from restItem in restItems
+                    where restItem.Name == name
+                    select new Resource(restItem, ConnectClient)
+                ).FirstOrDefault();
+                ServiceCache.Instance.CacheResources(Name, new[] { resource });
+            }
+
             Logger.Debug(loggingStringBuilder);
-            return (from restItem in restItems where restItem.Name == name select new Resource(restItem, ConnectClient)).FirstOrDefault();
+            return resource;
         }
 
+        #endregion
     }
 }

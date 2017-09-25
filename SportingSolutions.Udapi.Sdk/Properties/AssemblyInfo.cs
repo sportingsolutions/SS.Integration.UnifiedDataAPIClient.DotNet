@@ -19,12 +19,12 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyProduct("SportingSolutions.Udapi.Sdk")]
 [assembly: AssemblyCompany("Sporting Solutions Ltd.")]
-[assembly: AssemblyCopyright("Copyright (c) Sporting Solutions Ltd. 2015")]
+[assembly: AssemblyCopyright("Copyright (c) Sporting Solutions Ltd. 2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
-[assembly: AssemblyVersion("0.1.0.0")]
-[assembly: AssemblyFileVersion("0.1.0.0")]
-[assembly: AssemblyInformationalVersion("0.1.0.0")]
+[assembly: AssemblyVersion("2.0.0.0")]
+[assembly: AssemblyFileVersion("2.0.0.0")]
+[assembly: AssemblyInformationalVersion("2.0.0.0")]
 
 [assembly: InternalsVisibleTo("SportingSolutions.Udapi.Sdk.Tests")]
 

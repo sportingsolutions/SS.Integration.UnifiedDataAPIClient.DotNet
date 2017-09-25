@@ -49,5 +49,11 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         /// </summary>
         /// <param name="subscriberId"></param>
         void ProcessEcho(string subscriberId);
+
+        /// <summary>
+        ///     Resets all echoes 
+        /// </summary>
+        void ResetAll();
+
     }
 }

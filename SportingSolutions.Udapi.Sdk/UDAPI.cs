@@ -12,7 +12,9 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Clients;
+using SportingSolutions.Udapi.Sdk.Model.Message;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -22,6 +24,7 @@ namespace SportingSolutions.Udapi.Sdk
         static UDAPI()
         {
             Configuration = Clients.Configuration.Instance;
+            SdkActorSystem.Init();
         }
 
         public static void Init()
@@ -39,7 +42,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public static void Dispose()
         {
-            StreamController.Instance.Dispose();
+            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new DisposeMessage());
         }
 
         public static IConfiguration Configuration { get; set; }
