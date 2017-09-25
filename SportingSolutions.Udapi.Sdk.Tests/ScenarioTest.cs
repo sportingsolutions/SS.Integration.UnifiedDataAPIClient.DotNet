@@ -1,6 +1,6 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using Akka.Actor;
-using Akka.TestKit.NUnit;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
@@ -13,7 +13,7 @@ using SportingSolutions.Udapi.Sdk.Model.Message;
 namespace SportingSolutions.Udapi.Sdk.Tests
 {
     [TestFixture]
-    public class ScenarioTest : TestKit
+    public class ScenarioTest : SdkTestKit
     {
         private const string Id1 = "Id1";
         private const string Id2 = "Id2";
@@ -137,26 +137,44 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor)),
                 StreamControllerActor.ActorName);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
+            AwaitAssert(() =>
+                {
+                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                        .ConnectionState
+                        .DISCONNECTED);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
             //register new consumer
             var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            AwaitAssert(() =>
+                {
+                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                        .ConnectionState
+                        .CONNECTED);
 
-            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+                },
+                TimeSpan.FromMilliseconds(5 * ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(5 * ASSERT_EXEC_INTERVAL));
 
-            streamCtrlActorTestRef.UnderlyingActor.OnConnectionShutdown(null, new ShutdownEventArgs(ShutdownInitiator.Application, 541, "TestException"));
-
-            Thread.Sleep(500);
+            streamCtrlActorTestRef.UnderlyingActor.OnConnectionShutdown(null,
+                        new ShutdownEventArgs(ShutdownInitiator.Application, 541, "TestException"));
 
             streamCtrlActorTestRef.UnderlyingActor.StreamConnectionMock.Setup(c => c.IsOpen).Returns(true);
 
-            Thread.Sleep((((Configuration)UDAPI.Configuration).DisconnectionDelay + 1) * 1000);
-
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            AwaitAssert(() =>
+                {
+                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                            .ConnectionState
+                            .CONNECTED);
+                },
+                TimeSpan.FromMilliseconds(5 * ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(5 * ASSERT_EXEC_INTERVAL));
         }
 
         [Test]
@@ -180,7 +198,14 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor)),
                 StreamControllerActor.ActorName);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
+            AwaitAssert(() =>
+                {
+
+                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                        .ConnectionState.DISCONNECTED);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
             //register new consumer 1
             var newConsumerMessage = new NewConsumerMessage { Consumer = consumer1.Object };
@@ -189,18 +214,31 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             newConsumerMessage = new NewConsumerMessage { Consumer = consumer2.Object };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            AwaitAssert(() =>
+                {
+                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                        .ConnectionState.CONNECTED);
 
-            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
-            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(2);
+                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(2);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-            streamCtrlActorTestRef.UnderlyingActor.OnConnectionShutdown(null, new ShutdownEventArgs(ShutdownInitiator.Application, 541, "TestException"));
+            streamCtrlActorTestRef.UnderlyingActor.OnConnectionShutdown(null,
+                        new ShutdownEventArgs(ShutdownInitiator.Application, 541, "TestException"));
 
-            Thread.Sleep((((Configuration)UDAPI.Configuration).DisconnectionDelay + 1) * 1000);
-
-            consumer1.Verify(x => x.OnStreamDisconnected(), Times.Once, "Consumer 1 was not disconnect on connection shutdown");
-            consumer2.Verify(x => x.OnStreamDisconnected(), Times.Once, "Consumer 2 was not disconnect on connection shutdown");
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
+            AwaitAssert(() =>
+                {
+                    consumer1.Verify(x => x.OnStreamDisconnected(), Times.Once,
+                        "Consumer 1 was not disconnected on connection shutdown");
+                    consumer2.Verify(x => x.OnStreamDisconnected(), Times.Once,
+                        "Consumer 2 was not disconnected on connection shutdown");
+                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                        .ConnectionState.DISCONNECTED);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
         }
     }
 }

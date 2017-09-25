@@ -19,7 +19,6 @@ using Akka.Actor;
 using log4net;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
-using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
 

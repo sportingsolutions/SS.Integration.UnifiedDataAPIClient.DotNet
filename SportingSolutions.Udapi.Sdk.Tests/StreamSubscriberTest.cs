@@ -1,24 +1,15 @@
-﻿using System;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
-using Akka.Actor;
-using Akka.TestKit;
-using Akka.TestKit.NUnit;
+﻿using Akka.Actor;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
 using RabbitMQ.Client;
-using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Clients;
-using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
-using SportingSolutions.Udapi.Sdk.Model.Message;
 
 namespace SportingSolutions.Udapi.Sdk.Tests
 {
     [TestFixture]
-    class StreamSubscriberTest : TestKit
+    class StreamSubscriberTest : SdkTestKit
     {
         [SetUp]
         public void Initialise()

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Akka.Actor;
+﻿using Akka.Actor;
 using SportingSolutions.Udapi.Sdk.Model.Message;
 
 namespace SportingSolutions.Udapi.Sdk.Tests
