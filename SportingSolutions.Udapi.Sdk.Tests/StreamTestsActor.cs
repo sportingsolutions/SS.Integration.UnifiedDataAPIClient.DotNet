@@ -230,7 +230,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             object _lock = new object();
 
-            int testIterations = 1000;
+            int testIterations = 10;
 
             Mock<IConsumer>[] consumers = new Mock<IConsumer>[testIterations];
 
