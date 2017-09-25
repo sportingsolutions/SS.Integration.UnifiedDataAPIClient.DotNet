@@ -140,13 +140,15 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             // STEP 4: remove the consumer
             streamCtrlActorTestRef.Tell(new RemoveConsumerMessage { Consumer = consumer.Object });
 
+            Thread.Sleep(2000);
+
             // STEP 5: check the outcome
             consumer.Verify(x => x.OnStreamDisconnected(), Times.Once, "Consumer was not disconnect on connection shutdonw");
 
             updateDispatcherActor.Ask(new SubscribersCountMessage()).Result.Should().Be(0);
 
             var subscriberResult = updateDispatcherActor.Ask(new RetrieveSubscriberMessage { Id = "testing" }, TimeSpan.FromSeconds(9));
-            Thread.Sleep(2000);
+
             subscriberResult.Result.Should().BeOfType<NotFoundMessage>();
 
             streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
