@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26730.8
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SportingSolutions.Udapi.Sdk.Core", "..\..\SportingSolutions.Udapi.Sdk\SportingSolutions.Udapi.Sdk.Core.csproj", "{3364E7DA-606D-4F10-A466-2A11039BF74D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SportingSolutions.Udapi.Sdk.NetCore", "SportingSolutions.Udapi.Sdk\SportingSolutions.Udapi.Sdk.NetCore.csproj", "{3364E7DA-606D-4F10-A466-2A11039BF74D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SportingSolutions.Udapi.Sdk.StreamingExample.Console.Core", "..\..\SportingSolutions.Udapi.Sdk.StreamingExample.Console\SportingSolutions.Udapi.Sdk.StreamingExample.Console.Core.csproj", "{4D0C95D7-641C-4296-BF62-BA13E9CABCC5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SportingSolutions.Udapi.Sdk.StreamingExample.Console.NetCore", "SportingSolutions.Udapi.Sdk.StreamingExample.Console\SportingSolutions.Udapi.Sdk.StreamingExample.Console.NetCore.csproj", "{4D0C95D7-641C-4296-BF62-BA13E9CABCC5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

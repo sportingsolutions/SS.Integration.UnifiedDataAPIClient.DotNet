@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SportingSolutions.Udapi.Sdk\SportingSolutions.Udapi.Sdk.Core.csproj" />
+    <ProjectReference Include="..\SportingSolutions.Udapi.Sdk\SportingSolutions.Udapi.Sdk.NetCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>
