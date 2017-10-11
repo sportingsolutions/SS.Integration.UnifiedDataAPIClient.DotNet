@@ -132,7 +132,6 @@
     <Compile Include="Model\Message\DisconnectMessage.cs" />
     <Compile Include="Model\Message\ConnectMessage.cs" />
     <Compile Include="Credentials.cs" />
-    <Compile Include="EchoController.cs" />
     <Compile Include="Extensions\JsonHelper.cs" />
     <Compile Include="Interfaces\IDispatcher.cs" />
     <Compile Include="Interfaces\IEchoController.cs" />
@@ -165,7 +164,6 @@
     <Compile Include="Model\Message\StreamUpdateMessage.cs" />
     <Compile Include="SdkActorSystem.cs" />
     <Compile Include="UDAPI.cs" />
-    <Compile Include="UpdateDispatcher.cs" />
     <Compile Include="Actors\UpdateDispatcherActor.cs" />
   </ItemGroup>
   <ItemGroup>
