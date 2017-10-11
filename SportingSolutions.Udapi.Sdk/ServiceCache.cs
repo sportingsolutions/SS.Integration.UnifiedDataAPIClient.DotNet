@@ -117,6 +117,11 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void CacheFeatures(IEnumerable<IFeature> features)
         {
+            if (!IsEnabled)
+            {
+                return;
+            }
+
             foreach (var feature in features)
             {
                 _features.Push(feature);
@@ -125,6 +130,11 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void CacheResources(string sport, IEnumerable<IResource> resources)
         {
+            if (!IsEnabled)
+            {
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(sport))
             {
                 throw new ArgumentException("Invalid sport name!", nameof(sport));
