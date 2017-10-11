@@ -38,7 +38,7 @@ namespace SportingSolutions.Udapi.Sdk
             : base(model)
         {
             Consumer = consumer;
-            ConsumerTag = consumer.Id;
+            ConsumerTag = UDAPI.Configuration.UseSingleQueueStreamingMethod ? "StreamUpdates" : consumer.Id;
             Dispatcher = dispatcher;
             _isDisposed = false;
         }
@@ -47,7 +47,8 @@ namespace SportingSolutions.Udapi.Sdk
         {
             try
             {
-                Model.BasicConsume(queueName, true, Consumer.Id, this);
+                var consumerTag = UDAPI.Configuration.UseSingleQueueStreamingMethod ? ConsumerTag : Consumer.Id;
+                Model.BasicConsume(queueName, true, consumerTag, this);
             }
             catch (Exception e)
             {
@@ -73,8 +74,11 @@ namespace SportingSolutions.Udapi.Sdk
             }
             finally
             {
-                Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this});
-                
+                if (!UDAPI.Configuration.UseSingleQueueStreamingMethod)
+                {
+                    Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
+                }
+
                 try
                 {
                     Dispose();
@@ -93,8 +97,11 @@ namespace SportingSolutions.Udapi.Sdk
 
         public override void HandleBasicConsumeOk(string consumerTag)
         {
-            Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
-            
+            if (!UDAPI.Configuration.UseSingleQueueStreamingMethod)
+            {
+                Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
+            }
+
             base.HandleBasicConsumeOk(consumerTag);
         }
 
@@ -103,13 +110,28 @@ namespace SportingSolutions.Udapi.Sdk
             if (!IsRunning)
                 return;
 
-            Dispatcher.Tell(new StreamUpdateMessage() {Id = consumerTag, Message = Encoding.UTF8.GetString(body)});
+            var fixtureId = ExtractFixtureId(routingKey);
+
+            Dispatcher.Tell(new StreamUpdateMessage
+            {
+                Id = UDAPI.Configuration.UseSingleQueueStreamingMethod ? (fixtureId ?? routingKey) : consumerTag,
+                Message = Encoding.UTF8.GetString(body)
+            });
         }
 
         public override void HandleBasicCancel(string consumerTag)
         {
             base.HandleBasicCancel(consumerTag);
-            Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
+            if (!UDAPI.Configuration.UseSingleQueueStreamingMethod)
+            {
+                Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
+            }
+        }
+
+        private string ExtractFixtureId(string routingKey)
+        {
+            var rks = routingKey.Split('.');
+            return rks.Length > 2 ? routingKey.Split('.')[2] : null;
         }
 
         #endregion
@@ -139,6 +161,5 @@ namespace SportingSolutions.Udapi.Sdk
             _isDisposed = true;
         }
         #endregion
-
     }
 }

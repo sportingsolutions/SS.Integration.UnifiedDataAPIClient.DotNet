@@ -36,6 +36,9 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Configuration
 
             value = ConfigurationManager.AppSettings["disconnectionDelayInSecs"];
             DisconnectionDelayInSecs = value == "" ? 10 : Convert.ToInt32(value);
+
+            value = ConfigurationManager.AppSettings["useSingleQueueStreamingMethod"];
+            UseSingleQueueStreamingMethod = Convert.ToBoolean(value);
         }
 
         public string User { get; private set; }
@@ -48,7 +51,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Configuration
         public int EchoInterval { get; private set; }
         public int EchoMaxDelay { get; private set; }
         public int DisconnectionDelayInSecs { get; }
-
         public bool AutoReconnect { get; private set; }
+        public bool UseSingleQueueStreamingMethod { get; private set; }
     }
 }

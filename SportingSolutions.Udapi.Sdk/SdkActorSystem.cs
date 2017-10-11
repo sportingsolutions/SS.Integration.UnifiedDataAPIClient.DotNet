@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Akka.Actor;
+﻿using Akka.Actor;
 using SportingSolutions.Udapi.Sdk.Actors;
+using SingleQueue = SportingSolutions.Udapi.Sdk.Actors.SingleQueue;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -13,32 +9,67 @@ namespace SportingSolutions.Udapi.Sdk
         private static ActorSystem _actorSystem = ActorSystem.Create("SDKSystem");
 
         private const string UserSystemPath = "/user/";
-        
-        public const string UpdateDispatcherPath = UserSystemPath + UpdateDispatcherActor.ActorName;
-        public const string StreamControllerActorPath = UserSystemPath +StreamControllerActor.ActorName;
-        public const string EchoControllerActorPath = UserSystemPath + EchoControllerActor.ActorName;
+
+        public static string UpdateDispatcherPath = UserSystemPath +
+                                                    (UDAPI.Configuration.UseSingleQueueStreamingMethod
+                                                        ? SingleQueue.UpdateDispatcherActor.ActorName
+                                                        : UpdateDispatcherActor.ActorName);
+
+        public static string StreamControllerActorPath = UserSystemPath +
+                                                         (UDAPI.Configuration.UseSingleQueueStreamingMethod
+                                                             ? SingleQueue.StreamControllerActor.ActorName
+                                                             : StreamControllerActor.ActorName);
+
+        public static string EchoControllerActorPath = UserSystemPath +
+                                                       (UDAPI.Configuration.UseSingleQueueStreamingMethod
+                                                           ? SingleQueue.EchoControllerActor.ActorName
+                                                           : EchoControllerActor.ActorName);
 
         public static Props BuildUpdateDispatcherActor = Props.Create<UpdateDispatcherActor>();
+        public static Props BuildUpdateDispatcherSingleQueueActor = Props.Create<SingleQueue.UpdateDispatcherActor>();
 
-        
+
         static SdkActorSystem()
         {
-          
+
         }
-        
+
         /// <summary>
         /// Actor system shouldn't be provided unless your implemention specifically requires it
         /// </summary>
         /// <param name="actorSystem"></param>
-        public static void Init(ActorSystem actorSystem = null,bool initialiseActors = true)
+        public static void Init(ActorSystem actorSystem = null, bool initialiseActors = true)
         {
             _actorSystem = actorSystem ?? _actorSystem;
 
             if (initialiseActors)
             {
-                var dispatcher = ActorSystem.ActorOf(BuildUpdateDispatcherActor, UpdateDispatcherActor.ActorName);
-                ActorSystem.ActorOf(Props.Create<StreamControllerActor>(() => new StreamControllerActor(dispatcher)), StreamControllerActor.ActorName);
-                ActorSystem.ActorOf(Props.Create(() => new EchoControllerActor()), EchoControllerActor.ActorName);
+                var dispatcher = UDAPI.Configuration.UseSingleQueueStreamingMethod
+                    ? ActorSystem.ActorOf(
+                        BuildUpdateDispatcherSingleQueueActor,
+                        SingleQueue.UpdateDispatcherActor.ActorName)
+                    : ActorSystem.ActorOf(
+                        BuildUpdateDispatcherActor,
+                        UpdateDispatcherActor.ActorName);
+
+                if (UDAPI.Configuration.UseSingleQueueStreamingMethod)
+                {
+                    ActorSystem.ActorOf(
+                        Props.Create(() => new SingleQueue.StreamControllerActor(dispatcher)),
+                        SingleQueue.StreamControllerActor.ActorName);
+                    ActorSystem.ActorOf(
+                        Props.Create(() => new SingleQueue.EchoControllerActor()),
+                        SingleQueue.EchoControllerActor.ActorName);
+                }
+                else
+                {
+                    ActorSystem.ActorOf(
+                        Props.Create(() => new StreamControllerActor(dispatcher)),
+                        StreamControllerActor.ActorName);
+                    ActorSystem.ActorOf(
+                        Props.Create(() => new EchoControllerActor()),
+                        EchoControllerActor.ActorName);
+                }
             }
         }
 

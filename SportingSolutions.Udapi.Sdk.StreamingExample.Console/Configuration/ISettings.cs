@@ -11,9 +11,8 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Configuration
         int MaxRetryAttempts { get; }
         int EchoInterval { get; }
         int EchoMaxDelay { get; }
-
         int DisconnectionDelayInSecs { get; }
         bool AutoReconnect { get; }
-
+        bool UseSingleQueueStreamingMethod { get; }
     }
 }

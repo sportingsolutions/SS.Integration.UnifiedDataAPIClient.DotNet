@@ -45,7 +45,6 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             var model = new Mock<IModel>();
 
-            var echoController = new EchoController();
             var echoControllerActor = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 

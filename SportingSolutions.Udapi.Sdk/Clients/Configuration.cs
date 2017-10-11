@@ -29,6 +29,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         private const ushort DEFAULT_AMQP_HEARTBEAT = 15;
         private bool DEFAULT_ENABLE_AUTO_RECONNECT = true;
         private int DEFAULT_DISCONNECTION_DELAY = 10;
+        private const bool DEFAULT_USE_SINGLE_QUEUE_STREAMING_METHOD = false;
 
         static Configuration()
         {
@@ -47,6 +48,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             AMQPMissedHeartbeat = DEFAULT_AMQP_HEARTBEAT;
             AutoReconnect = DEFAULT_ENABLE_AUTO_RECONNECT;
             DisconnectionDelay = DEFAULT_DISCONNECTION_DELAY;
+            UseSingleQueueStreamingMethod = DEFAULT_USE_SINGLE_QUEUE_STREAMING_METHOD;
         }
 
         public static IConfiguration Instance { get; private set; }
@@ -66,7 +68,11 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         public bool VerboseLogging { get; set; }
 
         public ushort AMQPMissedHeartbeat { get; set; }
+
         public bool AutoReconnect { get; set; }
+
         public int DisconnectionDelay { get; set; }
+
+        public bool UseSingleQueueStreamingMethod { get; set; }
     }
 }

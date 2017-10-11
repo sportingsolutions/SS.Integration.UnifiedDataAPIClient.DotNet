@@ -63,5 +63,13 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         bool AutoReconnect { get;  }
 
         int DisconnectionDelay { get; }
+
+        /// <summary>
+        /// This option enables/disables the single queue streaming method. 
+        /// true for using single queue streaming for all fixtures 
+        /// false for using multiple queues streaming - one queue per fixture
+        /// default value is false
+        /// </summary>
+        bool UseSingleQueueStreamingMethod { get; }
     }
 }
