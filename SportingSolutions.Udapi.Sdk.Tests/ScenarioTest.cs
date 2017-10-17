@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using Akka.Actor;
+using Castle.Components.DictionaryAdapter;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
@@ -31,12 +33,14 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [SetUp]
         public void Initialise()
         {
+            SetupUseSingleQueueStreamingMethodSetting();
             ((Configuration)UDAPI.Configuration).UseEchos = true;
             ((Configuration)UDAPI.Configuration).EchoWaitInterval = int.MaxValue;
             SdkActorSystem.Init(Sys, false);
         }
 
         [Test]
+        [Repeat(2)]
         public void HandleBasicConsumeTest()
         {
             Mock<IConsumer> consumer = new Mock<IConsumer>();
@@ -51,11 +55,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var subsctiber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
             subsctiber.HandleBasicConsumeOk("Connect");
 
-            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(UseSingleQueueStreamingMethod ? 0 : 1);
+            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(UseSingleQueueStreamingMethod ? 0 : 1);
         }
 
         [Test]
+        [Repeat(2)]
         public void StopConsumingTest()
         {
             Mock<IConsumer> consumer = new Mock<IConsumer>();
@@ -70,8 +75,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var subsctiber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
             subsctiber.HandleBasicConsumeOk("Connect");
 
-            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(UseSingleQueueStreamingMethod ? 0 : 1);
+            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(UseSingleQueueStreamingMethod ? 0 : 1);
 
             subsctiber.StopConsuming();
 
@@ -80,6 +85,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void DisconnectWithoutReconnectTest()
         {
             ((Configuration)UDAPI.Configuration).AutoReconnect = false;
@@ -120,6 +126,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void DisconnectWithReconnectTest()
         {
             ((Configuration)UDAPI.Configuration).AutoReconnect = true;
@@ -177,6 +184,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void ConnectionShutdownCausesConsumersToStopStreamingTest()
         {
             ((Configuration)UDAPI.Configuration).AutoReconnect = true;

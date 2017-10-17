@@ -23,11 +23,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [SetUp]
         public void Initialise()
         {
+            SetupUseSingleQueueStreamingMethodSetting();
             ((Configuration)UDAPI.Configuration).UseEchos = true;
             ((Configuration)UDAPI.Configuration).EchoWaitInterval = int.MaxValue;
             SdkActorSystem.Init(Sys, false);
-            
-            
         }
 
         private EchoControllerActor GetEchoControllerActorWith1Consumer(string consumerId)
@@ -40,13 +39,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
             subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
-            
+
             testing.AddConsumer(subsctiber.Object);
 
             return testing;
         }
-
-        
 
         private void AddConsumer(EchoControllerActor actor, string consumerId)
         {
@@ -64,10 +61,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         private TestActorRef<MockedEchoControllerActor> GetMockedEchoControllerActorWith1Consumer(string consumerId)
         {
             var mock = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
-            
+
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(consumerId);
-            
+
             Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
             subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
 
@@ -89,8 +86,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         }
 
-
         [Test]
+        [Repeat(2)]
         public void AddConsumerWithNullTest()
         {
             var testing = new EchoControllerActor();
@@ -100,24 +97,26 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void Add1ConsumerTest()
         {
             var testing = new EchoControllerActor();
-            
+
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(id1);
 
 
             Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
             subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
-            
+
             testing.AddConsumer(subsctiber.Object);
             testing.ConsumerCount.ShouldBeEquivalentTo(1);
-            
+
 
         }
 
         [Test]
+        [Repeat(2)]
         public void AddSameConsumerTest()
         {
             var testing = GetEchoControllerActorWith1Consumer(id1);
@@ -126,11 +125,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void RemoveConsumerPositiveTest()
         {
             var testing = new EchoControllerActor();
 
-            
+
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(id1);
 
@@ -149,6 +149,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void RemoveConsumerNegativeTest()
         {
             var testing = new EchoControllerActor();
@@ -175,6 +176,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void GetDefaultEchosCountDownTest()
         {
             var testing = new EchoControllerActor();
@@ -186,23 +188,25 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             Mock<IStreamSubscriber> subsctiber = new Mock<IStreamSubscriber>();
             subsctiber.Setup(x => x.Consumer).Returns(consumer.Object);
-            
+
             testing.AddConsumer(subsctiber.Object);
             testing.GetEchosCountDown(id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos);
         }
 
         [Test]
+        [Repeat(2)]
         public void CheckEchosDecteaseEchosCountDownTest()
         {
             var testing = GetMockedEchoControllerActorWith1Consumer(id1);
             var message = new EchoControllerActor.SendEchoMessage();
 
             testing.Tell(message);
-            testing.UnderlyingActor.GetEchosCountDown(id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos-1);
+            testing.UnderlyingActor.GetEchosCountDown(id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos - 1);
 
         }
 
         [Test]
+        [Repeat(2)]
         public void CheckEchosUntillAllSubscribersClearTest()
         {
             var testing = GetMockedEchoControllerActorWith1Consumer(id1);
@@ -221,6 +225,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void CheckEchosWithProcessEchoClearTest()
         {
             var testing = GetMockedEchoControllerActorWith1Consumer(id1);
@@ -229,7 +234,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
 
             var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
-            var echoMessage = new EchoMessage() {Id = id2};
+            var echoMessage = new EchoMessage() { Id = id2 };
 
             testing.Tell(sendEchoMessage);
             testing.Tell(echoMessage);
@@ -242,8 +247,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             testing.UnderlyingActor.GetEchosCountDown(id2).ShouldBeEquivalentTo(1);
         }
 
-
         [Test]
+        [Repeat(2)]
         public void SendEchoCallTest()
         {
             var testing = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
@@ -268,7 +273,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
 
-            
+
 
             var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
             var echoMessage = new EchoMessage() { Id = id2 };
@@ -283,7 +288,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             sendEchoCallCaount1.ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos - 1);
             sendEchoCallCaount2.ShouldBeEquivalentTo(1);
-            
+
         }
 
     }

@@ -44,16 +44,12 @@ namespace SportingSolutions.Udapi.Sdk
 
             if (initialiseActors)
             {
-                var dispatcher = UDAPI.Configuration.UseSingleQueueStreamingMethod
-                    ? ActorSystem.ActorOf(
-                        BuildUpdateDispatcherSingleQueueActor,
-                        SingleQueue.UpdateDispatcherActor.ActorName)
-                    : ActorSystem.ActorOf(
-                        BuildUpdateDispatcherActor,
-                        UpdateDispatcherActor.ActorName);
-
                 if (UDAPI.Configuration.UseSingleQueueStreamingMethod)
                 {
+                    var dispatcher = ActorSystem.ActorOf(
+                        BuildUpdateDispatcherSingleQueueActor,
+                        SingleQueue.UpdateDispatcherActor.ActorName);
+
                     ActorSystem.ActorOf(
                         Props.Create(() => new SingleQueue.StreamControllerActor(dispatcher)),
                         SingleQueue.StreamControllerActor.ActorName);
@@ -63,6 +59,10 @@ namespace SportingSolutions.Udapi.Sdk
                 }
                 else
                 {
+                    var dispatcher = ActorSystem.ActorOf(
+                        BuildUpdateDispatcherActor,
+                        UpdateDispatcherActor.ActorName);
+
                     ActorSystem.ActorOf(
                         Props.Create(() => new StreamControllerActor(dispatcher)),
                         StreamControllerActor.ActorName);

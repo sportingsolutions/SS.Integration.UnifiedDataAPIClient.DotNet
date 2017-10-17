@@ -14,13 +14,14 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [SetUp]
         public void Initialise()
         {
+            SetupUseSingleQueueStreamingMethodSetting();
             ((Configuration)UDAPI.Configuration).UseEchos = true;
             ((Configuration)UDAPI.Configuration).EchoWaitInterval = int.MaxValue;
             SdkActorSystem.Init(Sys, false);
         }
 
-
         [Test]
+        [Repeat(2)]
         public void StartConsumingTest()
         {
             var model = new Mock<IModel>();
@@ -34,11 +35,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             model.Setup(x => x.BasicConsume("test", true, consumer.Object.Id, test)).Callback(() => startConsume++);
             test.StartConsuming("test");
 
-           startConsume.ShouldBeEquivalentTo(1);
+            startConsume.ShouldBeEquivalentTo(UseSingleQueueStreamingMethod ? 0 : 1);
 
         }
 
         [Test]
+        [Repeat(2)]
         public void StopShouldNotCauseErrorTest()
         {
             var model = new Mock<IModel>();
@@ -58,6 +60,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void StopShouldSetDisposeFlatToFalseTest()
         {
             var model = new Mock<IModel>();
@@ -73,8 +76,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             test.IsDisposed.ShouldBeEquivalentTo(true);
         }
 
-
         [Test]
+        [Repeat(2)]
         public void StopShouldsENDdIApatchesRemoveMessageTest()
         {
             var model = new Mock<IModel>();
@@ -91,6 +94,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void DoubleStopShouldNotCauseErrorTest()
         {
             var model = new Mock<IModel>();
@@ -105,6 +109,5 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             test.StopConsuming();
             test.StopConsuming();
         }
-
     }
 }

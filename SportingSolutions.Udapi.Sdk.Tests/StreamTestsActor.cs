@@ -48,11 +48,13 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [SetUp]
         public void Initialise()
         {
+            SetupUseSingleQueueStreamingMethodSetting();
             ((Configuration)UDAPI.Configuration).UseEchos = false;
             SdkActorSystem.Init(Sys, false);
         }
 
         [Test]
+        [Repeat(2)]
         public void EstablishConnectionTest()
         {
             // STEP 1: prepare mocked data
@@ -87,6 +89,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void HandleFailedConnectionAttemptTest()
         {
             Mock<IConsumer> consumer = new Mock<IConsumer>();
@@ -111,6 +114,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void RemoveConsumerTest()
         {
             // STEP 1: prepare mocked data
@@ -180,6 +184,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void DisposeTest()
         {
             // is the controller in its initial state?
@@ -259,6 +264,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         /// 
         /// </summary>
         [Test]
+        [Repeat(2)]
         public void IgnoreUpdatesOnDisconnectionTest()
         {
             ThreadPool.SetMinThreads(500, 500);
@@ -345,6 +351,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         }
 
         [Test]
+        [Repeat(2)]
         public void ProcessPendingUpdatesTest()
         {
             int counter = 0;
