@@ -1,4 +1,4 @@
-﻿//Copyright 2012 Spin Services Limited
+﻿//Copyright 2017 Spin Services Limited
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -24,6 +24,12 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Feature : Endpoint, IFeature
     {
+        #region Fields
+
+        private static readonly object CacheSynchObjectLock = new object();
+
+        #endregion
+
         #region Constructors
 
         internal Feature(RestItem restItem, IConnectClient connectClient)
@@ -42,47 +48,100 @@ namespace SportingSolutions.Udapi.Sdk
         public List<IResource> GetResources()
         {
             var loggingStringBuilder = new StringBuilder();
-            loggingStringBuilder.AppendFormat("Get all available resources from feature={0} - ", Name);
+            loggingStringBuilder.Append($"Get all available resources for feature={Name} - ");
 
-            var resourcesList = ServiceCache.Instance.GetCachedResources(Name);
-
-            if (resourcesList == null)
+            try
             {
-                resourcesList =
-                    FindRelationAndFollow(
-                            "http://api.sportingsolutions.com/rels/resources/list",
-                            "GetResources HTTP error",
-                            loggingStringBuilder)
-                        .Select(restItem => new Resource(restItem, ConnectClient))
-                        .Cast<IResource>()
-                        .ToList();
-                ServiceCache.Instance.CacheResources(Name, resourcesList);
+                var resourcesList = GetResourcesList(Name, loggingStringBuilder);
+                return resourcesList;
             }
-            Logger.Debug(loggingStringBuilder);
-            return resourcesList;
+            finally
+            {
+                Logger.Debug(loggingStringBuilder);
+            }
         }
 
         public IResource GetResource(string name)
         {
             var loggingStringBuilder = new StringBuilder();
-            loggingStringBuilder.AppendFormat("Get resource={0} from feature={1} - ", name, Name);
+            loggingStringBuilder.AppendFormat($"Get resource={name} for feature={Name} - ");
 
-            var resourcesList = ServiceCache.Instance.GetCachedResources(Name);
-            var resource = resourcesList?.FirstOrDefault(r => r.Name.Equals(name));
-            if (resource == null)
+            try
             {
-                var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/resources/list", "GetResource HTTP error", loggingStringBuilder);
-                resource =
-                (
-                    from restItem in restItems
-                    where restItem.Name == name
-                    select new Resource(restItem, ConnectClient)
-                ).FirstOrDefault();
-                ServiceCache.Instance.CacheResources(Name, new[] { resource });
+                var resourcesList = GetResourcesList(Name, loggingStringBuilder);
+                var resource = resourcesList.FirstOrDefault(r => r.Name.Equals(name));
+                return resource;
+            }
+            finally
+            {
+                Logger.Debug(loggingStringBuilder);
+            }
+        }
+
+        #endregion
+
+        #region Private methods
+
+        private IEnumerable<RestItem> GetResourcesListFromApi(StringBuilder loggingStringBuilder)
+        {
+            loggingStringBuilder.Append("Getting resources list from API - ");
+
+            return FindRelationAndFollow(
+                "http://api.sportingsolutions.com/rels/resources/list",
+                "GetResources HTTP error",
+                loggingStringBuilder);
+        }
+
+        private List<IResource> GetResourcesList(string sport, StringBuilder loggingStringBuilder)
+        {
+            if (ServiceCache.Instance.IsEnabled)
+            {
+                var resourcesList = ServiceCache.Instance.GetCachedResources(sport);
+
+                //if resourcesList is null it means it hasn't been cached yet or has been evicted
+                if (resourcesList == null)
+                {
+                    lock (CacheSynchObjectLock)
+                    {
+                        resourcesList = ServiceCache.Instance.GetCachedResources(sport);
+
+                        //if resourcesList is null it means it hasn't been cached yet or has been evicted
+                        if (resourcesList == null)
+                        {
+                            loggingStringBuilder.AppendLine(
+                                $"resources cache is empty for feature={Name} - going to retrieve list of resources from the API now - ");
+
+                            ServiceCache.Instance.CacheResources(
+                                sport,
+                                resourcesList = GetResourcesListFromApi(loggingStringBuilder)
+                                    .Select(restItem => new Resource(restItem, ConnectClient))
+                                    .Cast<IResource>()
+                                    .ToList());
+
+                            loggingStringBuilder.AppendLine(
+                                $"list with {resourcesList.Count} resources has been cached for feature={Name} - ");
+                        }
+                        else
+                        {
+                            loggingStringBuilder.AppendLine(
+                                $"retrieved {resourcesList.Count} resources from cache for feature={Name} - ");
+                        }
+                    }
+                }
+                else
+                {
+                    loggingStringBuilder.AppendLine(
+                        $"retrieved {resourcesList.Count} resources from cache for feature={Name} - ");
+                }
+
+                return resourcesList;
             }
 
-            Logger.Debug(loggingStringBuilder);
-            return resource;
+            return
+                GetResourcesListFromApi(loggingStringBuilder)
+                    .Select(restItem => new Resource(restItem, ConnectClient))
+                    .Cast<IResource>()
+                    .ToList();
         }
 
         #endregion

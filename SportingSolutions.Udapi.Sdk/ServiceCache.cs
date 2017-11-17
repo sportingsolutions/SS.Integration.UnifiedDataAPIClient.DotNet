@@ -1,4 +1,4 @@
-﻿//Copyright 2012 Spin Services Limited
+﻿//Copyright 2017 Spin Services Limited
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -13,8 +13,10 @@
 //limitations under the License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Runtime.Caching;
+using log4net;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 
 namespace SportingSolutions.Udapi.Sdk
@@ -27,17 +29,16 @@ namespace SportingSolutions.Udapi.Sdk
     {
         #region Constants
 
-        private const int DefaultCacheInvalidationIntervalInSeconds = 60;
+        private const int DefaultCacheInvalidationIntervalInSeconds = 58;
+        private const string FeaturesCacheKey = "Features";
+        private const string ResourcesCacheKeyTemplate = "{0}_Resources";
 
         #endregion
 
         #region Fields
 
-        internal static bool Invalidate = true;
-
-        private readonly ConcurrentDictionary<string, DateTime> _lastCacheInvalidation;
-        private readonly ConcurrentStack<IFeature> _features;
-        private readonly ConcurrentDictionary<string, List<IResource>> _resources;
+        private readonly MemoryCache _memoryCache;
+        private readonly CacheItemPolicy _defaultCacheItemPolicy;
 
         #endregion
 
@@ -55,34 +56,36 @@ namespace SportingSolutions.Udapi.Sdk
 
         internal ServiceCache()
         {
-            _features = new ConcurrentStack<IFeature>();
-            _resources = new ConcurrentDictionary<string, List<IResource>>();
-            _lastCacheInvalidation = new ConcurrentDictionary<string, DateTime>();
+            var defaultCacheConfig = new NameValueCollection
+            {
+                //memory cache can grow to a maximum of 1.5GB per entity
+                //for both Features and Resources can go up to 3GB 
+                //(should't happen but for safety if it goes there it will automatically remove cached items)
+                {"cacheMemoryLimitMegabytes", "1536"},
+                //interval for cache to check the memory load
+                {"pollingInterval", "00:01:00"}
+            };
+
             IsEnabled = false;
             InvalidationInterval = DefaultCacheInvalidationIntervalInSeconds;
+
+            _memoryCache = new MemoryCache(nameof(ServiceCache), defaultCacheConfig);
+
+            _defaultCacheItemPolicy = new CacheItemPolicy();
         }
 
         #endregion
 
         #region Public methods
 
-        public IEnumerable<IFeature> GetCachedFeatures()
+        public List<IFeature> GetCachedFeatures()
         {
             if (!IsEnabled)
             {
                 return null;
             }
 
-            var key = nameof(_features);
-            if (ShouldInvalidateCache(key))
-            {
-                _features.Clear();
-                _lastCacheInvalidation[key] = DateTime.Now;
-
-                return null;
-            }
-
-            return _features;
+            return (List<IFeature>)_memoryCache.Get(FeaturesCacheKey);
         }
 
         public List<IResource> GetCachedResources(string sport)
@@ -97,38 +100,28 @@ namespace SportingSolutions.Udapi.Sdk
                 throw new ArgumentException("Invalid sport name!", nameof(sport));
             }
 
-            var key = string.Concat(sport, nameof(_resources));
-
-            if (!_resources.ContainsKey(sport))
-            {
-                _resources[sport] = new List<IResource>();
-            }
-
-            if (ShouldInvalidateCache(key))
-            {
-                _resources[sport].Clear();
-                _lastCacheInvalidation[key] = DateTime.Now;
-
-                return null;
-            }
-
-            return _resources[sport];
+            return (List<IResource>)_memoryCache.Get(GetResourceCacheKey(sport));
         }
 
-        public void CacheFeatures(IEnumerable<IFeature> features)
+        public void CacheFeatures(List<IFeature> features)
         {
             if (!IsEnabled)
             {
                 return;
             }
 
-            foreach (var feature in features)
+            if (features == null)
             {
-                _features.Push(feature);
+                throw new ArgumentNullException(nameof(features));
             }
+
+            //the cached item gets automatically evicted after InvalidationInterval
+            _defaultCacheItemPolicy.AbsoluteExpiration = DateTimeOffset.Now.AddSeconds(InvalidationInterval);
+
+            _memoryCache.Set(FeaturesCacheKey, features, _defaultCacheItemPolicy);
         }
 
-        public void CacheResources(string sport, IEnumerable<IResource> resources)
+        public void CacheResources(string sport, List<IResource> resources)
         {
             if (!IsEnabled)
             {
@@ -139,23 +132,24 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 throw new ArgumentException("Invalid sport name!", nameof(sport));
             }
-
-            if (!_resources.ContainsKey(sport))
+            if (resources == null)
             {
-                _resources[sport] = new List<IResource>();
+                throw new ArgumentNullException(nameof(resources));
             }
 
-            _resources[sport].AddRange(resources);
+            //the cached item gets automatically evicted after InvalidationInterval
+            _defaultCacheItemPolicy.AbsoluteExpiration = DateTimeOffset.Now.AddSeconds(InvalidationInterval);
+
+            _memoryCache.Set(GetResourceCacheKey(sport), resources, _defaultCacheItemPolicy);
         }
 
         #endregion
 
         #region Private methods
 
-        private bool ShouldInvalidateCache(string key)
+        private string GetResourceCacheKey(string sport)
         {
-            return !_lastCacheInvalidation.ContainsKey(key) ||
-                   (DateTime.Now - _lastCacheInvalidation[key]).TotalSeconds >= InvalidationInterval;
+            return string.Format(ResourcesCacheKeyTemplate, sport);
         }
 
         #endregion

@@ -24,6 +24,12 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class Service : Endpoint, IService
     {
+        #region Fields
+
+        private static readonly object CacheSynchObjectLock = new object();
+
+        #endregion
+
         #region Constructors
 
         internal Service(RestItem restItem, IConnectClient connectClient)
@@ -56,21 +62,15 @@ namespace SportingSolutions.Udapi.Sdk
             var loggingStringBuilder = new StringBuilder();
             loggingStringBuilder.Append("Get all available features - ");
 
-            var featuresList = ServiceCache.Instance.GetCachedFeatures();
-            if (featuresList == null)
+            try
             {
-                featuresList =
-                    FindRelationAndFollow(
-                            "http://api.sportingsolutions.com/rels/features/list",
-                            "GetFeatures Http error",
-                            loggingStringBuilder)
-                        .Select(restItem => new Feature(restItem, ConnectClient))
-                        .Cast<IFeature>()
-                        .ToList();
-                ServiceCache.Instance.CacheFeatures(featuresList);
+                var featuresList = GetFeaturesList(loggingStringBuilder);
+                return featuresList;
             }
-            Logger.Debug(loggingStringBuilder);
-            return featuresList.ToList();
+            finally
+            {
+                Logger.Debug(loggingStringBuilder);
+            }
         }
 
         public IFeature GetFeature(string name)
@@ -78,22 +78,79 @@ namespace SportingSolutions.Udapi.Sdk
             var loggingStringBuilder = new StringBuilder();
             loggingStringBuilder.AppendFormat("Get feature={0} - ", name);
 
-            var featuresList = ServiceCache.Instance.GetCachedFeatures();
-            var feature = featuresList?.FirstOrDefault(f => f.Name.Equals(name));
-            if (feature == null)
+            try
             {
-                var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/features/list", "GetFeature Http error", loggingStringBuilder);
-                feature =
-                (
-                    from restItem in restItems
-                    where restItem.Name == name
-                    select new Feature(restItem, ConnectClient)
-                ).FirstOrDefault();
-                ServiceCache.Instance.CacheFeatures(new[] { feature });
+                var featuresList = GetFeaturesList(loggingStringBuilder);
+                var feature = featuresList.FirstOrDefault(f => f.Name.Equals(name));
+                return feature;
+            }
+            finally
+            {
+                Logger.Debug(loggingStringBuilder);
+            }
+        }
+
+        #endregion
+
+        #region Private methods
+
+        private IEnumerable<RestItem> GetFeaturesListFromApi(StringBuilder loggingStringBuilder)
+        {
+            loggingStringBuilder.Append("Getting features list from API - ");
+
+            return FindRelationAndFollow(
+                "http://api.sportingsolutions.com/rels/features/list",
+                "GetFeature Http error",
+                loggingStringBuilder);
+        }
+
+        private List<IFeature> GetFeaturesList(StringBuilder loggingStringBuilder)
+        {
+            if (ServiceCache.Instance.IsEnabled)
+            {
+                var featuresList = ServiceCache.Instance.GetCachedFeatures();
+
+                //if featuresList is null it means it hasn't been cached yet or has been evicted
+                if (featuresList == null)
+                {
+                    lock (CacheSynchObjectLock)
+                    {
+                        featuresList = ServiceCache.Instance.GetCachedFeatures();
+
+                        //if featuresList is null it means it hasn't been cached yet or has been evicted
+                        if (featuresList == null)
+                        {
+                            loggingStringBuilder.AppendLine(
+                                "features cache is empty - going to retrieve the list of features from the API now - ");
+
+                            ServiceCache.Instance.CacheFeatures(
+                                featuresList = GetFeaturesListFromApi(loggingStringBuilder)
+                                    .Select(restItem => new Feature(restItem, ConnectClient))
+                                    .Cast<IFeature>()
+                                    .ToList());
+
+                            loggingStringBuilder.AppendLine(
+                                $"list with {featuresList.Count} features has been cached - ");
+                        }
+                        else
+                        {
+                            loggingStringBuilder.AppendLine($"retrieved {featuresList.Count} features from cache - ");
+                        }
+                    }
+                }
+                else
+                {
+                    loggingStringBuilder.AppendLine($"retrieved {featuresList.Count} features from cache - ");
+                }
+
+                return featuresList;
             }
 
-            Logger.Debug(loggingStringBuilder);
-            return feature;
+            return
+                GetFeaturesListFromApi(loggingStringBuilder)
+                    .Select(restItem => new Feature(restItem, ConnectClient))
+                    .Cast<IFeature>()
+                    .ToList();
         }
 
         #endregion
