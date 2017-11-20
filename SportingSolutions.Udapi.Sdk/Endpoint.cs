@@ -63,11 +63,11 @@ namespace SportingSolutions.Udapi.Sdk
                 stopwatch.Start();
                 var response = ConnectClient.Request<List<RestItem>>(theUri, Method.GET);
 
-                loggingStringBuilder.AppendFormat("took duration={0}ms", stopwatch.ElapsedMilliseconds);
+                loggingStringBuilder.AppendFormat("took duration={0}ms - ", stopwatch.ElapsedMilliseconds);
                 if (response.ErrorException != null)
                 {
                     RestErrorHelper.LogRestError(Logger, response, errorHeading);
-                    throw new Exception(string.Format("Error calling {0}",theUri),response.ErrorException);
+                    throw new Exception($"Error calling {theUri} - ", response.ErrorException);
                 }
                 result = response.Data;
             }

@@ -19,3 +19,6 @@ BuildOutput/
 *.ncrunchsolution
 html/
 *.ncrunchsolution
+
+# Visual Studio temp directory.
+.vs/
