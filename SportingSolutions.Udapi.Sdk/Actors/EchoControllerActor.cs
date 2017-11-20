@@ -134,11 +134,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void CheckEchos()
         {
-            if (_consumers.IsEmpty)
-            {
-                _logger.DebugFormat("There are no subscribers - echo will not be sent");
-            }
-
             try
             {
                 List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
@@ -206,7 +201,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             if (item == null)
             {
-                _logger.Warn("Unable to send echo due to null stream subscriber");
                 return;
             }
             try
