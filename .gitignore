@@ -21,3 +21,6 @@ html/
 *.ncrunchsolution
 */obj/*
 *.ide
+
+# Visual Studio temp directory.
+.vs/
