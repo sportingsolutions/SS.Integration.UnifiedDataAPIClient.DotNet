@@ -31,6 +31,7 @@ namespace SportingSolutions.Udapi.Sdk
         private readonly ILog _logger = LogManager.GetLogger(typeof(StreamSubscriber));
 
         private bool _isDisposed;
+        private bool _isStreamingStopped;
 
         internal bool IsDisposed => _isDisposed;
 
@@ -48,6 +49,7 @@ namespace SportingSolutions.Udapi.Sdk
             try
             {
                 Model.BasicConsume(queueName, true, Consumer.Id, this);
+                _isStreamingStopped = false;
             }
             catch (Exception e)
             {
@@ -60,7 +62,11 @@ namespace SportingSolutions.Udapi.Sdk
         {
             try
             {
-                Model.BasicCancel(ConsumerTag);
+                if (!_isStreamingStopped)
+                {
+                    Model.BasicCancel(ConsumerTag);
+                    _isStreamingStopped = true;
+                }
             }
             catch (AlreadyClosedException e)
             {
