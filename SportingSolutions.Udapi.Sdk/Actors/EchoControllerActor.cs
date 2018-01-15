@@ -134,11 +134,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void CheckEchos()
         {
-            if (_consumers.IsEmpty)
-            {
-                _logger.DebugFormat("There are no subscribers - echo will not be sent");
-            }
-
             try
             {
                 List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
@@ -146,45 +141,39 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 // acquiring the consumer here prevents to put another lock on the
                 // dictionary
                 IStreamSubscriber sendEchoConsumer = null;
-                
-                try
+
+                foreach (var consumer in _consumers)
                 {
-                    foreach (var consumer in _consumers)
+                    if (sendEchoConsumer == null)
+                        sendEchoConsumer = consumer.Value.Subscriber;
+
+                    int tmp = consumer.Value.EchosCountDown;
+                    consumer.Value.EchosCountDown--;
+
+                    if (tmp != UDAPI.Configuration.MissedEchos)
                     {
-                        if (sendEchoConsumer == null)
-                            sendEchoConsumer = consumer.Value.Subscriber;
+                        _logger.WarnFormat("consumerId={0} missed count={1} echos", consumer.Key,
+                            UDAPI.Configuration.MissedEchos - tmp);
 
-                        int tmp = consumer.Value.EchosCountDown;
-                        consumer.Value.EchosCountDown--;
-
-                        if (tmp != UDAPI.Configuration.MissedEchos)
+                        if (tmp <= 1)
                         {
-                            _logger.WarnFormat("consumerId={0} missed count={1} echos", consumer.Key, UDAPI.Configuration.MissedEchos - tmp);
+                            _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected",
+                                consumer.Key, UDAPI.Configuration.MissedEchos);
+                            invalidConsumers.Add(consumer.Value.Subscriber);
 
-                            if (tmp <= 1)
-                            {
-                                _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected", consumer.Key, UDAPI.Configuration.MissedEchos);
-                                invalidConsumers.Add(consumer.Value.Subscriber);
-
-                                if (sendEchoConsumer == consumer.Value.Subscriber)
-                                    sendEchoConsumer = null;
-                            }
+                            if (sendEchoConsumer == consumer.Value.Subscriber)
+                                sendEchoConsumer = null;
                         }
                     }
-
-                    // this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
-                    // for the invalid consumers
-                    RemoveSubribers(invalidConsumers);
-
-                    invalidConsumers.Clear();
-
-                    SendEchos(sendEchoConsumer);
-                    
                 }
-                catch (Exception ex)
-                {
-                    _logger.Error("Check Echos loop has experienced a failure", ex);
-                }
+
+                // this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
+                // for the invalid consumers
+                RemoveSubribers(invalidConsumers);
+
+                invalidConsumers.Clear();
+
+                SendEchos(sendEchoConsumer);
             }
             catch (Exception ex)
             {
@@ -206,7 +195,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             if (item == null)
             {
-                _logger.Warn("Unable to send echo due to null stream subscriber");
                 return;
             }
             try
