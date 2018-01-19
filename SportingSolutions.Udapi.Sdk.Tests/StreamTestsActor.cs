@@ -121,7 +121,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             consumer.Setup(x => x.GetQueueDetails()).Returns(_queryDetails);
             consumer.Setup(x => x.OnStreamConnected());
 
-            var updateDispatcherActor = ActorOf<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
+            var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
             var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(() => new MockedStreamControllerActor(updateDispatcherActor), StreamControllerActor.ActorName);
 
@@ -142,15 +142,15 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                     // STEP 3: check that up to now, everythin is ok
                     streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
                         .ConnectionState.CONNECTED);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-            var streamSubscriberObj =
-                updateDispatcherActor.Ask<IStreamSubscriber>(new RetrieveSubscriberMessage { Id = "testing" }).Result;
-
             AwaitAssert(() =>
                 {
+                    var streamSubscriberObj =
+                        updateDispatcherActor.Ask<IStreamSubscriber>(new RetrieveSubscriberMessage { Id = "testing" }).Result;
                     streamSubscriberObj.Should().NotBeNull();
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
