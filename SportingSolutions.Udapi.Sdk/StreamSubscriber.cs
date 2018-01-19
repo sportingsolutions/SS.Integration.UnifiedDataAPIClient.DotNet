@@ -32,6 +32,8 @@ namespace SportingSolutions.Udapi.Sdk
 
         private bool _isDisposed;
 
+        internal bool IsStreamingStopped => Model == null || !Model.IsOpen;
+
         internal bool IsDisposed => _isDisposed;
 
         public StreamSubscriber(IModel model, IConsumer consumer, IActorRef dispatcher)
@@ -60,7 +62,7 @@ namespace SportingSolutions.Udapi.Sdk
         {
             try
             {
-                if (Model != null && Model.IsOpen)
+                if (!IsStreamingStopped)
                 {
                     Model.BasicCancel(ConsumerTag);
                 }
