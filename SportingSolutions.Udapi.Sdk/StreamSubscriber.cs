@@ -31,7 +31,8 @@ namespace SportingSolutions.Udapi.Sdk
         private readonly ILog _logger = LogManager.GetLogger(typeof(StreamSubscriber));
 
         private bool _isDisposed;
-        private bool _isStreamingStopped;
+
+        internal bool IsStreamingStopped => Model == null || !Model.IsOpen;
 
         internal bool IsDisposed => _isDisposed;
 
@@ -49,7 +50,6 @@ namespace SportingSolutions.Udapi.Sdk
             try
             {
                 Model.BasicConsume(queueName, true, Consumer.Id, this);
-                _isStreamingStopped = false;
             }
             catch (Exception e)
             {
@@ -62,10 +62,9 @@ namespace SportingSolutions.Udapi.Sdk
         {
             try
             {
-                if (!_isStreamingStopped)
+                if (!IsStreamingStopped)
                 {
                     Model.BasicCancel(ConsumerTag);
-                    _isStreamingStopped = true;
                 }
             }
             catch (AlreadyClosedException e)
@@ -79,8 +78,8 @@ namespace SportingSolutions.Udapi.Sdk
             }
             finally
             {
-                Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this});
-                
+                Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
+
                 try
                 {
                     Dispose();
@@ -100,7 +99,7 @@ namespace SportingSolutions.Udapi.Sdk
         public override void HandleBasicConsumeOk(string consumerTag)
         {
             Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
-            
+
             base.HandleBasicConsumeOk(consumerTag);
         }
 
@@ -109,7 +108,7 @@ namespace SportingSolutions.Udapi.Sdk
             if (!IsRunning)
                 return;
 
-            Dispatcher.Tell(new StreamUpdateMessage() {Id = consumerTag, Message = Encoding.UTF8.GetString(body)});
+            Dispatcher.Tell(new StreamUpdateMessage() { Id = consumerTag, Message = Encoding.UTF8.GetString(body) });
         }
 
         public override void HandleBasicCancel(string consumerTag)

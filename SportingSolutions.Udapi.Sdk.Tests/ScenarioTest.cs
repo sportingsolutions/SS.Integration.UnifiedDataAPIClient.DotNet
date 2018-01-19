@@ -48,11 +48,16 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var echoControllerActor = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
-            var subsctiber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
-            subsctiber.HandleBasicConsumeOk("Connect");
+            var subscriber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
+            subscriber.HandleBasicConsumeOk("Connect");
 
-            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+            AwaitAssert(() =>
+                {
+                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
         }
 
         [Test]
@@ -67,16 +72,26 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var echoControllerActor = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
-            var subsctiber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
-            subsctiber.HandleBasicConsumeOk("Connect");
+            var subscriber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
+            subscriber.HandleBasicConsumeOk(Id1);
 
-            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+            AwaitAssert(() =>
+                {
+                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-            subsctiber.StopConsuming();
+            subscriber.StopConsuming();
 
-            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(0);
-            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(0);
+            AwaitAssert(() =>
+                {
+                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(0);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(0);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
         }
 
         [Test]
@@ -84,17 +99,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         {
             ((Configuration)UDAPI.Configuration).AutoReconnect = false;
 
-
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(Id1);
             consumer.Setup(x => x.GetQueueDetails()).Returns(_queueDetails);
 
-            var model = new Mock<IModel>();
-
             var echoControllerActor = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
-
-            var subsctiber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
 
             var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(
                 Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor)),
@@ -106,17 +116,25 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            AwaitAssert(() =>
+                {
+                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
 
-            //subsctiber.HandleBasicConsumeOk("Connect");
+                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-            echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-            updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
 
             streamCtrlActorTestRef.UnderlyingActor.OnConnectionShutdown(null, new ShutdownEventArgs(ShutdownInitiator.Application, 541, "TestException"));
-            //_streamConnection.Abort(541, "Test exception");
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
+            AwaitAssert(() =>
+                {
+                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
         }
 
         [Test]
