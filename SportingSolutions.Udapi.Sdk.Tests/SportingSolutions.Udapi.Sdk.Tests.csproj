@@ -97,7 +97,6 @@
     <Compile Include="SdkTestKit.cs" />
     <Compile Include="StreamSubscriberTest.cs" />
     <Compile Include="StreamTestsActor.cs" />
-    <Compile Include="StupidActor.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
