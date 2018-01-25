@@ -38,7 +38,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
 
         private readonly ConcurrentDictionary<string, EchoEntry> _consumers;
-        ICancelable _echoCancellation = new Cancelable(Context.System.Scheduler);
+        private readonly ICancelable _echoCancellation = new Cancelable(Context.System.Scheduler);
 
         public EchoControllerActor()
         {
@@ -60,7 +60,16 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<DisposeMessage>(x => Dispose());
 
         }
-        
+
+        protected override void PreRestart(Exception reason, object message)
+        {
+            _logger.Error(
+                $"Actor restart reason exception={reason?.ToString() ?? "null"}." +
+                (message != null
+                    ? $" last processing messageType={message.GetType().Name}"
+                    : ""));
+            base.PreRestart(reason, message);
+        }
 
         private SendEchoMessage GetEchoMessage()
         {
@@ -199,7 +208,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
             try
             {
-                _logger.DebugFormat("Sending batch echoe");
+                _logger.DebugFormat("Sending batch echo");
                 item.Consumer.SendEcho();
             }
             catch (Exception e)

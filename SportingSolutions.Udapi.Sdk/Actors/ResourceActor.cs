@@ -12,8 +12,8 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+using System;
 using Akka.Actor;
-using Akka.IO;
 using log4net;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
@@ -24,7 +24,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
     public class ResourceActor : ReceiveActor
     {
         protected ILog Logger;
-        private IConsumer _resource;
+        private readonly IConsumer _resource;
 
 
         public ResourceActor(IConsumer resource)
@@ -36,10 +36,16 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Logger.DebugFormat("Instantiated fixtureName=\"{0}\" fixtureId=\"{1}\"", resource, Id);
 
             Become(DisconnectedState);
+        }
 
-            //Receive<ConnectMessage>(connectMsg => Connected(connectMsg));
-            //Receive<StreamUpdateMessage>(streamMsg => StreamUpdate(streamMsg));
-            //Receive<DisconnectMessage>(msg => Disconnect(msg));
+        protected override void PreRestart(Exception reason, object message)
+        {
+            Logger.Error(
+                $"Actor restart reason exception={reason?.ToString() ?? "null"}." +
+                (message != null
+                    ? $" last processing messageType={message.GetType().Name}"
+                    : ""));
+            base.PreRestart(reason, message);
         }
 
         private void DisconnectedState()

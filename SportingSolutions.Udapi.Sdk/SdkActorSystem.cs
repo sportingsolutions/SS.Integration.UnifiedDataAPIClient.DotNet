@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Akka.Actor;
+﻿using Akka.Actor;
+using Akka.Event;
 using SportingSolutions.Udapi.Sdk.Actors;
 
 namespace SportingSolutions.Udapi.Sdk
@@ -40,6 +36,13 @@ namespace SportingSolutions.Udapi.Sdk
                 ActorSystem.ActorOf(Props.Create<StreamControllerActor>(() => new StreamControllerActor(dispatcher)), StreamControllerActor.ActorName);
                 ActorSystem.ActorOf(Props.Create(() => new EchoControllerActor()), EchoControllerActor.ActorName);
             }
+
+            // Setup an actor that will handle deadletter type messages
+            var deadletterWatchMonitorProps = Props.Create(() => new SdkDeadletterMonitorActor());
+            var deadletterWatchActorRef = _actorSystem.ActorOf(deadletterWatchMonitorProps, "SdkDeadletterMonitorActor");
+
+            // subscribe to the event stream for messages of type "DeadLetter"
+            _actorSystem.EventStream.Subscribe(deadletterWatchActorRef, typeof(DeadLetter));
         }
 
         public static ActorSystem ActorSystem => _actorSystem;

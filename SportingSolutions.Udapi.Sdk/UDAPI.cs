@@ -34,10 +34,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public static void Init(IConfiguration configuration)
         {
-            if(configuration == null)
-                Configuration = Clients.Configuration.Instance;
-            else
-                Configuration = configuration;
+            Configuration = configuration ?? Clients.Configuration.Instance;
         }
 
         public static void Dispose()

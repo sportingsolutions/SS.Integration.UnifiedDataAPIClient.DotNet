@@ -83,14 +83,14 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming()
         {
-            StartStreaming(DEFAULT_ECHO_INTERVAL_MS, DEFAULT_ECHO_MAX_DELAY_MS);
+            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new NewConsumerMessage { Consumer = this });
+            Logger.DebugFormat("Streaming request queued for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
         }
 
+        [Obsolete]
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
-            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new NewConsumerMessage() { Consumer = this});
-            //StreamController.Instance.AddConsumer(this, echoInterval, echoMaxDelay);
-            Logger.DebugFormat("Streaming request queued for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
+            StartStreaming();
         }
 
         public void PauseStreaming()

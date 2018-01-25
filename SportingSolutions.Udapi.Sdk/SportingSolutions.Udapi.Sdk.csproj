@@ -110,6 +110,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Actors\SdkDeadletterMonitorActor.cs" />
     <Compile Include="Actors\EchoControllerActor.cs" />
     <Compile Include="Model\Message\DisposeMessage.cs" />
     <Compile Include="Model\Message\NotFoundMessage.cs" />
