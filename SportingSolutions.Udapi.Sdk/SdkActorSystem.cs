@@ -9,42 +9,49 @@ namespace SportingSolutions.Udapi.Sdk
         private static ActorSystem _actorSystem = ActorSystem.Create("SDKSystem");
 
         private const string UserSystemPath = "/user/";
-        
-        public const string UpdateDispatcherPath = UserSystemPath + UpdateDispatcherActor.ActorName;
-        public const string StreamControllerActorPath = UserSystemPath +StreamControllerActor.ActorName;
-        public const string EchoControllerActorPath = UserSystemPath + EchoControllerActor.ActorName;
 
-        public static Props BuildUpdateDispatcherActor = Props.Create<UpdateDispatcherActor>();
+        internal static bool InitializeActors { get; set; } = true;
 
-        
+        public static readonly string UpdateDispatcherPath = UserSystemPath + UpdateDispatcherActor.ActorName;
+        public static readonly string StreamControllerActorPath = UserSystemPath + StreamControllerActor.ActorName;
+        public static readonly string EchoControllerActorPath = UserSystemPath + EchoControllerActor.ActorName;
+
         static SdkActorSystem()
         {
-          
+
         }
-        
+
         /// <summary>
-        /// Actor system shouldn't be provided unless your implemention specifically requires it
+        /// 
         /// </summary>
-        /// <param name="actorSystem"></param>
-        public static void Init(ActorSystem actorSystem = null,bool initialiseActors = true)
+        public static void Init()
         {
-            _actorSystem = actorSystem ?? _actorSystem;
-
-            if (initialiseActors)
+            if (InitializeActors)
             {
-                var dispatcher = ActorSystem.ActorOf(BuildUpdateDispatcherActor, UpdateDispatcherActor.ActorName);
-                ActorSystem.ActorOf(Props.Create<StreamControllerActor>(() => new StreamControllerActor(dispatcher)), StreamControllerActor.ActorName);
-                ActorSystem.ActorOf(Props.Create(() => new EchoControllerActor()), EchoControllerActor.ActorName);
+                var dispatcher = ActorSystem.ActorOf(
+                    Props.Create(() => new UpdateDispatcherActor()),
+                    UpdateDispatcherActor.ActorName);
+                ActorSystem.ActorOf(
+                    Props.Create(() => new StreamControllerActor(dispatcher)),
+                    StreamControllerActor.ActorName);
+                ActorSystem.ActorOf(
+                    Props.Create(() => new EchoControllerActor()),
+                    EchoControllerActor.ActorName);
+
+                // Setup an actor that will handle deadletter type messages
+                var deadletterWatchMonitorProps = Props.Create(() => new SdkDeadletterMonitorActor());
+                var deadletterWatchActorRef =
+                    _actorSystem.ActorOf(deadletterWatchMonitorProps, "SdkDeadletterMonitorActor");
+
+                // subscribe to the event stream for messages of type "DeadLetter"
+                _actorSystem.EventStream.Subscribe(deadletterWatchActorRef, typeof(DeadLetter));
             }
-
-            // Setup an actor that will handle deadletter type messages
-            var deadletterWatchMonitorProps = Props.Create(() => new SdkDeadletterMonitorActor());
-            var deadletterWatchActorRef = _actorSystem.ActorOf(deadletterWatchMonitorProps, "SdkDeadletterMonitorActor");
-
-            // subscribe to the event stream for messages of type "DeadLetter"
-            _actorSystem.EventStream.Subscribe(deadletterWatchActorRef, typeof(DeadLetter));
         }
 
-        public static ActorSystem ActorSystem => _actorSystem;
+        public static ActorSystem ActorSystem
+        {
+            get => _actorSystem;
+            internal set => _actorSystem = value;
+        }
     }
 }

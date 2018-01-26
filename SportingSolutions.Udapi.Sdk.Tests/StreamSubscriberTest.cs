@@ -4,7 +4,6 @@ using FluentAssertions;
 using log4net;
 using Moq;
 using NUnit.Framework;
-using NUnit.Framework.Constraints;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 using SportingSolutions.Udapi.Sdk.Clients;
@@ -18,9 +17,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [SetUp]
         public void Initialise()
         {
+            SdkActorSystem.InitializeActors = false;
             ((Configuration)UDAPI.Configuration).UseEchos = true;
             ((Configuration)UDAPI.Configuration).EchoWaitInterval = int.MaxValue;
-            SdkActorSystem.Init(Sys, false);
         }
 
 

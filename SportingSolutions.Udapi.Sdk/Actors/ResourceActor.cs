@@ -60,11 +60,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _resource.OnStreamDisconnected();
         }
 
-        public static Props Props(IConsumer resource)
-        {
-            return Akka.Actor.Props.Create<ResourceActor>(() => new ResourceActor(resource));
-        }
-
         private void StreamUpdate(StreamUpdateMessage streamMsg)
         {
             Logger.DebugFormat($"New update arrived for {streamMsg.Id}");

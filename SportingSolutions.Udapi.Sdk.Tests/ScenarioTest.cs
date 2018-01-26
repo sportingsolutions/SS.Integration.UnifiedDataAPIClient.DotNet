@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading;
 using Akka.Actor;
 using FluentAssertions;
 using Moq;
@@ -9,6 +8,7 @@ using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
+using SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors;
 
 namespace SportingSolutions.Udapi.Sdk.Tests
 {
@@ -31,9 +31,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [SetUp]
         public void Initialise()
         {
+            SdkActorSystem.InitializeActors = false;
+            SdkActorSystem.ActorSystem = Sys;
             ((Configuration)UDAPI.Configuration).UseEchos = true;
             ((Configuration)UDAPI.Configuration).EchoWaitInterval = int.MaxValue;
-            SdkActorSystem.Init(Sys, false);
         }
 
         [Test]
@@ -45,8 +46,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             var model = new Mock<IModel>();
 
-            var echoControllerActor = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
-            var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
+            var echoControllerActor = ActorOfAsTestActorRef(() => new EchoControllerActor(), EchoControllerActor.ActorName);
+            var updateDispatcherActor = ActorOfAsTestActorRef(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
             var subscriber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
             subscriber.HandleBasicConsumeOk("Connect");
@@ -69,8 +70,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             var model = new Mock<IModel>();
 
-            var echoControllerActor = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
-            var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
+            var echoControllerActor = ActorOfAsTestActorRef(() => new EchoControllerActor(), EchoControllerActor.ActorName);
+            var updateDispatcherActor = ActorOfAsTestActorRef(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
             var subscriber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
             subscriber.HandleBasicConsumeOk(Id1);
@@ -103,8 +104,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             consumer.Setup(x => x.Id).Returns(Id1);
             consumer.Setup(x => x.GetQueueDetails()).Returns(_queueDetails);
 
-            var echoControllerActor = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
-            var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
+            var echoControllerActor = ActorOfAsTestActorRef(() => new EchoControllerActor(), EchoControllerActor.ActorName);
+            var updateDispatcherActor = ActorOfAsTestActorRef(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
             var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(
                 Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor)),
@@ -147,7 +148,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             consumer.Setup(x => x.Id).Returns(Id1);
             consumer.Setup(x => x.GetQueueDetails()).Returns(_queueDetails);
 
-            var echoControllerActor = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
+            var echoControllerActor = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), EchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
             var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(
@@ -208,7 +209,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             consumer2.Setup(x => x.Id).Returns(Id2);
             consumer2.Setup(x => x.GetQueueDetails()).Returns(_queueDetails);
 
-            var echoControllerActor = ActorOfAsTestActorRef(() => new MockedEchoControllerActor(), EchoControllerActor.ActorName);
+            var echoControllerActor = ActorOfAsTestActorRef(() => new EchoControllerActor(), EchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOfAsTestActorRef(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
             var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(

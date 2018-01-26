@@ -48,7 +48,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (Enabled)
             {
                 //this will send Echo Message to the EchoControllerActor (Self) at the specified interval
-                Context.System.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromSeconds(0), TimeSpan.FromMilliseconds(UDAPI.Configuration.EchoWaitInterval), Self, GetEchoMessage(), ActorRefs.Nobody);
+                Context.System.Scheduler.ScheduleTellRepeatedly(
+                    TimeSpan.FromSeconds(0),
+                    TimeSpan.FromMilliseconds(UDAPI.Configuration.EchoWaitInterval),
+                    Self,
+                    new SendEchoMessage(),
+                    ActorRefs.Nobody);
             }
 
             _logger.DebugFormat("EchoSender is {0}", Enabled ? "enabled" : "disabled");
@@ -69,18 +74,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     ? $" last processing messageType={message.GetType().Name}"
                     : ""));
             base.PreRestart(reason, message);
-        }
-
-        private SendEchoMessage GetEchoMessage()
-        {
-            if (_consumers.IsEmpty)
-            {
-                _logger.WarnFormat("Can't send echo - there are no subscribers");
-                return new SendEchoMessage {Subscriber = null};
-            }
-
-            //this should only return message to send
-            return new SendEchoMessage() { Subscriber = _consumers.First().Value.Subscriber };
         }
 
         public bool Enabled { get; private set; }
@@ -201,7 +194,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void SendEchos(IStreamSubscriber item)
         {
-
             if (item == null)
             {
                 return;
@@ -232,7 +224,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         internal class SendEchoMessage
         {
-            internal IStreamSubscriber Subscriber { get; set; }
         }
 
         internal int? GetEchosCountDown(string subscriberId)

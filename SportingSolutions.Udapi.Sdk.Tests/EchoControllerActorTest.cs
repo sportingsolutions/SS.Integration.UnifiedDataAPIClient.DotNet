@@ -1,6 +1,5 @@
 ﻿using System;
 using Akka.TestKit;
-using Akka.TestKit.NUnit;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
@@ -14,21 +13,15 @@ namespace SportingSolutions.Udapi.Sdk.Tests
     [TestFixture]
     public class EchoControllerActorTest : SdkTestKit
     {
-
-        //private EchoControllerActor testing;
-
-        private const string id1 = "Id1";
-        private const string id2 = "Id2";
-        private const string id3 = "Id3";
+        private const string Id1 = "Id1";
+        private const string Id2 = "Id2";
 
         [SetUp]
         public void Initialise()
         {
+            SdkActorSystem.InitializeActors = false;
             ((Configuration)UDAPI.Configuration).UseEchos = true;
             ((Configuration)UDAPI.Configuration).EchoWaitInterval = int.MaxValue;
-            SdkActorSystem.Init(Sys, false);
-            
-            
         }
 
         private EchoControllerActor GetEchoControllerActorWith1Consumer(string consumerId)
@@ -47,8 +40,6 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             return testing;
         }
 
-        
-
         private void AddConsumer(EchoControllerActor actor, string consumerId)
         {
             Mock<IConsumer> consumer = new Mock<IConsumer>();
@@ -62,9 +53,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         }
 
-        private TestActorRef<MockedEchoControllerActor> GetMockedEchoControllerActorWith1Consumer(string consumerId)
+        private TestActorRef<EchoControllerActor> GetMockedEchoControllerActorWith1Consumer(string consumerId)
         {
-            var mock = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
+            var mock = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), EchoControllerActor.ActorName);
             
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(consumerId);
@@ -77,7 +68,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             return mock;
         }
 
-        private void AddConsumer(TestActorRef<MockedEchoControllerActor> actor, string consumerId)
+        private void AddConsumer(TestActorRef<EchoControllerActor> actor, string consumerId)
         {
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(consumerId);
@@ -90,14 +81,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         }
 
-
         [Test]
         public void AddConsumerWithNullTest()
         {
             var testing = new EchoControllerActor();
             testing.AddConsumer(null);
             testing.ConsumerCount.ShouldBeEquivalentTo(0);
-
         }
 
         [Test]
@@ -106,7 +95,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var testing = new EchoControllerActor();
             
             Mock<IConsumer> consumer = new Mock<IConsumer>();
-            consumer.Setup(x => x.Id).Returns(id1);
+            consumer.Setup(x => x.Id).Returns(Id1);
 
 
             Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
@@ -121,8 +110,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [Test]
         public void AddSameConsumerTest()
         {
-            var testing = GetEchoControllerActorWith1Consumer(id1);
-            AddConsumer(testing, id1);
+            var testing = GetEchoControllerActorWith1Consumer(Id1);
+            AddConsumer(testing, Id1);
             testing.ConsumerCount.ShouldBeEquivalentTo(1);
         }
 
@@ -133,7 +122,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             
             Mock<IConsumer> consumer = new Mock<IConsumer>();
-            consumer.Setup(x => x.Id).Returns(id1);
+            consumer.Setup(x => x.Id).Returns(Id1);
 
 
             Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
@@ -155,10 +144,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var testing = new EchoControllerActor();
 
             Mock<IConsumer> consumer1 = new Mock<IConsumer>();
-            consumer1.Setup(x => x.Id).Returns(id1);
+            consumer1.Setup(x => x.Id).Returns(Id1);
 
             Mock<IConsumer> consumer2 = new Mock<IConsumer>();
-            consumer2.Setup(x => x.Id).Returns(id2);
+            consumer2.Setup(x => x.Id).Returns(Id2);
 
 
             Mock<IStreamSubscriber> subscriber1 = new Mock<IStreamSubscriber>();
@@ -182,26 +171,26 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
 
             Mock<IConsumer> consumer = new Mock<IConsumer>();
-            consumer.Setup(x => x.Id).Returns(id1);
+            consumer.Setup(x => x.Id).Returns(Id1);
 
 
             Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
             subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
             
             testing.AddConsumer(subscriber.Object);
-            testing.GetEchosCountDown(id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos);
+            testing.GetEchosCountDown(Id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos);
         }
 
         [Test]
         public void CheckEchosDecteaseEchosCountDownTest()
         {
-            var testing = GetMockedEchoControllerActorWith1Consumer(id1);
+            var testing = GetMockedEchoControllerActorWith1Consumer(Id1);
             var message = new EchoControllerActor.SendEchoMessage();
 
             testing.Tell(message);
             AwaitAssert(() =>
                 {
-                    testing.UnderlyingActor.GetEchosCountDown(id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos - 1);
+                    testing.UnderlyingActor.GetEchosCountDown(Id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos - 1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -210,8 +199,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [Test]
         public void CheckEchosUntillAllSubscribersClearTest()
         {
-            var testing = GetMockedEchoControllerActorWith1Consumer(id1);
-            AddConsumer(testing, id2);
+            var testing = GetMockedEchoControllerActorWith1Consumer(Id1);
+            AddConsumer(testing, Id2);
 
             AwaitAssert(() =>
                 {
@@ -237,8 +226,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [Test]
         public void CheckEchosWithProcessEchoClearTest()
         {
-            var testing = GetMockedEchoControllerActorWith1Consumer(id1);
-            AddConsumer(testing, id2);
+            var testing = GetMockedEchoControllerActorWith1Consumer(Id1);
+            AddConsumer(testing, Id2);
 
             AwaitAssert(() =>
                 {
@@ -248,7 +237,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
             var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
-            var echoMessage = new EchoMessage() {Id = id2};
+            var echoMessage = new EchoMessage() {Id = Id2};
 
             testing.Tell(sendEchoMessage);
             testing.Tell(echoMessage);
@@ -260,27 +249,26 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             AwaitAssert(() =>
                 {
                     testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-                    testing.UnderlyingActor.GetEchosCountDown(id2).ShouldBeEquivalentTo(1);
+                    testing.UnderlyingActor.GetEchosCountDown(Id2).ShouldBeEquivalentTo(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
         }
 
-
         [Test]
         public void SendEchoCallTest()
         {
-            var testing = ActorOfAsTestActorRef<MockedEchoControllerActor>(() => new MockedEchoControllerActor(), MockedEchoControllerActor.ActorName);
+            var testing = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), EchoControllerActor.ActorName);
 
             Mock<IConsumer> consumer1 = new Mock<IConsumer>();
-            consumer1.Setup(x => x.Id).Returns(id1);
-            int sendEchoCallCaount1 = 0;
-            consumer1.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCaount1++);
+            consumer1.Setup(x => x.Id).Returns(Id1);
+            int sendEchoCallCount1 = 0;
+            consumer1.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount1++);
 
             Mock<IConsumer> consumer2 = new Mock<IConsumer>();
-            consumer2.Setup(x => x.Id).Returns(id2);
-            int sendEchoCallCaount2 = 0;
-            consumer2.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCaount2++);
+            consumer2.Setup(x => x.Id).Returns(Id2);
+            int sendEchoCallCount2 = 0;
+            consumer2.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount2++);
 
             Mock<IStreamSubscriber> subscriber1 = new Mock<IStreamSubscriber>();
             subscriber1.Setup(x => x.Consumer).Returns(consumer1.Object);
@@ -298,7 +286,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
             var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
-            var echoMessage = new EchoMessage() { Id = id2 };
+            var echoMessage = new EchoMessage { Id = Id2 };
 
             testing.Tell(sendEchoMessage);
             testing.Tell(echoMessage);
@@ -309,12 +297,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    sendEchoCallCaount1.ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos - 1);
-                    sendEchoCallCaount2.ShouldBeEquivalentTo(1);
+                    sendEchoCallCount1.ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos - 1);
+                    sendEchoCallCount2.ShouldBeEquivalentTo(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
         }
-
     }
 }

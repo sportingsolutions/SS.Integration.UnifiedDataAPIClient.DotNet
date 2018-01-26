@@ -1,4 +1,4 @@
-﻿//Copyright 2012 Spin Services Limited
+﻿//Copyright 2018 Spin Services Limited
 
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -16,15 +16,13 @@ using System;
 using Akka.Actor;
 using Moq;
 using RabbitMQ.Client;
-using RabbitMQ.Client.Framing.Impl;
 using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 
-namespace SportingSolutions.Udapi.Sdk.Tests
+namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
 {
     /// <summary>
-    ///     Simple StreamController that mocks out the AMPQ 
-    ///     stream controller
+    /// Simple StreamController that mocks out the AMPQ stream controller
     /// </summary>
     internal class MockedStreamControllerActor : StreamControllerActor
     {
@@ -42,7 +40,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         {
             base.CloseConnection();
         }
-        
+
         protected override void EstablishConnection(ConnectionFactory factory)
         {
             OnConnectionStatusChanged(ConnectionState.CONNECTED);
@@ -56,10 +54,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         protected override void RemoveConsumerFromQueue(IConsumer consumer)
         {
-            var s =
-                Dispatcher.Ask(new RetrieveSubscriberMessage() {Id = consumer.Id}).Result as IStreamSubscriber;
+            var s = Dispatcher.Ask(new RetrieveSubscriberMessage { Id = consumer.Id }).Result as IStreamSubscriber;
 
-            if(s == null)
+            if (s == null)
                 throw new Exception("Subscriber with Id=" + consumer.Id + " not found");
 
             s.StopConsuming();
