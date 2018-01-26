@@ -37,6 +37,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void Disconnect(DisconnectMessage message)
         {
+            _logger.DebugFormat($"subscriberId={message.Id} disconnect message received");
             if (!_subscribers.ContainsKey(message.Id)) return;
 
             var subscriber = _subscribers[message.Id];
@@ -45,7 +46,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             subscriber.Resource.Tell(message);
             subscriber.StreamSubscriber.StopConsuming();
 
-            _logger.DebugFormat("subscriberId={0} removed from UpdateDispatcherActor", message.Id);
+            _logger.DebugFormat($"subscriberId={message.Id} removed from UpdateDispatcherActor");
+        }
+
+        protected override void PreRestart(Exception reason, object message)
+        {
+            _logger.WarnFormat($"{ActorName} restartMessage=\"{message}\" {reason}");
         }
 
         private void Connect(IStreamSubscriber subscriber)
