@@ -128,7 +128,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (!string.IsNullOrEmpty(subscriberId) && _consumers.TryGetValue(subscriberId, out entry))
             {
                 if (UDAPI.Configuration.VerboseLogging)
-                    _logger.DebugFormat("Resetting echo information for consumerId={0}", subscriberId);
+                    _logger.DebugFormat("Resetting echo information for fixtureId={0}", subscriberId);
 
                 entry.EchosCountDown = UDAPI.Configuration.MissedEchos;
             }

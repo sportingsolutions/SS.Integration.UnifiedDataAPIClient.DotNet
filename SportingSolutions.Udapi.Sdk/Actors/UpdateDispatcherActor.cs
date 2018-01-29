@@ -82,7 +82,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             // is this an echo message?
             if (message.Message.StartsWith("{\"Relation\":\"http://api.sportingsolutions.com/rels/stream/echo\""))
             {
-                _logger.DebugFormat($"Echo arrived with {message.Id}");
+                _logger.DebugFormat($"Echo arrived for fixtureId={message.Id}");
                 Context.ActorSelection(SdkActorSystem.EchoControllerActorPath)
                     .Tell(new EchoMessage {Id = message.Id, Message = message.Message});
             }
