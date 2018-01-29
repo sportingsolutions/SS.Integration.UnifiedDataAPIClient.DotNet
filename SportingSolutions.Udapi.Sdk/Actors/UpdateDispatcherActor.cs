@@ -45,10 +45,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void Disconnect(DisconnectMessage message)
         {
-            if (!_subscribers.ContainsKey(message.Id))
-            {
-                return;
-            }
+            _logger.DebugFormat($"subscriberId={message.Id} disconnect message received");
+            if (!_subscribers.ContainsKey(message.Id)) return;
 
             try
             {
