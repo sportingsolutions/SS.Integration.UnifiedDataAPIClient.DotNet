@@ -164,7 +164,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                 }
                 catch (Exception ex)
                 {
-                    response.ErrorException = ex;
+                    response.ErrorException = new Exception($"Exception={ex} Content={restResponse.Content}");
                 }
             }
             
