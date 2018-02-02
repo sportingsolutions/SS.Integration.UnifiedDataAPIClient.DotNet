@@ -15,6 +15,7 @@
 using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Model.Message;
+using System.Net;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -23,6 +24,9 @@ namespace SportingSolutions.Udapi.Sdk
         // this is to make optional the call to Init()
         static UDAPI()
         {
+            //this is to avoid security error if SDK is compiled against .Net 4.5
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
             Configuration = Clients.Configuration.Instance;
             SdkActorSystem.Init();
         }
