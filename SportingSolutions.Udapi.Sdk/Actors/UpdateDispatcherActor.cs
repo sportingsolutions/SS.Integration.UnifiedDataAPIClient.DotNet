@@ -31,6 +31,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<RemoveAllSubscribers>(x => RemoveAll());
 
             Receive<DisposeMessage>(x => Dispose());
+
+            _logger.Info("UpdateDispatcherActor was created");
         }
 
         protected override void PreRestart(Exception reason, object message)
