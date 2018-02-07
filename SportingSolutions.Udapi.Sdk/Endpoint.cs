@@ -17,10 +17,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Web.UI.WebControls;
 using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
+using Newtonsoft.Json;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -50,7 +53,7 @@ namespace SportingSolutions.Udapi.Sdk
             return new Uri(theUrl);
         }
 
-        protected IEnumerable<RestItem> FindRelationAndFollow(string relation, string errorHeading, StringBuilder loggingStringBuilder)
+        protected IEnumerable<RestItem> FindRelationAndFollow(string relation, string errorHeading, StringBuilder loggingStringBuilder, int tryIteration = 1)
         {
             var stopwatch = new Stopwatch();
 
@@ -61,7 +64,51 @@ namespace SportingSolutions.Udapi.Sdk
 
                 loggingStringBuilder.AppendFormat("Call to url={0} ", theUri);
                 stopwatch.Start();
-                var response = ConnectClient.Request<List<RestItem>>(theUri, Method.GET);
+                IRestResponse<List<RestItem>> response = new RestResponse<List<RestItem>>();
+                int tryIterationCounter = 1;
+                while (tryIterationCounter <= 3)
+                {
+                    try
+                    {
+                        response = ConnectClient.Request<List<RestItem>>(theUri, Method.GET);
+                        break;
+                    }
+                    catch (JsonSerializationException e)
+                    {
+                        Thread.Sleep(1000);
+                        if (tryIterationCounter == 3)
+                        {
+                            throw e;
+                        }
+                    }
+                    tryIterationCounter++;
+                }
+
+                /*
+                try
+                {
+                    response = ConnectClient.Request<List<RestItem>>(theUri, Method.GET);
+                }
+                
+                catch (JsonSerializationException ex)
+                {
+                    switch (tryIteration)
+                    {
+                        case 3:
+                        {
+                            throw  new JsonSerializationException();
+                            return null;
+                        }
+                        default:
+                        {
+                            Thread.Sleep(1000);
+                            return FindRelationAndFollow(relation, errorHeading, loggingStringBuilder, ++tryIteration);
+                        }
+                    }
+                }
+                */
+
+               
 
                 loggingStringBuilder.AppendFormat("took duration={0}ms - ", stopwatch.ElapsedMilliseconds);
                 if (response.ErrorException != null)
