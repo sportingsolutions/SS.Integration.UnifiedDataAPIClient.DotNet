@@ -38,6 +38,7 @@ namespace SportingSolutions.Udapi.Sdk
         internal Endpoint(IConnectClient connectClient)
         {
             ConnectClient = connectClient;
+            Logger = LogManager.GetLogger(typeof(Endpoint).ToString());
         }
 
         internal Endpoint(RestItem restItem, IConnectClient connectClient)
@@ -73,13 +74,15 @@ namespace SportingSolutions.Udapi.Sdk
                         response = ConnectClient.Request<List<RestItem>>(theUri, Method.GET);
                         break;
                     }
-                    catch (JsonSerializationException e)
+                    catch (JsonSerializationException ex)
                     {
-                        Thread.Sleep(1000);
+                       
                         if (tryIterationCounter == 3)
                         {
-                            throw e;
+                            Logger.Warn($"JsonSerializationException Method=FindRelationAndFollow {ex}");
+                            return null;
                         }
+                        Thread.Sleep(1000);
                     }
                     tryIterationCounter++;
                 }
