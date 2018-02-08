@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Web.UI.WebControls;
@@ -54,7 +55,7 @@ namespace SportingSolutions.Udapi.Sdk
             return new Uri(theUrl);
         }
 
-        protected IEnumerable<RestItem> FindRelationAndFollow(string relation, string errorHeading, StringBuilder loggingStringBuilder, int tryIteration = 1)
+        protected IEnumerable<RestItem> FindRelationAndFollow(string relation, string errorHeading, StringBuilder loggingStringBuilder)
         {
             var stopwatch = new Stopwatch();
 
@@ -76,7 +77,7 @@ namespace SportingSolutions.Udapi.Sdk
                     }
                     catch (JsonSerializationException ex)
                     {
-                       
+
                         if (tryIterationCounter == 3)
                         {
                             Logger.Warn($"JsonSerializationException Method=FindRelationAndFollow {ex}");
@@ -84,33 +85,14 @@ namespace SportingSolutions.Udapi.Sdk
                         }
                         Thread.Sleep(1000);
                     }
+                    catch (Exception ex)
+                    {
+                        throw ex;
+                    }
                     tryIterationCounter++;
                 }
 
-                /*
-                try
-                {
-                    response = ConnectClient.Request<List<RestItem>>(theUri, Method.GET);
-                }
-                
-                catch (JsonSerializationException ex)
-                {
-                    switch (tryIteration)
-                    {
-                        case 3:
-                        {
-                            throw  new JsonSerializationException();
-                            return null;
-                        }
-                        default:
-                        {
-                            Thread.Sleep(1000);
-                            return FindRelationAndFollow(relation, errorHeading, loggingStringBuilder, ++tryIteration);
-                        }
-                    }
-                }
-                */
-
+         
                
 
                 loggingStringBuilder.AppendFormat("took duration={0}ms - ", stopwatch.ElapsedMilliseconds);
