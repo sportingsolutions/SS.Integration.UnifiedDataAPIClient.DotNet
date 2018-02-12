@@ -14,11 +14,8 @@
 
 
 using System;
-using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
 using Akka.Actor;
-using Akka.TestKit.NUnit;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
@@ -27,6 +24,7 @@ using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
+using SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors;
 
 namespace SportingSolutions.Udapi.Sdk.Tests
 {
@@ -35,7 +33,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
     {
         private MockedStreamControllerActor _streamControllerAct;
 
-        private QueueDetails _queryDetails = new QueueDetails
+        private readonly QueueDetails _queryDetails = new QueueDetails
         {
             Host = "testhost",
             Name = "testname",
@@ -48,8 +46,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [SetUp]
         public void Initialise()
         {
+            SdkActorSystem.InitializeActors = false;
+            SdkActorSystem.ActorSystem = Sys;
             ((Configuration)UDAPI.Configuration).UseEchos = false;
-            SdkActorSystem.Init(Sys, false);
         }
 
         [Test]

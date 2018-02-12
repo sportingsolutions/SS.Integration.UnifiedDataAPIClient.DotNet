@@ -88,11 +88,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EchoControllerActorTest.cs" />
-    <Compile Include="MockedEchoControllerActor.cs" />
-    <Compile Include="MockedStreamControllerActor.cs" />
-    <Compile Include="MockedStreamSubscriber.cs" />
+    <Compile Include="MockedObjects\Actors\MockedStreamControllerActor.cs" />
+    <Compile Include="MockedObjects\MockedStreamSubscriber.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="MockedStreamController.cs" />
     <Compile Include="ScenarioTest.cs" />
     <Compile Include="SdkTestKit.cs" />
     <Compile Include="StreamSubscriberTest.cs" />

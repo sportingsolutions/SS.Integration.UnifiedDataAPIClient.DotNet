@@ -65,6 +65,16 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _logger.DebugFormat("StreamController initialised");
         }
 
+        protected override void PreRestart(Exception reason, object message)
+        {
+            _logger.Error(
+                $"Actor restart reason exception={reason?.ToString() ?? "null"}." +
+                (message != null
+                    ? $" last processing messageType={message.GetType().Name}"
+                    : ""));
+            base.PreRestart(reason, message);
+        }
+
         /// <summary>
         /// This is the state when the connection is closed
         /// </summary>

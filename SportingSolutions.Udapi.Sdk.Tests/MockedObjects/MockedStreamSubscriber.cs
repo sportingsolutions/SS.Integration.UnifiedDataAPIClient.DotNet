@@ -14,11 +14,10 @@
 
 using Akka.Actor;
 using Akka.TestKit.NUnit;
-using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
 
-namespace SportingSolutions.Udapi.Sdk.Tests
+namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects
 {
     internal class MockedStreamSubscriber : TestKit, IStreamSubscriber
     {
@@ -42,7 +41,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         public void StartConsuming(string queueName)
         {
-            Dispatcher.Tell(new NewSubscriberMessage() { Subscriber = this });
+            Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
         }
 
         #endregion

@@ -38,7 +38,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
 
         private readonly ConcurrentDictionary<string, EchoEntry> _consumers;
-        ICancelable _echoCancellation = new Cancelable(Context.System.Scheduler);
+        private readonly ICancelable _echoCancellation = new Cancelable(Context.System.Scheduler);
 
         public EchoControllerActor()
         {
@@ -48,7 +48,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (Enabled)
             {
                 //this will send Echo Message to the EchoControllerActor (Self) at the specified interval
-                Context.System.Scheduler.ScheduleTellRepeatedly(TimeSpan.FromSeconds(0), TimeSpan.FromMilliseconds(UDAPI.Configuration.EchoWaitInterval), Self, GetEchoMessage(), ActorRefs.Nobody);
+                Context.System.Scheduler.ScheduleTellRepeatedly(
+                    TimeSpan.FromSeconds(0),
+                    TimeSpan.FromMilliseconds(UDAPI.Configuration.EchoWaitInterval),
+                    Self,
+                    new SendEchoMessage(),
+                    ActorRefs.Nobody);
             }
 
             _logger.DebugFormat("EchoSender is {0}", Enabled ? "enabled" : "disabled");
@@ -60,18 +65,15 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<DisposeMessage>(x => Dispose());
 
         }
-        
 
-        private SendEchoMessage GetEchoMessage()
+        protected override void PreRestart(Exception reason, object message)
         {
-            if (_consumers.IsEmpty)
-            {
-                _logger.WarnFormat("Can't send echo - there are no subscribers");
-                return new SendEchoMessage {Subscriber = null};
-            }
-
-            //this should only return message to send
-            return new SendEchoMessage() { Subscriber = _consumers.First().Value.Subscriber };
+            _logger.Error(
+                $"Actor restart reason exception={reason?.ToString() ?? "null"}." +
+                (message != null
+                    ? $" last processing messageType={message.GetType().Name}"
+                    : ""));
+            base.PreRestart(reason, message);
         }
 
         public bool Enabled { get; private set; }
@@ -126,7 +128,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (!string.IsNullOrEmpty(subscriberId) && _consumers.TryGetValue(subscriberId, out entry))
             {
                 if (UDAPI.Configuration.VerboseLogging)
-                    _logger.DebugFormat("Resetting echo information for consumerId={0}", subscriberId);
+                    _logger.DebugFormat("Resetting echo information for fixtureId={0}", subscriberId);
 
                 entry.EchosCountDown = UDAPI.Configuration.MissedEchos;
             }
@@ -192,14 +194,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void SendEchos(IStreamSubscriber item)
         {
-
             if (item == null)
             {
                 return;
             }
             try
             {
-                _logger.DebugFormat("Sending batch echoe");
+                _logger.DebugFormat("Sending batch echo");
                 item.Consumer.SendEcho();
             }
             catch (Exception e)
@@ -223,7 +224,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         internal class SendEchoMessage
         {
-            internal IStreamSubscriber Subscriber { get; set; }
         }
 
         internal int? GetEchosCountDown(string subscriberId)
