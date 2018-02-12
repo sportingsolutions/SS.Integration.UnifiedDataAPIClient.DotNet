@@ -90,14 +90,15 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        public IConsumer Consumer { get; private set; }
+        public IConsumer Consumer { get; }
 
-        public IActorRef Dispatcher { get; private set; }
+        public IActorRef Dispatcher { get; }
 
         #region DefaultBasicConsumer
 
         public override void HandleBasicConsumeOk(string consumerTag)
         {
+            _logger.Debug($"HandleBasicConsumeOk consumerTag={consumerTag ?? "null"}");
             Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
 
             base.HandleBasicConsumeOk(consumerTag);
@@ -108,11 +109,21 @@ namespace SportingSolutions.Udapi.Sdk
             if (!IsRunning)
                 return;
 
-            Dispatcher.Tell(new StreamUpdateMessage() { Id = consumerTag, Message = Encoding.UTF8.GetString(body) });
+            _logger.Debug(
+                "HandleBasicDeliver" +
+                $" consumerTag={consumerTag ?? "null"}" +
+                $" deliveryTag={deliveryTag}" +
+                $" redelivered={redelivered}" +
+                $" exchange={exchange ?? "null"}" +
+                $" routingKey={routingKey ?? "null"}" +
+                (body == null ? " body=null" : $" bodyLength={body.Length}"));
+
+            Dispatcher.Tell(new StreamUpdateMessage { Id = consumerTag, Message = Encoding.UTF8.GetString(body) });
         }
 
         public override void HandleBasicCancel(string consumerTag)
         {
+            _logger.Debug($"HandleBasicCancel consumerTag={consumerTag ?? "null"}");
             base.HandleBasicCancel(consumerTag);
             Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
         }
