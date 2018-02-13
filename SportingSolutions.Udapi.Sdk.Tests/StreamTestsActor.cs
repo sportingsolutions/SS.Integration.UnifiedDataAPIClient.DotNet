@@ -139,9 +139,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             AwaitAssert(() =>
                 {
                     // STEP 3: check that up to now, everythin is ok
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
-                        .ConnectionState.CONNECTED);
-                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.CONNECTED);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
