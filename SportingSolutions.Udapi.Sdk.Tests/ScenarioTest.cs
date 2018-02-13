@@ -54,8 +54,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+                    echoControllerActor.UnderlyingActor.ConsumerCount.Should().Be(1);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -78,8 +78,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+                    echoControllerActor.UnderlyingActor.ConsumerCount.Should().Be(1);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -88,8 +88,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(0);
-                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(0);
+                    echoControllerActor.UnderlyingActor.ConsumerCount.Should().Be(0);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(0);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -111,7 +111,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor)),
                 StreamControllerActor.ActorName);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.DISCONNECTED);
 
             //register new consumer
             var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
@@ -119,10 +119,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.CONNECTED);
 
-                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+                    echoControllerActor.UnderlyingActor.ConsumerCount.Should().Be(1);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -132,7 +132,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.DISCONNECTED);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -157,7 +157,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                         .ConnectionState
                         .DISCONNECTED);
                 },
@@ -170,12 +170,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                         .ConnectionState
                         .CONNECTED);
 
-                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(1);
+                    echoControllerActor.UnderlyingActor.ConsumerCount.Should().Be(1);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(1);
                 },
                 TimeSpan.FromMilliseconds(5 * ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(5 * ASSERT_EXEC_INTERVAL));
@@ -187,7 +187,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                             .ConnectionState
                             .CONNECTED);
                 },
@@ -219,7 +219,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             AwaitAssert(() =>
                 {
 
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                         .ConnectionState.DISCONNECTED);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
@@ -234,11 +234,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                         .ConnectionState.CONNECTED);
 
-                    echoControllerActor.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
-                    updateDispatcherActor.UnderlyingActor.SubscribersCount.ShouldBeEquivalentTo(2);
+                    echoControllerActor.UnderlyingActor.ConsumerCount.Should().Be(2);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(2);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -252,7 +252,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                         "Consumer 1 was not disconnected on connection shutdown");
                     consumer2.Verify(x => x.OnStreamDisconnected(), Times.Once,
                         "Consumer 2 was not disconnected on connection shutdown");
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                         .ConnectionState.DISCONNECTED);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),

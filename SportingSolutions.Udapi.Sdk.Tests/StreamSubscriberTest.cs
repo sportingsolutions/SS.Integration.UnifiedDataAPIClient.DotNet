@@ -37,7 +37,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             model.Setup(x => x.BasicConsume("test", true, consumer.Object.Id, test)).Callback(() => startConsume++);
             test.StartConsuming("test");
 
-           startConsume.ShouldBeEquivalentTo(1);
+           startConsume.Should().Be(1);
 
         }
 
@@ -68,12 +68,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var actor = new Mock<IActorRef>();
             var test = new StreamSubscriber(model.Object, consumer.Object, actor.Object);
             model.Setup(x => x.BasicConsume("test", true, consumer.Object.Id, test)).Callback(() => { });
-            test.IsDisposed.ShouldBeEquivalentTo(false);
+            test.IsDisposed.Should().Be(false);
 
             test.StartConsuming("test");
             test.StopConsuming();
 
-            test.IsDisposed.ShouldBeEquivalentTo(true);
+            test.IsDisposed.Should().Be(true);
         }
 
 
@@ -85,7 +85,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var actor = new Mock<IActorRef>();
             var test = new StreamSubscriber(model.Object, consumer.Object, actor.Object);
             model.Setup(x => x.BasicConsume("test", true, consumer.Object.Id, test)).Callback(() => { });
-            test.IsDisposed.ShouldBeEquivalentTo(false);
+            test.IsDisposed.Should().Be(false);
 
             test.StartConsuming("test");
             test.StopConsuming();
