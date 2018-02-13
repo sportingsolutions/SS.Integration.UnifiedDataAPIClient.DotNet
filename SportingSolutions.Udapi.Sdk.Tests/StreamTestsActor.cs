@@ -68,7 +68,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 StreamControllerActor.ActorName);
 
             // is the controller in its initial state?
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.DISCONNECTED);
 
             //register new consumer
             var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
@@ -78,11 +78,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             //StreamController.Instance.AddConsumer(consumer.Object, -1, -1);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.CONNECTED);
 
             streamCtrlActorTestRef.Tell(new RemoveConsumerMessage { Consumer = consumer.Object });
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.CONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.CONNECTED);
         }
 
         [Test]
@@ -100,12 +100,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 Props.Create(() => new StreamControllerActor(updateDispatcherActor)),
                 StreamControllerActor.ActorName);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.DISCONNECTED);
 
             streamCtrlActorTestRef.Tell(new NewConsumerMessage() { Consumer = consumer.Object });
 
-            streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor.ConnectionState.DISCONNECTED);
-            streamCtrlActorTestRef.UnderlyingActor.ConnectionError.ShouldBeEquivalentTo(e);
+            streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.DISCONNECTED);
+            streamCtrlActorTestRef.UnderlyingActor.ConnectionError.Should().Be(e);
 
         }
 
@@ -127,7 +127,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             AwaitAssert(() =>
                 {
                     // is the controller in its initial state?
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                         .ConnectionState.DISCONNECTED);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
@@ -170,7 +170,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
                     subscriberResult.Result.Should().BeOfType<NotFoundMessage>();
 
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                         .ConnectionState.CONNECTED);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
@@ -186,7 +186,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                         .ConnectionState.DISCONNECTED);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
@@ -213,7 +213,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             AwaitAssert(() =>
                 {
                     // STEP 2: check if the connection was correctly established
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                             .ConnectionState.CONNECTED);
 
                     Thread.Yield();
@@ -239,7 +239,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                     }
 
                     updateDispatcherActor.Ask(new SubscribersCountMessage()).Result.Should().Be(0);
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                         .ConnectionState.DISCONNECTED);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
@@ -269,7 +269,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                         .ConnectionState.DISCONNECTED);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
@@ -306,7 +306,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    streamCtrlActorTestRef.UnderlyingActor.State.ShouldBeEquivalentTo(StreamControllerActor
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
                             .ConnectionState.CONNECTED);
                     updateDispatcherActor.Ask<int>(new SubscribersCountMessage()).Result.Should().Be(testIterations);
                 },
