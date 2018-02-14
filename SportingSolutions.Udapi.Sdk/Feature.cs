@@ -118,7 +118,7 @@ namespace SportingSolutions.Udapi.Sdk
                             }
                             ServiceCache.Instance.CacheResources(
                                 sport,
-                                resources
+                                resourcesList = resources
                                     .Select(restItem => new Resource(restItem, ConnectClient))
                                     .Cast<IResource>()
                                     .ToList());
