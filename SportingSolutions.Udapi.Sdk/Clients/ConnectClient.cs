@@ -21,6 +21,7 @@ using SportingSolutions.Udapi.Sdk.Exceptions;
 using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
+using Newtonsoft.Json;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
@@ -160,14 +161,19 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             {
                 try
                 {
-                    response.Data = restResponse.Content.FromJson<T>();    
+                    response.Data = restResponse.Content.FromJson<T>();
+                }
+                catch (JsonSerializationException ex)
+                {
+                    throw new JsonSerializationException($"Serialization exception from JSON={restResponse.Content}",
+                        ex);
                 }
                 catch (Exception ex)
                 {
                     response.ErrorException = ex;
                 }
             }
-            
+
             return response;
         }
 
