@@ -32,6 +32,10 @@ namespace SportingSolutions.Udapi.Sdk
         private const int DEFAULT_ECHO_MAX_DELAY_MS = 3000;
 
 
+        public event EventHandler Tick;
+
+        
+
         public event EventHandler StreamConnected;
         public event EventHandler StreamDisconnected;
         public event EventHandler<StreamEventArgs> StreamEvent;
@@ -71,8 +75,11 @@ namespace SportingSolutions.Udapi.Sdk
 
         public bool IsDisposed { get; internal set; }
 
+        
+
         public string GetSnapshot()
         {
+            
             var loggingStringBuilder = new StringBuilder();
             loggingStringBuilder.AppendFormat("Get snapshot for fixtureName=\"{0}\" fixtureId={1} - ", Name, Id);
 

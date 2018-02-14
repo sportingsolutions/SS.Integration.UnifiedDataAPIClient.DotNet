@@ -73,7 +73,17 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 (message != null
                     ? $" last processing messageType={message.GetType().Name}"
                     : ""));
+
+            StopConsumingAll();
+            Context.ActorSelection(SdkActorSystem.ErrorControllerActorPath).Tell(new CriticalActorRestartedMessage() { ActorName = ActorName });
+
             base.PreRestart(reason, message);
+        }
+
+        private void StopConsumingAll()
+        {
+            if (_consumers != null)
+                RemoveSubribers(_consumers.Values.Select(_ => _.Subscriber));
         }
 
         public bool Enabled { get; private set; }
