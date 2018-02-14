@@ -14,6 +14,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Interfaces;
@@ -81,7 +82,7 @@ namespace SportingSolutions.Udapi.Sdk
             try
             {
                 var featuresList = GetFeaturesList(loggingStringBuilder);
-                var feature = featuresList.FirstOrDefault(f => f.Name.Equals(name));
+                var feature = featuresList?.FirstOrDefault(f => f.Name.Equals(name));
                 return feature;
             }
             finally
@@ -122,9 +123,14 @@ namespace SportingSolutions.Udapi.Sdk
                         {
                             loggingStringBuilder.AppendLine(
                                 "features cache is empty - going to retrieve the list of features from the API now - ");
-
+                            var resources = GetFeaturesListFromApi(loggingStringBuilder);
+                            if (resources == null)
+                            {
+                                Logger.Warn($"Return Method=GetFeaturesListFromApi is NULL");
+                                return null;
+                            }
                             ServiceCache.Instance.CacheFeatures(
-                                featuresList = GetFeaturesListFromApi(loggingStringBuilder)
+                                featuresList = resources
                                     .Select(restItem => new Feature(restItem, ConnectClient))
                                     .Cast<IFeature>()
                                     .ToList());
@@ -146,8 +152,16 @@ namespace SportingSolutions.Udapi.Sdk
                 return featuresList;
             }
 
+
+            var resource = GetFeaturesListFromApi(loggingStringBuilder);
+            if (resource == null)
+            {
+                Logger.Warn($"Return Method=GetFeaturesListFromApi is NULL");
+                return null;
+            }
+
             return
-                GetFeaturesListFromApi(loggingStringBuilder)
+                resource
                     .Select(restItem => new Feature(restItem, ConnectClient))
                     .Cast<IFeature>()
                     .ToList();
