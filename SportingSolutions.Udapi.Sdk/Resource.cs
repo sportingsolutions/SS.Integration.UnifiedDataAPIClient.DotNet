@@ -163,6 +163,11 @@ namespace SportingSolutions.Udapi.Sdk
 
             var loggingStringBuilder = new StringBuilder();
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp", "GetAmqpStream HTTP error", loggingStringBuilder);
+
+            if (restItems == null)
+            {
+                return null;
+            }
             var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
 
             var amqpUri = new Uri(amqpLink.Href);
