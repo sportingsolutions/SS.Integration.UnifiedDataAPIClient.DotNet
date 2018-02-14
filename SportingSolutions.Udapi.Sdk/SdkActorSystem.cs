@@ -43,10 +43,8 @@ namespace SportingSolutions.Udapi.Sdk
                     Props.Create(() => new EchoControllerActor()),
                     EchoControllerActor.ActorName);
 
-                ErrorControllerActor = new ErrorControllerActor();
-
-                ActorSystem.ActorOf(
-                    Props.Create(() => ErrorControllerActor),
+                 ErrorControllerActor = (ErrorControllerActor)ActorSystem.ActorOf(
+                    Props.Create(() => new ErrorControllerActor()),
                     ErrorControllerActor.ActorName);
 
                 // Setup an actor that will handle deadletter type messages
