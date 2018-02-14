@@ -146,13 +146,13 @@ namespace SportingSolutions.Udapi.Sdk
             var resource = GetResourcesListFromApi(loggingStringBuilder);
             if (resource == null)
             {
-                Logger.Warn($"");
+                Logger.Warn($"Return Method=GetResourcesListFromApi is NULL");
                 return null;
             }
-            return resource != null ? resource.Select(restItem => new Resource(restItem, ConnectClient))
+            return resource.Select(restItem => new Resource(restItem, ConnectClient))
                 .Cast<IResource>()
-                .ToList() : null;
-            
+                .ToList();
+
         }
 
         #endregion
