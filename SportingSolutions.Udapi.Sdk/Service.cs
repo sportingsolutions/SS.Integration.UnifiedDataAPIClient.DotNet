@@ -82,7 +82,7 @@ namespace SportingSolutions.Udapi.Sdk
             try
             {
                 var featuresList = GetFeaturesList(loggingStringBuilder);
-                var feature = featuresList.FirstOrDefault(f => f.Name.Equals(name));
+                var feature = featuresList?.FirstOrDefault(f => f.Name.Equals(name));
                 return feature;
             }
             finally
