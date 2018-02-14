@@ -69,7 +69,7 @@ namespace SportingSolutions.Udapi.Sdk
             try
             {
                 var resourcesList = GetResourcesList(Name, loggingStringBuilder);
-                var resource = resourcesList.FirstOrDefault(r => r.Name.Equals(name));
+                var resource = resourcesList?.FirstOrDefault(r => r.Name.Equals(name));
                 return resource;
             }
             finally
@@ -110,10 +110,15 @@ namespace SportingSolutions.Udapi.Sdk
                         {
                             loggingStringBuilder.AppendLine(
                                 $"resources cache is empty for feature={Name} - going to retrieve list of resources from the API now - ");
-
+                            var resources = GetResourcesListFromApi(loggingStringBuilder);
+                            if (resources == null)
+                            {
+                                Logger.Warn($"Return Method=GetResourcesListFromApi is NULL");
+                                return null;
+                            }
                             ServiceCache.Instance.CacheResources(
                                 sport,
-                                resourcesList = GetResourcesListFromApi(loggingStringBuilder)
+                                resources
                                     .Select(restItem => new Resource(restItem, ConnectClient))
                                     .Cast<IResource>()
                                     .ToList());
@@ -137,11 +142,17 @@ namespace SportingSolutions.Udapi.Sdk
                 return resourcesList;
             }
 
-            return
-                GetResourcesListFromApi(loggingStringBuilder)
-                    .Select(restItem => new Resource(restItem, ConnectClient))
-                    .Cast<IResource>()
-                    .ToList();
+
+            var resource = GetResourcesListFromApi(loggingStringBuilder);
+            if (resource == null)
+            {
+                Logger.Warn($"");
+                return null;
+            }
+            return resource != null ? resource.Select(restItem => new Resource(restItem, ConnectClient))
+                .Cast<IResource>()
+                .ToList() : null;
+            
         }
 
         #endregion
