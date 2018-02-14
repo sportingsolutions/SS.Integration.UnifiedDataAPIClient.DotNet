@@ -86,7 +86,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         {
             var testing = new EchoControllerActor();
             testing.AddConsumer(null);
-            testing.ConsumerCount.ShouldBeEquivalentTo(0);
+            testing.ConsumerCount.Should().Be(0);
         }
 
         [Test]
@@ -102,7 +102,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
             
             testing.AddConsumer(subscriber.Object);
-            testing.ConsumerCount.ShouldBeEquivalentTo(1);
+            testing.ConsumerCount.Should().Be(1);
             
 
         }
@@ -112,7 +112,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         {
             var testing = GetEchoControllerActorWith1Consumer(Id1);
             AddConsumer(testing, Id1);
-            testing.ConsumerCount.ShouldBeEquivalentTo(1);
+            testing.ConsumerCount.Should().Be(1);
         }
 
         [Test]
@@ -131,10 +131,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
 
             testing.AddConsumer(subscriber.Object);
-            testing.ConsumerCount.ShouldBeEquivalentTo(1);
+            testing.ConsumerCount.Should().Be(1);
 
             testing.RemoveConsumer(subscriber.Object);
-            testing.ConsumerCount.ShouldBeEquivalentTo(0);
+            testing.ConsumerCount.Should().Be(0);
 
         }
 
@@ -158,9 +158,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
 
             testing.AddConsumer(subscriber1.Object);
-            testing.ConsumerCount.ShouldBeEquivalentTo(1);
+            testing.ConsumerCount.Should().Be(1);
             testing.RemoveConsumer(subscriber2.Object);
-            testing.ConsumerCount.ShouldBeEquivalentTo(1);
+            testing.ConsumerCount.Should().Be(1);
 
         }
 
@@ -178,7 +178,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
             
             testing.AddConsumer(subscriber.Object);
-            testing.GetEchosCountDown(Id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos);
+            testing.GetEchosCountDown(Id1).Should().Be(UDAPI.Configuration.MissedEchos);
         }
 
         [Test]
@@ -190,7 +190,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             testing.Tell(message);
             AwaitAssert(() =>
                 {
-                    testing.UnderlyingActor.GetEchosCountDown(Id1).ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos - 1);
+                    testing.UnderlyingActor.GetEchosCountDown(Id1).Should().Be(UDAPI.Configuration.MissedEchos - 1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -204,7 +204,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
+                    testing.UnderlyingActor.ConsumerCount.Should().Be(2);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -217,7 +217,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(0);
+                    testing.UnderlyingActor.ConsumerCount.Should().Be(0);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -231,7 +231,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
+                    testing.UnderlyingActor.ConsumerCount.Should().Be(2);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -248,8 +248,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(1);
-                    testing.UnderlyingActor.GetEchosCountDown(Id2).ShouldBeEquivalentTo(1);
+                    testing.UnderlyingActor.ConsumerCount.Should().Be(1);
+                    testing.UnderlyingActor.GetEchosCountDown(Id2).Should().Be(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -280,7 +280,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    testing.UnderlyingActor.ConsumerCount.ShouldBeEquivalentTo(2);
+                    testing.UnderlyingActor.ConsumerCount.Should().Be(2);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -297,8 +297,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    sendEchoCallCount1.ShouldBeEquivalentTo(UDAPI.Configuration.MissedEchos - 1);
-                    sendEchoCallCount2.ShouldBeEquivalentTo(1);
+                    sendEchoCallCount1.Should().Be(UDAPI.Configuration.MissedEchos - 1);
+                    sendEchoCallCount2.Should().Be(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
