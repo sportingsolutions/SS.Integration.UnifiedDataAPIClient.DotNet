@@ -1,4 +1,5 @@
-﻿using Akka.Actor;
+﻿using System.Runtime.InteropServices;
+using Akka.Actor;
 using Akka.Event;
 using SportingSolutions.Udapi.Sdk.Actors;
 
@@ -16,6 +17,9 @@ namespace SportingSolutions.Udapi.Sdk
         public static readonly string StreamControllerActorPath = UserSystemPath + StreamControllerActor.ActorName;
         public static readonly string EchoControllerActorPath = UserSystemPath + EchoControllerActor.ActorName;
         public static readonly string ErrorControllerActorPath = UserSystemPath + ErrorControllerActor.ActorName;
+
+
+        public static ErrorControllerActor ErrorControllerActor { set; get; }
 
         static SdkActorSystem()
         {
@@ -39,8 +43,10 @@ namespace SportingSolutions.Udapi.Sdk
                     Props.Create(() => new EchoControllerActor()),
                     EchoControllerActor.ActorName);
 
+                ErrorControllerActor = new ErrorControllerActor();
+
                 ActorSystem.ActorOf(
-                    Props.Create(() => new ErrorControllerActor()),
+                    Props.Create(() => ErrorControllerActor),
                     ErrorControllerActor.ActorName);
 
                 // Setup an actor that will handle deadletter type messages
