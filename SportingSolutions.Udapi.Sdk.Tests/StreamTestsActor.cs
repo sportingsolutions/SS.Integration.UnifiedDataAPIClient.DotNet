@@ -109,73 +109,73 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         }
 
-        //[Test]
-        //public void RemoveConsumerTest()
-        //{
-        //    // STEP 1: prepare mocked data
+        [Test]
+        public void RemoveConsumerTest()
+        {
+            // STEP 1: prepare mocked data
 
 
-        //    Mock<IConsumer> consumer = new Mock<IConsumer>();
-        //    consumer.Setup(x => x.Id).Returns("testing");
-        //    consumer.Setup(x => x.GetQueueDetails()).Returns(_queryDetails);
-        //    consumer.Setup(x => x.OnStreamConnected());
+            Mock<IConsumer> consumer = new Mock<IConsumer>();
+            consumer.Setup(x => x.Id).Returns("testing");
+            consumer.Setup(x => x.GetQueueDetails()).Returns(_queryDetails);
+            consumer.Setup(x => x.OnStreamConnected());
 
-        //    var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
+            var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
-        //    var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(() => new MockedStreamControllerActor(updateDispatcherActor), StreamControllerActor.ActorName);
+            var streamCtrlActorTestRef = ActorOfAsTestActorRef<MockedStreamControllerActor>(() => new MockedStreamControllerActor(updateDispatcherActor), StreamControllerActor.ActorName);
 
-        //    AwaitAssert(() =>
-        //        {
-        //            // is the controller in its initial state?
-        //            streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
-        //                .ConnectionState.DISCONNECTED);
-        //        },
-        //        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-        //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+            AwaitAssert(() =>
+                {
+                    // is the controller in its initial state?
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
+                        .ConnectionState.DISCONNECTED);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-        //    // STEP 2: add a consumer
-        //    streamCtrlActorTestRef.Tell(new NewConsumerMessage() { Consumer = consumer.Object });
+            // STEP 2: add a consumer
+            streamCtrlActorTestRef.Tell(new NewConsumerMessage() { Consumer = consumer.Object });
 
-        //    AwaitAssert(() =>
-        //        {
-        //            // STEP 3: check that up to now, everythin is ok
-        //            streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.CONNECTED);
-        //            updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(1);
-        //        },
-        //        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-        //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+            AwaitAssert(() =>
+                {
+                    // STEP 3: check that up to now, everythin is ok
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.CONNECTED);
+                    updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(1);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-        //    AwaitAssert(() =>
-        //        {
-        //            var streamSubscriberObj =
-        //                updateDispatcherActor.Ask<IStreamSubscriber>(new RetrieveSubscriberMessage { Id = "testing" }).Result;
-        //            streamSubscriberObj.Should().NotBeNull();
-        //        },
-        //        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-        //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+            AwaitAssert(() =>
+                {
+                    var streamSubscriberObj =
+                        updateDispatcherActor.Ask<IStreamSubscriber>(new RetrieveSubscriberMessage { Id = "testing" }).Result;
+                    streamSubscriberObj.Should().NotBeNull();
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-        //    // STEP 4: remove the consumer
-        //    streamCtrlActorTestRef.Tell(new RemoveConsumerMessage { Consumer = consumer.Object });
+            // STEP 4: remove the consumer
+            streamCtrlActorTestRef.Tell(new RemoveConsumerMessage { Consumer = consumer.Object });
 
-        //    AwaitAssert(() =>
-        //        {
-        //            // STEP 5: check the outcome
-        //            consumer.Verify(x => x.OnStreamDisconnected(), Times.Once,
-        //                    "Consumer was not disconnect on connection shutdonw");
+            AwaitAssert(() =>
+                {
+                    // STEP 5: check the outcome
+                    consumer.Verify(x => x.OnStreamDisconnected(), Times.Once,
+                            "Consumer was not disconnect on connection shutdonw");
 
-        //            updateDispatcherActor.Ask(new SubscribersCountMessage()).Result.Should().Be(0);
+                    updateDispatcherActor.Ask(new SubscribersCountMessage()).Result.Should().Be(0);
 
-        //            var subscriberResult = updateDispatcherActor.Ask(new RetrieveSubscriberMessage { Id = "testing" },
-        //                TimeSpan.FromSeconds(9));
+                    var subscriberResult = updateDispatcherActor.Ask(new RetrieveSubscriberMessage { Id = "testing" },
+                        TimeSpan.FromSeconds(9));
 
-        //            subscriberResult.Result.Should().BeOfType<NotFoundMessage>();
+                    subscriberResult.Result.Should().BeOfType<NotFoundMessage>();
 
-        //            streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
-        //                .ConnectionState.CONNECTED);
-        //        },
-        //        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-        //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
-        //}
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor
+                        .ConnectionState.CONNECTED);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+        }
 
         [Test]
         public void DisposeTest()
