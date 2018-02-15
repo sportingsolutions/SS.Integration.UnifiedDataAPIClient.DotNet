@@ -111,7 +111,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 Props.Create(() => new MockedStreamControllerActor(updateDispatcherActor)),
                 StreamControllerActor.ActorName);
 
-            streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.DISCONNECTED);
+            AwaitAssert(() =>
+                {
+                    streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.DISCONNECTED);
+                },
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
             //register new consumer
             var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
