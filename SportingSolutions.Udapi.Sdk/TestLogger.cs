@@ -29,7 +29,7 @@ namespace SportingSolutions.Udapi.Sdk
             if (!Directory.Exists(DEFAULT_DIRNAME))
                 Directory.CreateDirectory(DEFAULT_DIRNAME);
 
-            if (!File.Exists(_fileName))
+            //if (!File.Exists(_fileName))
                 File.Create(_fileName);
         }
 
