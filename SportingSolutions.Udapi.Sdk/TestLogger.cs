@@ -33,11 +33,15 @@ namespace SportingSolutions.Udapi.Sdk
                 File.Create(_fileName);
         }
 
-        public void WriteLine(string message)
+        public void WriteLine(string message, bool withCallStack = false)
         {
             lock (_lockObject)
             {
-                File.AppendAllText(_fileName, $"MyLogger {DateTime.Now}.{DateTime.Now.Millisecond}: {message}\n");
+                string text = $"MyLogger {DateTime.Now}.{DateTime.Now.Millisecond}: {message}{Environment.NewLine}";
+                if (withCallStack)
+                    text += Environment.StackTrace + Environment.NewLine;
+                File.AppendAllText(_fileName, text);
+
             }
         }
 
