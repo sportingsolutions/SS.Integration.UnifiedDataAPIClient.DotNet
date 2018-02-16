@@ -92,7 +92,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 TestLogger.Instance.WriteLine($"In StreamControllerActor.DisconnectedState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}");
                 Stash.Stash();
                 Connect(x.Consumer);
-                TestLogger.Instance.WriteLine($"In StreamControllerActor.DisconnectedState end: CallerName is {x.CallerName}, State is {this.State}");
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.DisconnectedState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}");
 
             });
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
@@ -133,9 +133,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<ValidationStartMessage>(x => ValidationStart(x));
             Receive<NewConsumerMessage>(x =>
             {
-                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}");
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}");
                 ProcessNewConsumer(x);
-                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}");
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}");
             });
             Receive<DisconnectedMessage>(x => Become(DisconnectedState));
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
