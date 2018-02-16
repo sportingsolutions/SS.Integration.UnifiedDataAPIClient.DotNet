@@ -89,10 +89,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             Receive<NewConsumerMessage>(x =>
             {
-                TestLogger.Instance.WriteLine($"In StreamControllerActor.DisconnectedState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", true);
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.DisconnectedState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", false);
                 Stash.Stash();
                 Connect(x.Consumer);
-                TestLogger.Instance.WriteLine($"In StreamControllerActor.DisconnectedState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", true);
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.DisconnectedState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", false);
 
             });
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
@@ -113,9 +113,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<ValidationSucceededMessage>(x => Become(ConnectedState));
             Receive<NewConsumerMessage>(x =>
             {
-                TestLogger.Instance.WriteLine($"In StreamControllerActor.ValidationState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}", true);
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ValidationState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}", false);
                 Stash.Stash();
-                TestLogger.Instance.WriteLine($"In StreamControllerActor.ValidationState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}", true);
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ValidationState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}", false);
             });
             Receive<RemoveConsumerMessage>(x => Stash.Stash());
             Receive<DisposeMessage>(x => Dispose());
@@ -133,9 +133,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<ValidationStartMessage>(x => ValidationStart(x));
             Receive<NewConsumerMessage>(x =>
             {
-                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", true);
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", false);
                 ProcessNewConsumer(x);
-                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", true);
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", false);
             });
             Receive<DisconnectedMessage>(x => Become(DisconnectedState));
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
@@ -211,11 +211,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                         _streamConnection.Close();
                     _streamConnection.Dispose();
                     _streamConnection = null;
+                    TestLogger.Instance.WriteLine($"In StreamControllerActor.CloseConnection: Connecting closed");
                 }
             }
             // }
-            catch
+            catch(Exception ex)
             {
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.CloseConnection: exception {ex} with message {ex.Message}");
             }
             finally
             {
@@ -240,18 +242,20 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             // it must be called in mutual exclusion:
             // _connectionLock must be acquire before calling
             // this method.
-
+            
             var newstate = ConnectionState.DISCONNECTED;
+            
 
             try
             {
                 _logger.DebugFormat("Connecting to the streaming server");
-
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.EstablishConnection: Connecting to the streaming server");
                 long attempt = 1;
                 bool result = false;
                 while (!_connectionCancellation.IsCancellationRequested && !result)
                 {
                     _logger.DebugFormat("Establishing connection to the streaming server, attempt={0}", attempt);
+                    TestLogger.Instance.WriteLine($"In StreamControllerActor.EstablishConnection: Establishing connection to the streaming server, attempt={attempt}");
 
                     try
                     {
@@ -259,6 +263,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                         _streamConnection.ConnectionShutdown += OnConnectionShutdown;
 
                         _logger.Info("Connection to the streaming server correctly established");
+                        TestLogger.Instance.WriteLine($"In StreamControllerActor.EstablishConnection: Connection to the streaming server correctly established");
 
                         newstate = ConnectionState.CONNECTED;
                         result = true;
@@ -266,6 +271,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     }
                     catch (Exception ex)
                     {
+                        TestLogger.Instance.WriteLine($"In StreamControllerActor.EstablishConnection: Error connecting to the streaming server, state is {this.State}, exception {ex} with message {ex.Message}");
                         _logger.Error("Error connecting to the streaming server", ex);
                         Thread.Sleep(100);
                     }
@@ -276,6 +282,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             finally
             {
                 // notify any sleeping threads
+                
                 OnConnectionStatusChanged(newstate);
             }
         }
@@ -287,13 +294,23 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void Connect(IConsumer consumer)
         {
-            if (State == ConnectionState.CONNECTED) return;
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.Connect: State is {this.State}", false);
+            if (State == ConnectionState.CONNECTED)
+            {
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.Connect: Connected", false);
+                return;
+            }
+
 
             if (State == ConnectionState.CONNECTED || _connectionCancellation.IsCancellationRequested)
+            {
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.Connect: IsCancellationRequested, State is {this.State}", false);
                 return;
+            }
 
             State = ConnectionState.CONNECTING;
 
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.Connect after changing state: State is {this.State}", false);
             // GetQueueDetails() returns the credentials for connecting to the AMQP server
             // but it also asks the server to create an AMQP queue for the caller.
             // As the time to establish a connection could take a while (just think about
@@ -340,6 +357,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         internal virtual void OnConnectionShutdown(object sender, ShutdownEventArgs sea)
         {
             _logger.ErrorFormat("The AMQP connection was shutdown: {0}. AutoReconnect is enabled={1}", sea, AutoReconnect);
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.OnConnectionShutdown: The AMQP connection was shutdown: {sea}. AutoReconnect is enabled={AutoReconnect}");
 
             if (!AutoReconnect)
             {
@@ -357,6 +375,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             //validate whether the reconnection was successful 
             _logger.InfoFormat("Starting validation for reconnection connHash={0}",
                 _streamConnection?.GetHashCode().ToString() ?? "null");
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.ValidateConnection: Starting validation for reconnection connHash={_streamConnection?.GetHashCode().ToString() ?? "null"}");
 
             //in case the connection is swapped by RMQ library while the check is running
             var testConnection = _streamConnection;
@@ -365,17 +384,20 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _logger.WarnFormat(
                     "Reconnection failed, connection has been disposed, the disconnection event needs to be raised");
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ValidateConnection: Reconnection failed, connection has been disposed, the disconnection event needs to be raised");
                 CloseConnection();
                 
                 return;
             }
 
             _logger.InfoFormat("Veryfing that connection is open ? {0}", testConnection.IsOpen);
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.ValidateConnection: Veryfing that connection is open ? {testConnection.IsOpen}");
 
             if (testConnection.IsOpen)
             {
                 Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(new ResetAllEchoesMessage());
                 _logger.InfoFormat("Reconnection successful, disconnection event will not be raised");
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ValidateConnection: Reconnection successful, disconnection event will not be raised");
 
                 Self.Tell(new ValidationSucceededMessage());
             }
@@ -383,6 +405,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _logger.Warn(
                     "Connection validation failed, connection is not open - calling CloseConnection() to dispose it");
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ValidateConnection: Connection validation failed, connection is not open - calling CloseConnection() to dispose it");
                 CloseConnection();
             }
         }
@@ -405,6 +428,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     break;
             }
 
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.OnConnectionStatusChanged: Telling message {message.GetType().ToString()}");
             SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(message);
         }
 
