@@ -90,7 +90,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public void StartStreaming()
         {
-            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new NewConsumerMessage { Consumer = this });
+            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new NewConsumerMessage { Consumer = this, CallerName= "Resource.StartStreaming" });
             Logger.DebugFormat("Streaming request queued for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
         }
 

@@ -89,8 +89,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             Receive<NewConsumerMessage>(x =>
             {
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.DisconnectedState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}");
                 Stash.Stash();
                 Connect(x.Consumer);
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.DisconnectedState end: CallerName is {x.CallerName}, State is {this.State}");
 
             });
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
@@ -109,7 +111,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<DisconnectedMessage>(x => Become(DisconnectedState));
             Receive<ValidateMessage>(x => ValidateConnection(x));
             Receive<ValidationSucceededMessage>(x => Become(ConnectedState));
-            Receive<NewConsumerMessage>(x => Stash.Stash());
+            Receive<NewConsumerMessage>(x =>
+            {
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ValidationState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}");
+                Stash.Stash();
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ValidationState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}");
+            });
             Receive<RemoveConsumerMessage>(x => Stash.Stash());
             Receive<DisposeMessage>(x => Dispose());
 
@@ -124,7 +131,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _logger.Info("Moved to ConnectedState");
 
             Receive<ValidationStartMessage>(x => ValidationStart(x));
-            Receive<NewConsumerMessage>(x => ProcessNewConsumer(x));
+            Receive<NewConsumerMessage>(x =>
+            {
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}");
+                ProcessNewConsumer(x);
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}");
+            });
             Receive<DisconnectedMessage>(x => Become(DisconnectedState));
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());

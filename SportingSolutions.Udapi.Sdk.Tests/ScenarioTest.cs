@@ -118,8 +118,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
+            updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(0);
+
             //register new consumer
-            var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
+            var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object, CallerName = "ScenarioTest.DisconnectWithoutReconnect" };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
 
             AwaitAssert(() =>
@@ -170,7 +172,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
             //register new consumer
-            var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
+            var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object, CallerName = "ScenarioTest.DisconnectWithReconnectTest" };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
 
             AwaitAssert(() =>
@@ -231,10 +233,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
             //register new consumer 1
-            var newConsumerMessage = new NewConsumerMessage { Consumer = consumer1.Object };
+            var newConsumerMessage = new NewConsumerMessage { Consumer = consumer1.Object, CallerName = "ScenarioTest.ConnectionShutdownCausesConsumersToStopStreamingTest" };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
             //register new consumer 2
-            newConsumerMessage = new NewConsumerMessage { Consumer = consumer2.Object };
+            newConsumerMessage = new NewConsumerMessage { Consumer = consumer2.Object, CallerName = "ScenarioTest.ConnectionShutdownCausesConsumersToStopStreamingTest" };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
 
             AwaitAssert(() =>

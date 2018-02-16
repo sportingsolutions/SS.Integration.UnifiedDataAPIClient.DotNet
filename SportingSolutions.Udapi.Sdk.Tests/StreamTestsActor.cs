@@ -71,7 +71,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.DISCONNECTED);
 
             //register new consumer
-            var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object };
+            var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object, CallerName = "StreamTestsActor.EstablishConnectionTest" };
             streamCtrlActorTestRef.Tell(newConsumerMessage);
 
             //ExpectMsg<ConnectStreamMessage>();
@@ -102,7 +102,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.DISCONNECTED);
 
-            streamCtrlActorTestRef.Tell(new NewConsumerMessage() { Consumer = consumer.Object });
+            streamCtrlActorTestRef.Tell(new NewConsumerMessage() { Consumer = consumer.Object, CallerName = "StreamTestsActor.HandleFailedConnectionAttemptTest" });
 
             streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.DISCONNECTED);
             streamCtrlActorTestRef.UnderlyingActor.ConnectionError.Should().Be(e);
@@ -133,24 +133,20 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-            // STEP 2: add a consumer
-            streamCtrlActorTestRef.Tell(new NewConsumerMessage() { Consumer = consumer.Object });
+            updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(0);
+
+            // STEP 2: add a consumer      
+            var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object, CallerName = "StreamTestsActor.RemoveConsumerTest" };
+            streamCtrlActorTestRef.Tell(newConsumerMessage);
 
             AwaitAssert(() =>
                 {
                     // STEP 3: check that up to now, everythin is ok
                     streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.CONNECTED);
-                },
-                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
-
-            AwaitAssert(() =>
-                {
                     updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
-
 
             AwaitAssert(() =>
                 {
@@ -212,7 +208,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 consumers[i] = consumer;
 
                 // STEP 2: add the consumers
-                streamCtrlActorTestRef.Tell(new NewConsumerMessage { Consumer = consumer.Object });
+                streamCtrlActorTestRef.Tell(new NewConsumerMessage { Consumer = consumer.Object, CallerName = "StreatTestsActor.DisposeTest" });
 
                 //StreamController.Instance.AddConsumer(consumer.Object, -1, -1);
             }
@@ -308,7 +304,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
                 });
 
-                streamCtrlActorTestRef.Tell(new NewConsumerMessage { Consumer = consumer.Object });
+                streamCtrlActorTestRef.Tell(new NewConsumerMessage { Consumer = consumer.Object, CallerName = "StreatTestsActor.IgnoreUpdatesOnDisconnectionTest" });
             }
 
             AwaitAssert(() =>

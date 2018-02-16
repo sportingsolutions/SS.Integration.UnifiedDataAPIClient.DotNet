@@ -96,7 +96,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
-            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new NewConsumerMessage() { Consumer = _resource });
+            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new NewConsumerMessage() { Consumer = _resource, CallerName = "ResourceActor.StartStreaming"});
             //StreamController.Instance.AddConsumer(_resource, echoInterval, echoMaxDelay);
             Logger.DebugFormat("REQUESTED Streaming request queued for fixtureName=\"{0}\" fixtureId=\"{1}\"", ((IResource) _resource).Name, Id);
         }

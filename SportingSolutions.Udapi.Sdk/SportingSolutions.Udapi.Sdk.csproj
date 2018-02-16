@@ -147,6 +147,7 @@
     <Compile Include="Interfaces\IStreamStatistics.cs" />
     <Compile Include="Interfaces\IStreamSubscriber.cs" />
     <Compile Include="Model\Message\EchoMessage.cs" />
+    <Compile Include="TestLogger.cs" />
     <Compile Include="QueueDetails.cs" />
     <Compile Include="ServiceCache.cs" />
     <Compile Include="Endpoint.cs" />
