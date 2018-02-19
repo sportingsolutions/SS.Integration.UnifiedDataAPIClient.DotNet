@@ -23,7 +23,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             
             (message =>
             {
-                _logger.Info($"Registering subscriber path={Sender}");
+                _logger.Info($"Registering subscriber {subscriber}");
                 subscriber = Sender;
                 subscriber.Tell(new PathMessage());
                 
