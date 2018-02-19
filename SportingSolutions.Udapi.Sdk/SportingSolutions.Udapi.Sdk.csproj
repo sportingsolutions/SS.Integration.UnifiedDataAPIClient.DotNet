@@ -111,7 +111,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Actors\ErrorControllerActor.cs" />
+    <Compile Include="Actors\FaultControllerActor.cs" />
     <Compile Include="Actors\SdkDeadletterMonitorActor.cs" />
     <Compile Include="Actors\EchoControllerActor.cs" />
     <Compile Include="Events\SdkErrorMessage.cs" />

@@ -8,15 +8,15 @@ using SdkErrorMessage = SportingSolutions.Udapi.Sdk.Events.SdkErrorMessage;
 
 namespace SportingSolutions.Udapi.Sdk.Actors
 {
-    public class ErrorControllerActor : ReceiveActor
+    public class FaultControllerActor : ReceiveActor
     {
         private IActorRef subscriber;
 
-        private readonly ILog _logger = LogManager.GetLogger(typeof(ErrorControllerActor));
+        private readonly ILog _logger = LogManager.GetLogger(typeof(FaultControllerActor));
 
-        public const string ActorName = "ErrorControllerActor";
+        public const string ActorName = "FaultControllerActor";
 
-        public ErrorControllerActor()
+        public FaultControllerActor()
         {
             Receive<CriticalActorRestartedMessage>(message => OnActorRestarted(message, true));
             Receive<PathMessage>

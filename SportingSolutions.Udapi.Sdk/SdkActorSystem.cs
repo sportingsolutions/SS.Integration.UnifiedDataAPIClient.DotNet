@@ -16,7 +16,7 @@ namespace SportingSolutions.Udapi.Sdk
         public static readonly string UpdateDispatcherPath = UserSystemPath + UpdateDispatcherActor.ActorName;
         public static readonly string StreamControllerActorPath = UserSystemPath + StreamControllerActor.ActorName;
         public static readonly string EchoControllerActorPath = UserSystemPath + EchoControllerActor.ActorName;
-        public static readonly string ErrorControllerActorPath = UserSystemPath + ErrorControllerActor.ActorName;
+        public static readonly string ErrorControllerActorPath = UserSystemPath + FaultControllerActor.ActorName;
 
 
         public static ICanTell ErrorControllerActorRef { set; get; }
@@ -44,8 +44,8 @@ namespace SportingSolutions.Udapi.Sdk
                     EchoControllerActor.ActorName);
 
                 ErrorControllerActorRef = ActorSystem.ActorOf(
-                    Props.Create(() =>new ErrorControllerActor()),
-                    ErrorControllerActor.ActorName);
+                    Props.Create(() =>new FaultControllerActor()),
+                    FaultControllerActor.ActorName);
 
                 // Setup an actor that will handle deadletter type messages
                 var deadletterWatchMonitorProps = Props.Create(() => new SdkDeadletterMonitorActor());
