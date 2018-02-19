@@ -19,7 +19,7 @@ namespace SportingSolutions.Udapi.Sdk
         public static readonly string ErrorControllerActorPath = UserSystemPath + FaultControllerActor.ActorName;
 
 
-        public static ICanTell ErrorControllerActorRef { set; get; }
+        public static ICanTell FaultControllerActorRef { set; get; }
 
         static SdkActorSystem()
         {
@@ -43,7 +43,7 @@ namespace SportingSolutions.Udapi.Sdk
                     Props.Create(() => new EchoControllerActor()),
                     EchoControllerActor.ActorName);
 
-                ErrorControllerActorRef = ActorSystem.ActorOf(
+                FaultControllerActorRef = ActorSystem.ActorOf(
                     Props.Create(() =>new FaultControllerActor()),
                     FaultControllerActor.ActorName);
 
