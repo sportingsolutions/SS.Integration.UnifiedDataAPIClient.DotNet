@@ -16,7 +16,7 @@ namespace SportingSolutions.Udapi.Sdk
         public static readonly string UpdateDispatcherPath = UserSystemPath + UpdateDispatcherActor.ActorName;
         public static readonly string StreamControllerActorPath = UserSystemPath + StreamControllerActor.ActorName;
         public static readonly string EchoControllerActorPath = UserSystemPath + EchoControllerActor.ActorName;
-        public static readonly string ErrorControllerActorPath = UserSystemPath + FaultControllerActor.ActorName;
+        public static readonly string FaultControllerActorPath = UserSystemPath + FaultControllerActor.ActorName;
 
 
         public static ICanTell FaultControllerActorRef { set; get; }

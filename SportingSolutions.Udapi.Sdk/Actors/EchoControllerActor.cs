@@ -80,7 +80,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     : ""));
 
             StopConsumingAll();
-            Context.ActorSelection(SdkActorSystem.ErrorControllerActorPath).Tell(new CriticalActorRestartedMessage() { ActorName = ActorName });
+            Context.ActorSelection(SdkActorSystem.FaultControllerActorPath).Tell(new CriticalActorRestartedMessage() { ActorName = ActorName });
 
             base.PreRestart(reason, message);
         }
