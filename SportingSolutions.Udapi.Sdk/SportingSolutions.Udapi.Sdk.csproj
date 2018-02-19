@@ -111,13 +111,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Actors\ErrorControllerActor.cs" />
     <Compile Include="Actors\SdkDeadletterMonitorActor.cs" />
     <Compile Include="Actors\EchoControllerActor.cs" />
-    <Compile Include="Events\SdkErrorArgs.cs" />
+    <Compile Include="Events\SdkErrorMessage.cs" />
     <Compile Include="Exceptions\EchoControllerActorException.cs" />
-    <Compile Include="Actors\ErrorControllerActor.cs" />
     <Compile Include="Model\Message\CriticalActorRestartedMessage.cs" />
     <Compile Include="Model\Message\DisposeMessage.cs" />
+    <Compile Include="Model\Message\PathMessage.cs" />
     <Compile Include="Model\Message\NotFoundMessage.cs" />
     <Compile Include="Model\Message\RemoveSubscriberMessage.cs" />
     <Compile Include="Model\Message\NewSubscriberMessage.cs" />
@@ -147,6 +148,7 @@
     <Compile Include="Interfaces\IStreamStatistics.cs" />
     <Compile Include="Interfaces\IStreamSubscriber.cs" />
     <Compile Include="Model\Message\EchoMessage.cs" />
+    <Compile Include="Model\Message\TestMessage.cs" />
     <Compile Include="QueueDetails.cs" />
     <Compile Include="ServiceCache.cs" />
     <Compile Include="Endpoint.cs" />

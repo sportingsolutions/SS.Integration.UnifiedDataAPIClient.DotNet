@@ -17,6 +17,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Remoting.Contexts;
 using Akka.Actor;
 using log4net;
 using SportingSolutions.Udapi.Sdk.Interfaces;
@@ -35,6 +36,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         public const string ActorName = "EchoControllerActor";
 
         private readonly ILog _logger = LogManager.GetLogger(typeof(EchoControllerActor));
+
+
+        
 
 
         private readonly ConcurrentDictionary<string, EchoEntry> _consumers;
@@ -63,8 +67,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<EchoMessage>(x => ProcessEcho(x.Id));
             Receive<SendEchoMessage>(x => CheckEchos());
             Receive<DisposeMessage>(x => Dispose());
-
         }
+
+
 
         protected override void PreRestart(Exception reason, object message)
         {

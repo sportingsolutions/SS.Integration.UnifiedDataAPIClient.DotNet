@@ -19,7 +19,7 @@ namespace SportingSolutions.Udapi.Sdk
         public static readonly string ErrorControllerActorPath = UserSystemPath + ErrorControllerActor.ActorName;
 
 
-        public static ErrorControllerActor ErrorControllerActor { set; get; }
+        public static ICanTell ErrorControllerActorRef { set; get; }
 
         static SdkActorSystem()
         {
@@ -43,8 +43,8 @@ namespace SportingSolutions.Udapi.Sdk
                     Props.Create(() => new EchoControllerActor()),
                     EchoControllerActor.ActorName);
 
-                 ErrorControllerActor = (ErrorControllerActor)ActorSystem.ActorOf(
-                    Props.Create(() => new ErrorControllerActor()),
+                ErrorControllerActorRef = ActorSystem.ActorOf(
+                    Props.Create(() =>new ErrorControllerActor()),
                     ErrorControllerActor.ActorName);
 
                 // Setup an actor that will handle deadletter type messages
