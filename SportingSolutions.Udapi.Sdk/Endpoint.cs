@@ -17,10 +17,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
+using Newtonsoft.Json;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -61,7 +63,34 @@ namespace SportingSolutions.Udapi.Sdk
 
                 loggingStringBuilder.AppendFormat("Call to url={0} ", theUri);
                 stopwatch.Start();
-                var response = ConnectClient.Request<List<RestItem>>(theUri, Method.GET);
+                IRestResponse<List<RestItem>> response = new RestResponse<List<RestItem>>();
+                int tryIterationCounter = 1;
+                while (tryIterationCounter <= 3)
+                {
+                    try
+                    {
+                        response = ConnectClient.Request<List<RestItem>>(theUri, Method.GET);
+                        break;
+                    }
+                    catch (JsonSerializationException ex)
+                    {
+
+                        if (tryIterationCounter == 3)
+                        {
+                            Logger.Warn($"JsonSerializationException Method=FindRelationAndFollow {ex}");
+                            return null;
+                        }
+                        Thread.Sleep(1000);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw ex;
+                    }
+                    tryIterationCounter++;
+                }
+
+
+
 
                 loggingStringBuilder.AppendFormat("took duration={0}ms - ", stopwatch.ElapsedMilliseconds);
                 if (response.ErrorException != null)

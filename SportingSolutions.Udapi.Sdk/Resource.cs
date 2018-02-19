@@ -32,6 +32,10 @@ namespace SportingSolutions.Udapi.Sdk
         private const int DEFAULT_ECHO_MAX_DELAY_MS = 3000;
 
 
+        public event EventHandler Tick;
+
+        
+
         public event EventHandler StreamConnected;
         public event EventHandler StreamDisconnected;
         public event EventHandler<StreamEventArgs> StreamEvent;
@@ -71,8 +75,11 @@ namespace SportingSolutions.Udapi.Sdk
 
         public bool IsDisposed { get; internal set; }
 
+        
+
         public string GetSnapshot()
         {
+            
             var loggingStringBuilder = new StringBuilder();
             loggingStringBuilder.AppendFormat("Get snapshot for fixtureName=\"{0}\" fixtureId={1} - ", Name, Id);
 
@@ -156,6 +163,11 @@ namespace SportingSolutions.Udapi.Sdk
 
             var loggingStringBuilder = new StringBuilder();
             var restItems = FindRelationAndFollow("http://api.sportingsolutions.com/rels/stream/amqp", "GetAmqpStream HTTP error", loggingStringBuilder);
+
+            if (restItems == null)
+            {
+                return null;
+            }
             var amqpLink = restItems.SelectMany(restItem => restItem.Links).First(restLink => restLink.Relation == "amqp");
 
             var amqpUri = new Uri(amqpLink.Href);

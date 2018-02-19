@@ -17,6 +17,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Remoting.Contexts;
 using Akka.Actor;
 using log4net;
 using SportingSolutions.Udapi.Sdk.Interfaces;
@@ -35,6 +36,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         public const string ActorName = "EchoControllerActor";
 
         private readonly ILog _logger = LogManager.GetLogger(typeof(EchoControllerActor));
+
+
+        
 
 
         private readonly ConcurrentDictionary<string, EchoEntry> _consumers;
@@ -63,8 +67,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<EchoMessage>(x => ProcessEcho(x.Id));
             Receive<SendEchoMessage>(x => CheckEchos());
             Receive<DisposeMessage>(x => Dispose());
-
         }
+
+
 
         protected override void PreRestart(Exception reason, object message)
         {
@@ -73,7 +78,17 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 (message != null
                     ? $" last processing messageType={message.GetType().Name}"
                     : ""));
+
+            StopConsumingAll();
+            Context.ActorSelection(SdkActorSystem.FaultControllerActorPath).Tell(new CriticalActorRestartedMessage() { ActorName = ActorName });
+
             base.PreRestart(reason, message);
+        }
+
+        private void StopConsumingAll()
+        {
+            if (_consumers != null)
+                RemoveSubribers(_consumers.Values.Select(_ => _.Subscriber));
         }
 
         public bool Enabled { get; private set; }

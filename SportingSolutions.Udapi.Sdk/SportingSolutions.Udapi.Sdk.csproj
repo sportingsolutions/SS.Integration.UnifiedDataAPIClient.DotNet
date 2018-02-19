@@ -111,9 +111,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Actors\FaultControllerActor.cs" />
     <Compile Include="Actors\SdkDeadletterMonitorActor.cs" />
     <Compile Include="Actors\EchoControllerActor.cs" />
+    <Compile Include="Events\SdkErrorMessage.cs" />
+    <Compile Include="Exceptions\EchoControllerActorException.cs" />
+    <Compile Include="Model\Message\CriticalActorRestartedMessage.cs" />
     <Compile Include="Model\Message\DisposeMessage.cs" />
+    <Compile Include="Model\Message\PathMessage.cs" />
     <Compile Include="Model\Message\NotFoundMessage.cs" />
     <Compile Include="Model\Message\RemoveSubscriberMessage.cs" />
     <Compile Include="Model\Message\NewSubscriberMessage.cs" />
@@ -122,6 +127,7 @@
     <Compile Include="Model\Message\NewConsumerMessage.cs" />
     <Compile Include="Actors\ResourceActor.cs" />
     <Compile Include="Model\Message\ResetAllMessage.cs" />
+    <Compile Include="Model\Message\SdkErrorMessage.cs" />
     <Compile Include="Model\Message\StopStreamingMessage.cs" />
     <Compile Include="Actors\StreamControllerActor.cs" />
     <Compile Include="Clients\Configuration.cs" />
@@ -142,6 +148,7 @@
     <Compile Include="Interfaces\IStreamStatistics.cs" />
     <Compile Include="Interfaces\IStreamSubscriber.cs" />
     <Compile Include="Model\Message\EchoMessage.cs" />
+    <Compile Include="Model\Message\TestMessage.cs" />
     <Compile Include="QueueDetails.cs" />
     <Compile Include="ServiceCache.cs" />
     <Compile Include="Endpoint.cs" />
