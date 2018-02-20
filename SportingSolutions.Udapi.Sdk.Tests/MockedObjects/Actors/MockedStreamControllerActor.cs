@@ -13,6 +13,7 @@
 //limitations under the License.
 
 using System;
+using System.Threading;
 using Akka.Actor;
 using Moq;
 using RabbitMQ.Client;
@@ -44,7 +45,15 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
         protected override void EstablishConnection(ConnectionFactory factory)
         {
             TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.EstablishConnection: Before ConnectionStatusChanged event state is {this.State}", false);
-            OnConnectionStatusChanged(ConnectionState.CONNECTED);
+
+            long attempt = 1;
+            while (this.State != ConnectionState.CONNECTED)
+            {
+                TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.EstablishConnection: Establishing connection, attempt={attempt}");
+                OnConnectionStatusChanged(ConnectionState.CONNECTED);
+                Thread.Sleep(100);
+            }
+
             TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.EstablishConnection: After ConnectionStatusChanged event state is {this.State}", false);
             _streamConnection = StreamConnectionMock.Object;
         }
