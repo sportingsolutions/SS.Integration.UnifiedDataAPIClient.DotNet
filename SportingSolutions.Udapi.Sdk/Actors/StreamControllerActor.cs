@@ -415,7 +415,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected virtual void OnConnectionStatusChanged(ConnectionState newState)
         {
-            State = newState;
+            //State = newState;
             object message = null;
 
             switch (newState)
