@@ -27,6 +27,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
     /// </summary>
     internal class MockedStreamControllerActor : StreamControllerActor
     {
+        private bool _connected = false;
+
         public MockedStreamControllerActor(IActorRef dispatcher)
             : base(dispatcher)
         {
@@ -44,17 +46,22 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
 
         protected override void EstablishConnection(ConnectionFactory factory)
         {
-            TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.EstablishConnection: Before ConnectionStatusChanged event state is {this.State}", false);
+            TestLogger.Instance.WriteLine(
+                $"In MockedStreamControllerActor.EstablishConnection: Before ConnectionStatusChanged event state is {this.State}",
+                false);
             long attempt = 1;
-            while (this.State != ConnectionState.CONNECTED)
+            while (!_connected)
             {
-                TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.EstablishConnection: Establishing connection, attempt={attempt}");
+                TestLogger.Instance.WriteLine(
+                    $"In MockedStreamControllerActor.EstablishConnection: Establishing connection, attempt={attempt}");
                 OnConnectionStatusChanged(ConnectionState.CONNECTED);
                 attempt++;
                 Thread.Sleep(100);
             }
 
-            TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.EstablishConnection: After ConnectionStatusChanged event state is {this.State}", false);
+            TestLogger.Instance.WriteLine(
+                $"In MockedStreamControllerActor.EstablishConnection: After ConnectionStatusChanged event state is {this.State}",
+                false);
             _streamConnection = StreamConnectionMock.Object;
         }
 
@@ -65,12 +72,26 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
 
         protected override void RemoveConsumerFromQueue(IConsumer consumer)
         {
-            var s = Dispatcher.Ask(new RetrieveSubscriberMessage { Id = consumer.Id }).Result as IStreamSubscriber;
+            var s = Dispatcher.Ask(new RetrieveSubscriberMessage {Id = consumer.Id}).Result as IStreamSubscriber;
 
             if (s == null)
                 throw new Exception("Subscriber with Id=" + consumer.Id + " not found");
 
             s.StopConsuming();
+        }
+
+        protected override void ConnectedState()
+        {
+            base.ConnectedState();
+            TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.ConnectedState: state is {this.State}");
+            _connected = true;
+        }
+
+        protected override void DisconnectedState()
+        {
+            base.DisconnectedState();
+            TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.DisconnectedState: state is {this.State}");
+            _connected = false;
         }
     }
 }

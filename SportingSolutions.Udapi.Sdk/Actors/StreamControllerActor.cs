@@ -78,7 +78,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         /// <summary>
         /// This is the state when the connection is closed
         /// </summary>
-        private void DisconnectedState()
+        protected virtual void DisconnectedState()
         {
             _logger.Info("Moved to DisconnectedState");
 
@@ -99,6 +99,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<DisposeMessage>(x => Dispose());
 
             State = ConnectionState.DISCONNECTED;
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.DisconnectedState: state is {this.State}");
         }
 
         /// <summary>
@@ -107,7 +108,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private void ValidationState()
         {
             _logger.Info("Moved to ValidationState");
-
+            TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.ConnectedState: state is {this.State}");
             Receive<DisconnectedMessage>(x => Become(DisconnectedState));
             Receive<ValidateMessage>(x => ValidateConnection(x));
             Receive<ValidationSucceededMessage>(x => Become(ConnectedState));
@@ -121,12 +122,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<DisposeMessage>(x => Dispose());
 
             State = ConnectionState.DISCONNECTED;
+
         }
 
         /// <summary>
         /// this is the state when the connection is open
         /// </summary>
-        private void ConnectedState()
+        protected virtual void ConnectedState()
         {
             _logger.Info("Moved to ConnectedState");
 
@@ -148,6 +150,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState(3): After Stash.UnstashAll State is {this.State}");
             State = ConnectionState.CONNECTED;
             TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState end: State is {this.State}");
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState: state is {this.State}");
         }
 
         private void ValidationStart(ValidationStartMessage validationStartMessage)
@@ -434,7 +437,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             var actorSelection = SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath);
             
             actorSelection.Tell(message);
-            Thread.Sleep(500);
             TestLogger.Instance.WriteLine($"In StreamControllerActor.OnConnectionStatusChanged: Told message {message.GetType()} to actor {actorSelection.GetType()}, State is {this.State}");
         }
 
