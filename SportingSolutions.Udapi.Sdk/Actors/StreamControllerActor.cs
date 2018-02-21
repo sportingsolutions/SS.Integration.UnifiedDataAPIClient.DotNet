@@ -432,7 +432,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
 
             var actorSelection = SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath);
+            
             actorSelection.Tell(message);
+            Thread.Sleep(500);
             TestLogger.Instance.WriteLine($"In StreamControllerActor.OnConnectionStatusChanged: Told message {message.GetType()} to actor {actorSelection.GetType()}, State is {this.State}");
         }
 
