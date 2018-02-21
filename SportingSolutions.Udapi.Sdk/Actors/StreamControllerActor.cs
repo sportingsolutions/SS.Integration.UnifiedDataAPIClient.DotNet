@@ -431,8 +431,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     break;
             }
 
-            TestLogger.Instance.WriteLine($"In StreamControllerActor.OnConnectionStatusChanged: Telling message {message.GetType().ToString()}");
-            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(message);
+            var actorSelection = SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath);
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.OnConnectionStatusChanged: Telling message {message.GetType()} to actor {actorSelection.GetType()}, State is {this.State}");
+            actorSelection.Tell(message);
         }
 
         #endregion
