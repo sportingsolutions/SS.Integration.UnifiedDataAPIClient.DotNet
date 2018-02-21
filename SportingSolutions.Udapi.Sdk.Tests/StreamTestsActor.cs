@@ -137,7 +137,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             // STEP 2: add a consumer      
             var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object, CallerName = "StreamTestsActor.RemoveConsumerTest" };
-            streamCtrlActorTestRef.Tell(newConsumerMessage);
+            AwaitAssert(() => streamCtrlActorTestRef.Tell(newConsumerMessage),
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT), TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
             AwaitAssert(() =>
                 {

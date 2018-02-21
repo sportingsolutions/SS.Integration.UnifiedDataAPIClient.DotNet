@@ -415,7 +415,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected virtual void OnConnectionStatusChanged(ConnectionState newState)
         {
-            //State = newState;
+            State = newState;
             object message = null;
 
             switch (newState)
@@ -432,8 +432,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
 
             var actorSelection = SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath);
-            TestLogger.Instance.WriteLine($"In StreamControllerActor.OnConnectionStatusChanged: Telling message {message.GetType()} to actor {actorSelection.GetType()}, State is {this.State}");
             actorSelection.Tell(message);
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.OnConnectionStatusChanged: Told message {message.GetType()} to actor {actorSelection.GetType()}, State is {this.State}");
         }
 
         #endregion

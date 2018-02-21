@@ -45,7 +45,6 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
         protected override void EstablishConnection(ConnectionFactory factory)
         {
             TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.EstablishConnection: Before ConnectionStatusChanged event state is {this.State}", false);
-
             long attempt = 1;
             while (this.State != ConnectionState.CONNECTED)
             {
