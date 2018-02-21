@@ -51,6 +51,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
             {
                 TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.EstablishConnection: Establishing connection, attempt={attempt}");
                 OnConnectionStatusChanged(ConnectionState.CONNECTED);
+                attempt++;
                 Thread.Sleep(100);
             }
 

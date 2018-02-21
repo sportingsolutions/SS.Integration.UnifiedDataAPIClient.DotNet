@@ -130,21 +130,24 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             _logger.Info("Moved to ConnectedState");
 
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState(1): State is {this.State}");
             Receive<ValidationStartMessage>(x => ValidationStart(x));
             Receive<NewConsumerMessage>(x =>
             {
-                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState begin: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", false);
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState: before ProcessNewCustomer CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", false);
                 ProcessNewConsumer(x);
-                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState end: CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", false);
+                TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState: after ProcessNewCustomer CallerName is {x.CallerName}, Consumer.Id is {x.Consumer.Id}, State is {this.State}", false);
             });
             Receive<DisconnectedMessage>(x => Become(DisconnectedState));
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
             Receive<ValidateMessage>(x => ValidateConnection(x));
 
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState(2): Before Stash.UnstashAll State is {this.State}");
             Stash.UnstashAll();
-
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState(3): After Stash.UnstashAll State is {this.State}");
             State = ConnectionState.CONNECTED;
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.ConnectedState end: State is {this.State}");
         }
 
         private void ValidationStart(ValidationStartMessage validationStartMessage)
