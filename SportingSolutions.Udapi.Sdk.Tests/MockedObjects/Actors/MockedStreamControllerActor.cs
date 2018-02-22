@@ -46,14 +46,20 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
 
         protected override void EstablishConnection(ConnectionFactory factory)
         {
-            TestLogger.Instance.WriteLine(
-                $"In MockedStreamControllerActor.EstablishConnection: Before ConnectionStatusChanged event state is {this.State}",
-                false);
-            OnConnectionStatusChanged(ConnectionState.CONNECTED);
-            TestLogger.Instance.WriteLine(
-                $"In MockedStreamControllerActor.EstablishConnection: After ConnectionStatusChanged event state is {this.State}",
-                false);
+            TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.EstablishConnection: Before ConnectionStatusChanged event state is {this.State}");
+            var newstate = ConnectionState.DISCONNECTED;
+            try
+            {
+                newstate = ConnectionState.CONNECTED;
+            }
+            finally
+            {
+                OnConnectionStatusChanged(ConnectionState.CONNECTED);
+            }
+        
             _streamConnection = StreamConnectionMock.Object;
+
+            TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.EstablishConnection: After ConnectionStatusChanged event state is {this.State}");
         }
 
         protected override void AddConsumerToQueue(IConsumer consumer)
