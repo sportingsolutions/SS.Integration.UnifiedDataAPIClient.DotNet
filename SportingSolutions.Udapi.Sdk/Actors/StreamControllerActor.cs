@@ -415,7 +415,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
         }
 
-        protected virtual void OnConnectionStatusChanged(ConnectionState newState)
+        protected void OnConnectionStatusChanged(ConnectionState newState)
         {
             State = newState;
             object message = null;
@@ -496,11 +496,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             CloseConnection();
 
             _logger.Info("StreamController correctly disposed");
+            
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             Shutdown();
+            TestLogger.Instance.WriteLine($"In StreamControllerActor.Dispose: StreamControllerActor deaded");
         }
 
         #endregion

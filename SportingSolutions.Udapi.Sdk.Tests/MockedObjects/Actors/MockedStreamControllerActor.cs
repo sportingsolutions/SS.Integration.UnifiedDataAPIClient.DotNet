@@ -49,17 +49,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
             TestLogger.Instance.WriteLine(
                 $"In MockedStreamControllerActor.EstablishConnection: Before ConnectionStatusChanged event state is {this.State}",
                 false);
-            long attempt = 1;
             OnConnectionStatusChanged(ConnectionState.CONNECTED);
-            while (!_connected && attempt < 10)
-            {
-                TestLogger.Instance.WriteLine(
-                    $"In MockedStreamControllerActor.EstablishConnection: Establishing connection, attempt={attempt}");
-                
-                attempt++;
-                Thread.Sleep(100);
-            }
-
             TestLogger.Instance.WriteLine(
                 $"In MockedStreamControllerActor.EstablishConnection: After ConnectionStatusChanged event state is {this.State}",
                 false);
@@ -81,6 +71,13 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
             s.StopConsuming();
         }
 
+        public override void Dispose()
+        {
+            base.Dispose();
+            TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.Dispose: StreamControllerActor deaded");
+        }
+        
+        /*
         protected override void ConnectedState()
         {
             base.ConnectedState();
@@ -94,5 +91,6 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
             TestLogger.Instance.WriteLine($"In MockedStreamControllerActor.DisconnectedState: state is {this.State}");
             _connected = false;
         }
+        */
     }
 }
