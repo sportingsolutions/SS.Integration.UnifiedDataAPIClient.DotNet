@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
@@ -65,6 +66,23 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _logger.DebugFormat("StreamController initialised");
         }
 
+        protected override void PreStart()
+        {
+            TestLogger.Instance.WriteLine($"StreamControllerActor started");
+        }
+
+        protected override void PostStop()
+        {
+            TestLogger.Instance.WriteLine($"StreamControllerActor stopped");
+        }
+
+
+        protected override void PostRestart(Exception reason)
+        {
+            TestLogger.Instance.WriteLine($"StreamControllerActor has restarted, reason exception={reason?.ToString() ?? "null"}");
+        }
+
+
         protected override void PreRestart(Exception reason, object message)
         {
             _logger.Error(
@@ -72,8 +90,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 (message != null
                     ? $" last processing messageType={message.GetType().Name}"
                     : ""));
+            TestLogger.Instance.WriteLine($"StreamControllerActor is restarting now, reason exception={reason?.ToString() ?? "null"}." + (message != null ? $" last processing messageType={message.GetType().Name}": ""));
             base.PreRestart(reason, message);
         }
+
+
 
         /// <summary>
         /// This is the state when the connection is closed
