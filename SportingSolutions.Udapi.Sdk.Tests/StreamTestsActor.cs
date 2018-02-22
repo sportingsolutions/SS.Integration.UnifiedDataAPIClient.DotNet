@@ -113,12 +113,13 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         public void RemoveConsumerTest()
         {
             // STEP 1: prepare mocked data
-
-
+            
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns("testing");
             consumer.Setup(x => x.GetQueueDetails()).Returns(_queryDetails);
             consumer.Setup(x => x.OnStreamConnected());
+
+            TestLogger.Instance.WriteLine($"#########################################RemoveConsumerTest started########################################################");
 
             var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
@@ -135,10 +136,13 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(0);
 
+
+            TestLogger.Instance.WriteLine($"RemoveConsumerTest: Sending NewConsumerMessage");
             // STEP 2: add a consumer      
             var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object, CallerName = "StreamTestsActor.RemoveConsumerTest" };
             AwaitAssert(() => streamCtrlActorTestRef.Tell(newConsumerMessage),
-                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT), TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT), 
+                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
             AwaitAssert(() =>
                 {
@@ -149,6 +153,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
+            TestLogger.Instance.WriteLine($"RemoveConsumerTest: Retrieving SubscriverMessage");
             AwaitAssert(() =>
                 {
                     var streamSubscriberObj =
@@ -179,6 +184,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+
+            
+                TestLogger.Instance.WriteLine($"#########################################RemoveConsumerTest ended########################################################");
         }
 
         [Test]
