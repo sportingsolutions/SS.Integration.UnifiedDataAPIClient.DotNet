@@ -50,11 +50,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
                 $"In MockedStreamControllerActor.EstablishConnection: Before ConnectionStatusChanged event state is {this.State}",
                 false);
             long attempt = 1;
-            while (!_connected)
+            OnConnectionStatusChanged(ConnectionState.CONNECTED);
+            while (!_connected && attempt < 10)
             {
                 TestLogger.Instance.WriteLine(
                     $"In MockedStreamControllerActor.EstablishConnection: Establishing connection, attempt={attempt}");
-                OnConnectionStatusChanged(ConnectionState.CONNECTED);
+                
                 attempt++;
                 Thread.Sleep(100);
             }
