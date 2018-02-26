@@ -137,12 +137,15 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             updateDispatcherActor.UnderlyingActor.SubscribersCount.Should().Be(0);
 
 
-            TestLogger.Instance.WriteLine($"RemoveConsumerTest: Sending NewConsumerMessage");
+            TestLogger.Instance.WriteLine($"RemoveConsumerTest: Sending NewConsumerMessage, state is {streamCtrlActorTestRef.UnderlyingActor.State}");
+       
             // STEP 2: add a consumer      
             var newConsumerMessage = new NewConsumerMessage() { Consumer = consumer.Object, CallerName = "StreamTestsActor.RemoveConsumerTest" };
             AwaitAssert(() => streamCtrlActorTestRef.Tell(newConsumerMessage),
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT), 
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+
+            TestLogger.Instance.WriteLine($"RemoveConsumerTest: After sending message state is {streamCtrlActorTestRef.UnderlyingActor.State}");
 
             AwaitAssert(() =>
                 {
