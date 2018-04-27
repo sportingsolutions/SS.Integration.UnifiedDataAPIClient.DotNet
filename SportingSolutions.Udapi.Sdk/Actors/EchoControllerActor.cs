@@ -30,7 +30,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private class EchoEntry
         {
             public IStreamSubscriber Subscriber;
-            public int EchosCountDown;
+            public int  EchosCountDown;
         }
 
         public const string ActorName = "EchoControllerActor";
@@ -163,25 +163,24 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 {
                     if (sendEchoConsumer == null)
                         sendEchoConsumer = consumer.Value.Subscriber;
-
-                    int tmp = consumer.Value.EchosCountDown;
-                    consumer.Value.EchosCountDown--;
-
-                    if (tmp != UDAPI.Configuration.MissedEchos)
+                    
+                    if (consumer.Value.EchosCountDown < UDAPI.Configuration.MissedEchos)
                     {
-                        _logger.WarnFormat("consumerId={0} missed count={1} echos", consumer.Key,
-                            UDAPI.Configuration.MissedEchos - tmp);
-
-                        if (tmp <= 1)
+                        var msg = $"consumerId={consumer.Key} missed count={UDAPI.Configuration.MissedEchos - consumer.Value.EchosCountDown} echos";
+                        if (consumer.Value.EchosCountDown <= 1)
                         {
-                            _logger.WarnFormat("consumerId={0} missed count={1} echos and it will be disconnected",
-                                consumer.Key, UDAPI.Configuration.MissedEchos);
+                            _logger.Warn($"{msg} and it will be disconnected");
                             invalidConsumers.Add(consumer.Value.Subscriber);
 
                             if (sendEchoConsumer == consumer.Value.Subscriber)
                                 sendEchoConsumer = null;
                         }
+                        else
+                        {
+                            _logger.Info(msg);
+                        }
                     }
+                    consumer.Value.EchosCountDown--;
                 }
 
                 // this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
