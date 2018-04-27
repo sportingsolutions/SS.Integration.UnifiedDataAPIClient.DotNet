@@ -77,6 +77,11 @@ namespace SportingSolutions.Udapi.Sdk
                 _logger.Warn("Stopp stream called for already disposed object for consumerId=" + ConsumerTag, e);
             }
 
+            catch (TimeoutException e)
+            {
+                _logger.Warn($"RabbitMQ timeout on StopStreaming for consumerId={ConsumerTag} {e}");
+            }
+
             catch (Exception e)
             {
                 _logger.Error("Error stopping stream for consumerId=" + ConsumerTag, e);
