@@ -99,22 +99,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             State = ConnectionState.DISCONNECTED;
         }
 
-        /// <summary>
-        /// This is the state when the connection is closed
-        /// </summary>
-        private void DisposingState()
-        {
-            _logger.Info("Moved to DisposingState");
-
-            Receive<ConnectStreamMessage>(x => ConnectStream(x));
-            Receive<ValidateMessage>(x => ValidateConnection(x));
-            Receive<ConnectedMessage>(x => Become(ConnectedState));
-            Receive<NewConsumerMessage>(x =>{Stash.Stash();});
-            Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
-            Receive<DisposeMessage>(x => Dispose());
-
-            State = ConnectionState.DISCONNECTED;
-        }
+        
 
         /// <summary>
         /// this is the state when the connection is being automatically recovered by RabbitMQ
@@ -484,7 +469,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _connectionCancellation.Cancel();
 
             Dispatcher.Tell(new DisposeMessage());
-            Become(DisposingState);
             CloseConnection();
 
             _logger.Info("StreamController correctly disposed");
