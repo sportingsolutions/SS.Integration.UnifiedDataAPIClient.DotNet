@@ -395,8 +395,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 case ConnectionState.CONNECTING:
                     break;
             }
-
-            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(message);
+            if (message != null)
+               Self.Tell(message);
+            //SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(message);
         }
 
         #endregion
