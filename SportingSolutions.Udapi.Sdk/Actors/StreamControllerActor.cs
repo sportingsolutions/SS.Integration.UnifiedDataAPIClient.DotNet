@@ -35,6 +35,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
     internal class StreamControllerActor : ReceiveActor, IWithUnboundedStash
     {
         public const string ActorName = "StreamControllerActor";
+        public int timeoutCounter = 0;
+        public const int TimeoutCounterLimit = 20;
 
         internal enum ConnectionState
         {
@@ -56,7 +58,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 throw new ArgumentNullException("dispatcher");
 
             Dispatcher = dispatcherActor;
-
+            timeoutCounter = 0;
             //Start in Disconnected state
             DisconnectedState();
 
@@ -67,6 +69,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected override void PreRestart(Exception reason, object message)
         {
+            CloseConnection();
             _logger.Error(
                 $"Actor restart reason exception={reason?.ToString() ?? "null"}." +
                 (message != null
@@ -423,7 +426,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             if (_streamConnection == null)
             {
-                _logger.Error($"Method=AddConsumerToQueue StreamConnection is null currentState={State.ToString()}");
+                _logger.Warn($"Method=AddConsumerToQueue StreamConnection is null currentState={State.ToString()}");
                 return;
             }
                 
@@ -436,12 +439,14 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 subscriber = new StreamSubscriber(model, consumer, Dispatcher);
                 subscriber.StartConsuming(queue.Name);
             }
-            catch
+            catch (Exception e)
             {
                 if (subscriber != null)
                     subscriber.Dispose();
-
-                throw;
+                timeoutCounter++;
+                _logger.Warn($"Method=AddConsumerToQueue StartConsuming errored for consumerId={consumer.Id} {e}");
+                if (timeoutCounter > TimeoutCounterLimit)
+                    throw;
             }
         }
 
