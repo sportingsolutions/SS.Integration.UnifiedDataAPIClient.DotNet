@@ -100,6 +100,23 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         }
 
         /// <summary>
+        /// This is the state when the connection is closed
+        /// </summary>
+        private void DisposingState()
+        {
+            _logger.Info("Moved to DisposingState");
+
+            Receive<ConnectStreamMessage>(x => ConnectStream(x));
+            Receive<ValidateMessage>(x => ValidateConnection(x));
+            Receive<ConnectedMessage>(x => Become(ConnectedState));
+            Receive<NewConsumerMessage>(x =>{Stash.Stash();});
+            Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
+            Receive<DisposeMessage>(x => Dispose());
+
+            State = ConnectionState.DISCONNECTED;
+        }
+
+        /// <summary>
         /// this is the state when the connection is being automatically recovered by RabbitMQ
         /// </summary>
         private void ValidationState()
@@ -189,6 +206,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         #region Connection management
 
         protected virtual void CloseConnection()
+
         {
             try
             {
@@ -402,11 +420,27 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected virtual void AddConsumerToQueue(IConsumer consumer)
         {
+            if (consumer == null)
+            {
+                _logger.Warn("Method=AddConsumerToQueue Consumer is null");
+                return;
+            }
 
             var queue = consumer.GetQueueDetails();
-            if (string.IsNullOrEmpty(queue?.Name))
-                throw new Exception("Invalid queue details");
 
+            if (string.IsNullOrEmpty(queue?.Name))
+            {
+                _logger.Warn("Method=AddConsumerToQueue Invalid queue details");
+                return;
+            }
+
+
+            if (_streamConnection == null)
+            {
+                _logger.Error($"Method=AddConsumerToQueue StreamConnection is null currentState={State.ToString()}");
+                return;
+            }
+                
             var model = _streamConnection.CreateModel();
 
             StreamSubscriber subscriber = null;
@@ -450,6 +484,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _connectionCancellation.Cancel();
 
             Dispatcher.Tell(new DisposeMessage());
+            Become(DisposingState);
             CloseConnection();
 
             _logger.Info("StreamController correctly disposed");

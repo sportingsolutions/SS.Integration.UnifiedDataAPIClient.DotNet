@@ -25,15 +25,16 @@ namespace SportingSolutions.Udapi.Sdk.Actors
     {
         protected ILog Logger;
         private readonly IConsumer _resource;
-
+        private string id;
 
         public ResourceActor(IConsumer resource)
             //: base(restItem, client)
         {
+            id = new Guid().ToString();
             _resource = resource;
             
             Logger = LogManager.GetLogger(typeof(ResourceActor).ToString());
-            Logger.DebugFormat("Instantiated fixtureName=\"{0}\" fixtureId=\"{1}\"", resource, Id);
+            Logger.Debug($"resourceActorId={id} Instantiated fixtureName=\"{resource}\" fixtureId=\"{Id}\"");
 
             Become(DisconnectedState);
         }
@@ -41,7 +42,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         protected override void PreRestart(Exception reason, object message)
         {
             Logger.Error(
-                $"Actor restart reason exception={reason?.ToString() ?? "null"}." +
+                $"resourceActorId={id} Actor restart reason exception={reason?.ToString() ?? "null"}." +
                 (message != null
                     ? $" last processing messageType={message.GetType().Name}"
                     : ""));
@@ -56,13 +57,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void Disconnect(DisconnectMessage msg)
         {
-            Logger.DebugFormat($"Disconnection message raised for {msg.Id}");
+            Logger.Debug($"resourceActorId={id} Disconnection message raised for {msg.Id}");
             _resource.OnStreamDisconnected();
         }
 
         private void StreamUpdate(StreamUpdateMessage streamMsg)
         {
-            Logger.DebugFormat($"New update arrived for {streamMsg.Id}");
+            Logger.Debug($"resourceActorId={id} New update arrived for {streamMsg.Id}");
             _resource.OnStreamEvent(new StreamEventArgs(streamMsg.Message));
         }
 
@@ -96,20 +97,20 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
+            Logger.Debug($"resourceActorId={id} REQUESTING Streaming request for fixtureName=\"{((IResource)_resource)?.Name}\" fixtureId=\"{Id}\"");
             SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new NewConsumerMessage() { Consumer = _resource });
-            //StreamController.Instance.AddConsumer(_resource, echoInterval, echoMaxDelay);
-            Logger.DebugFormat("REQUESTED Streaming request queued for fixtureName=\"{0}\" fixtureId=\"{1}\"", ((IResource) _resource).Name, Id);
+            Logger.Debug($"resourceActorId={id} REQUESTED Streaming request queued for fixtureName=\"{((IResource)_resource)?.Name}\" fixtureId=\"{Id}\"");
         }
 
         public void PauseStreaming()
         {
-            //Logger.DebugFormat("Streaming paused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            //Logger.Debug("Streaming paused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
             //_pauseStream.Reset();
         }
 
         public void UnPauseStreaming()
         {
-            //Logger.DebugFormat("Streaming unpaused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
+            //Logger.Debug("Streaming unpaused for fixtureName=\"{0}\" fixtureId={1}", Name, Id);
             //_pauseStream.Set();
         }
 
@@ -118,7 +119,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new RemoveConsumerMessage() { Consumer = _resource });
 
             //StreamController.Instance.RemoveConsumer(_resource);
-            Logger.DebugFormat("REQUESTED Streaming stopped for fixtureName=\"{0}\" fixtureId=\"{1}\"", ((IResource)_resource).Name, Id);
+            Logger.Debug($"resourceActorId={id} REQUESTED Streaming stopped for fixtureName=\"{((IResource)_resource)?.Name}\" fixtureId=\"{Id}\"");
         }
 
         #endregion
