@@ -62,7 +62,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             //Start in Disconnected state
             DisconnectedState();
 
-            AutoReconnect = UDAPI.Configuration.AutoReconnect;
+            //AutoReconnect = UDAPI.Configuration.AutoReconnect;
 
             _logger.DebugFormat("StreamController initialised");
         }
@@ -136,7 +136,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<ValidateMessage>(x => ValidateConnection(x));
 
             Stash.UnstashAll();
-
             State = ConnectionState.CONNECTED;
         }
 
@@ -321,7 +320,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 RequestedHeartbeat = UDAPI.Configuration.AMQPMissedHeartbeat,
                 HostName = queue.Host,
-                AutomaticRecoveryEnabled = UDAPI.Configuration.AutoReconnect,
+                AutomaticRecoveryEnabled = AutoReconnect,
                 Port = queue.Port,
                 UserName = queue.UserName,
                 Password = queue.Password,
