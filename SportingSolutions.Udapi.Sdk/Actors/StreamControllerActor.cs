@@ -64,7 +64,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             //AutoReconnect = UDAPI.Configuration.AutoReconnect;
 
-            _logger.DebugFormat("StreamController initialised");
+            _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
         }
 
         protected override void PreRestart(Exception reason, object message)
@@ -75,7 +75,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 (message != null
                     ? $" last processing messageType={message.GetType().Name}"
                     : ""));
-            base.PreRestart(reason, message);
+            base.PreRestart(reason, new DisconnectedMessage());
         }
 
         /// <summary>
@@ -214,11 +214,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _streamConnection = null;
                 Dispatcher.Tell(new RemoveAllSubscribers());
+                OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
+                //THIS WILL LIKELY BLOW UP PLEASE VALIDATE THIS IS WORKING
+                Dispatcher.Tell(new RemoveAllSubscribers());
             }
-
-            OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
-
-
         }
 
         protected virtual void EstablishConnection(ConnectionFactory factory)
@@ -423,9 +422,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
 
 
-            if (_streamConnection == null)
+            if (_streamConnection == null || !_streamConnection.IsOpen)
             {
                 _logger.Warn($"Method=AddConsumerToQueue StreamConnection is null currentState={State.ToString()}");
+                Become(DisconnectedState);
                 return;
             }
                 
