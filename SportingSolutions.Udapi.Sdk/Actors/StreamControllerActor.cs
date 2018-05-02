@@ -37,6 +37,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         public const string ActorName = "StreamControllerActor";
         public int timeoutCounter = 0;
         public const int TimeoutCounterLimit = 20;
+        private static ICancelable _validateCancellation;
 
         internal enum ConnectionState
         {
@@ -63,8 +64,20 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             DisconnectedState();
 
             //AutoReconnect = UDAPI.Configuration.AutoReconnect;
+            if (_validateCancellation != null)
+            {
+                CancelValidationMessages();
+            }
+            _validateCancellation= Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(3000, 3000, Self, new ValidateStateMessage(), Self);
 
             _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
+        }
+
+        private static void CancelValidationMessages()
+        {
+            _logger.Debug("CancelValidationMessages triggered");
+            _validateCancellation.Cancel();
+            _validateCancellation = null;
         }
 
         protected override void PreRestart(Exception reason, object message)
@@ -98,6 +111,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             });
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
+            Receive<ValidateStateMessage>(x => ValidateState(x));
 
             State = ConnectionState.DISCONNECTED;
         }
@@ -117,6 +131,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<NewConsumerMessage>(x => Stash.Stash());
             Receive<RemoveConsumerMessage>(x => Stash.Stash());
             Receive<DisposeMessage>(x => Dispose());
+            Receive<ValidateStateMessage>(x => ValidateState(x));
 
             State = ConnectionState.DISCONNECTED;
         }
@@ -134,6 +149,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
             Receive<ValidateMessage>(x => ValidateConnection(x));
+            Receive<ValidateStateMessage>(x => ValidateState(x));
 
             Stash.UnstashAll();
             State = ConnectionState.CONNECTED;
@@ -141,6 +157,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void ValidationStart(ValidationStartMessage validationStartMessage)
         {
+            _logger.Debug("ValidationStart triggered");
             Become(ValidationState);
 
             //schedule check in the near future (10s by default) whether the connection has recovered
@@ -195,6 +212,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         protected virtual void CloseConnection()
 
         {
+            _logger.Debug("CloseConnection triggered");
             try
             {
                 if (_streamConnection != null)
@@ -344,6 +362,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
         }
 
+        private void ValidateState(ValidateStateMessage validateStateMessage)
+        {
+            _logger.Warn($"Method=ValidateState  currentState={State.ToString()} connection={_streamConnection}");
+
+        }
+
         private void ValidateConnection(ValidateMessage validateMessage)
         {
             //validate whether the reconnection was successful 
@@ -407,11 +431,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected virtual void AddConsumerToQueue(IConsumer consumer)
         {
+            
             if (consumer == null)
             {
                 _logger.Warn("Method=AddConsumerToQueue Consumer is null");
                 return;
             }
+            _logger.Debug($"Method=AddConsumerToQueue triggered consumr={consumer.Id}");
 
             var queue = consumer.GetQueueDetails();
 
@@ -447,6 +473,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 if (timeoutCounter > TimeoutCounterLimit)
                     throw;
             }
+            _logger.Debug($"Method=AddConsumerToQueue successfully executed consumr={consumer.Id}");
         }
 
         public void RemoveConsumer(IConsumer consumer)
@@ -507,6 +534,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private class ValidationSucceededMessage
         {
+        }
+
+        private class ValidateStateMessage
+        {
+
         }
 
         #endregion
