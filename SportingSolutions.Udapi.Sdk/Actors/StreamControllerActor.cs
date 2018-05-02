@@ -91,7 +91,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             CancelValidationMessages();
 
-            base.PreRestart(reason, new DisconnectedMessage());
+            base.PreRestart(reason, new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
         }
 
         /// <summary>
@@ -422,7 +422,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             
             if (!AutoReconnect)
             {
-                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new DisconnectedMessage());
+                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
             }
             else
             {
@@ -439,6 +439,17 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private void DisconnectedHandler(DisconnectedMessage disconnectedMessage)
         {
             _logger.Info($"Disconnect message received");
+            if (State == ConnectionState.DISCONNECTED || State == ConnectionState.CONNECTING)
+            {
+                _logger.Warn($"DisconnectedHandler will not be executed as currentState={State}");
+            }
+
+            if (disconnectedMessage.IDConnection !=null && disconnectedMessage.IDConnection == _streamConnection?.GetHashCode())
+            {
+                _logger.Warn($"DisconnectedHandler will not be executed as we are already in connection with connectionHash={_streamConnection?.GetHashCode()}, messageConnectionHash={disconnectedMessage?.IDConnection}");
+            }
+
+            
             Become(DisconnectedState);
             CloseConnection();
             NotifyDispatcherConnectionError();
@@ -463,7 +474,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (testConnection == null)
             {
                 _logger.WarnFormat("Reconnection failed, connection has been disposed, the disconnection event needs to be raised");
-                Self.Tell(new DisconnectedMessage());
+                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
 
                 return;
             }
@@ -480,7 +491,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             else
             {
                 _logger.Warn("Connection validation failed, connection is not open - calling CloseConnection() to dispose it");
-                Self.Tell(new DisconnectedMessage());
+                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
             }
         }
         
@@ -511,12 +522,16 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (_streamConnection == null)
             {
                 _logger.Warn($"Method=AddConsumerToQueue StreamConnection is null currentState={State.ToString()}");
+                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+                Stash.Stash();
                 return;
             }
 
             if (!_streamConnection.IsOpen)
             {
                 _logger.Warn($"Method=AddConsumerToQueue StreamConnection is closed currentState={State.ToString()}");
+                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+                Stash.Stash();
                 return;
             }
 
@@ -566,7 +581,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _connectionCancellation.Cancel();
             CancelValidationMessages();
             Dispatcher.Tell(new DisposeMessage());
-            Self.Tell(new DisconnectedMessage());
+            Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
 
             _logger.Info("StreamController correctly disposed");
         }
@@ -581,7 +596,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private class DisconnectedMessage
         {
-
+            public int? IDConnection { get; set; }
         }
 
         private class ValidateConnectionMessage
