@@ -231,10 +231,16 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             finally
             {
                 _streamConnection = null;
-                Dispatcher.Tell(new RemoveAllSubscribers());
+                try
+                {
+                    Dispatcher.Tell(new RemoveAllSubscribers());
+                }
+                catch (Exception e)
+                {
+                    _logger.Warn($"Failed to tell diapstcher RemoveAllSubscribers diapstcher={Dispatcher}");
+                }
                 OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
-                //THIS WILL LIKELY BLOW UP PLEASE VALIDATE THIS IS WORKING
-                Dispatcher.Tell(new RemoveAllSubscribers());
+                
             }
         }
 
