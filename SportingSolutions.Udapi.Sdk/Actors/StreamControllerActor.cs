@@ -177,7 +177,54 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void ProcessNewConsumer(NewConsumerMessage newConsumerMessage)
         {
-            AddConsumerToQueue(newConsumerMessage.Consumer);
+            var consumer = newConsumerMessage.Consumer;
+            if (consumer == null)
+            {
+                _logger.Warn("Method=AddConsumerToQueue Consumer is null");
+                return;
+            }
+            _logger.Debug($"Method=AddConsumerToQueue triggered consumr={consumer.Id}");
+
+            var queue = consumer.GetQueueDetails();
+
+            if (string.IsNullOrEmpty(queue?.Name))
+            {
+                _logger.Warn("Method=AddConsumerToQueue Invalid queue details");
+                return;
+            }
+
+
+            if (_streamConnection == null)
+            {
+                _logger.Warn($"Method=AddConsumerToQueue StreamConnection is null currentState={State.ToString()}");
+                return;
+            }
+
+            if (!_streamConnection.IsOpen)
+            {
+                _logger.Warn($"Method=AddConsumerToQueue StreamConnection is closed currentState={State.ToString()}");
+                return;
+            }
+
+            var model = _streamConnection.CreateModel();
+
+            StreamSubscriber subscriber = null;
+
+            try
+            {
+                subscriber = new StreamSubscriber(model, consumer, Dispatcher);
+                subscriber.StartConsuming(queue.Name);
+            }
+            catch (Exception e)
+            {
+                if (subscriber != null)
+                    subscriber.Dispose();
+                timeoutCounter++;
+                _logger.Warn($"Method=AddConsumerToQueue StartConsuming errored for consumerId={consumer.Id} {e}");
+                if (timeoutCounter > TimeoutCounterLimit)
+                    throw;
+            }
+            _logger.Debug($"Method=AddConsumerToQueue successfully executed consumr={consumer.Id}");
         }
 
         /// <summary>
