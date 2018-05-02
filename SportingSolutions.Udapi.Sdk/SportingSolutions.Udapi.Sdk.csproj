@@ -125,7 +125,6 @@
     <Compile Include="Model\Message\RemoveSubscriberMessage.cs" />
     <Compile Include="Model\Message\NewSubscriberMessage.cs" />
     <Compile Include="Model\Message\RemoveConsumerMessage.cs" />
-    <Compile Include="Model\Message\ConnectStreamMessage.cs" />
     <Compile Include="Model\Message\NewConsumerMessage.cs" />
     <Compile Include="Actors\ResourceActor.cs" />
     <Compile Include="Model\Message\ResetAllMessage.cs" />
