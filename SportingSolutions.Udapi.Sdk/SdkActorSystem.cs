@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using Akka.Actor;
+using Akka.Dispatch;
 using Akka.Event;
 using SportingSolutions.Udapi.Sdk.Actors;
 
@@ -12,7 +13,7 @@ namespace SportingSolutions.Udapi.Sdk
         private const string UserSystemPath = "/user/";
 
         internal static bool InitializeActors { get; set; } = true;
-
+        
         public static readonly string UpdateDispatcherPath = UserSystemPath + UpdateDispatcherActor.ActorName;
         public static readonly string StreamControllerActorPath = UserSystemPath + StreamControllerActor.ActorName;
         public static readonly string EchoControllerActorPath = UserSystemPath + EchoControllerActor.ActorName;
@@ -23,7 +24,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         static SdkActorSystem()
         {
-
+            
         }
 
         /// <summary>
@@ -37,7 +38,7 @@ namespace SportingSolutions.Udapi.Sdk
                     Props.Create(() => new UpdateDispatcherActor()),
                     UpdateDispatcherActor.ActorName);
                 ActorSystem.ActorOf(
-                    Props.Create(() => new StreamControllerActor(dispatcher)),
+                    Props.Create(() => new StreamControllerActor(dispatcher)).WithMailbox("streamcontrolleractor-mailbox"),
                     StreamControllerActor.ActorName);
                 ActorSystem.ActorOf(
                     Props.Create(() => new EchoControllerActor()),

@@ -114,6 +114,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Actors\FaultControllerActor.cs" />
+    <Compile Include="Actors\MailBox\StreamControllerActorMailBox.cs" />
     <Compile Include="Actors\SdkDeadletterMonitorActor.cs" />
     <Compile Include="Actors\EchoControllerActor.cs" />
     <Compile Include="Events\SdkErrorMessage.cs" />
