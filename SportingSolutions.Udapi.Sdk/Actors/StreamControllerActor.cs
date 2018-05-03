@@ -444,7 +444,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.Warn($"DisconnectedHandler will not be executed as currentState={State}");
             }
 
-            if (disconnectedMessage.IDConnection !=null && disconnectedMessage.IDConnection == _streamConnection?.GetHashCode())
+            if (disconnectedMessage.IDConnection !=null && disconnectedMessage.IDConnection != _streamConnection?.GetHashCode())
             {
                 _logger.Warn($"DisconnectedHandler will not be executed as we are already in connection with connectionHash={_streamConnection?.GetHashCode()}, messageConnectionHash={disconnectedMessage?.IDConnection}");
             }
