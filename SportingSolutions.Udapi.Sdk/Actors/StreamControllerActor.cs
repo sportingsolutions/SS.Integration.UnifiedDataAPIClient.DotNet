@@ -180,29 +180,32 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             var consumer = newConsumerMessage.Consumer;
             if (consumer == null)
             {
-                _logger.Warn("Method=AddConsumerToQueue Consumer is null");
+                _logger.Warn("Method=ProcessNewConsumer Consumer is null");
                 return;
             }
-            _logger.Debug($"Method=AddConsumerToQueue triggered consumr={consumer.Id}");
+            _logger.Debug($"Method=ProcessNewConsumer triggered consumr={consumer.Id}");
 
             var queue = consumer.GetQueueDetails();
 
             if (string.IsNullOrEmpty(queue?.Name))
             {
-                _logger.Warn("Method=AddConsumerToQueue Invalid queue details");
+                _logger.Warn("Method=ProcessNewConsumer Invalid queue details");
                 return;
             }
 
-
             if (_streamConnection == null)
             {
-                _logger.Warn($"Method=AddConsumerToQueue StreamConnection is null currentState={State.ToString()}");
+                _logger.Warn($"Method=ProcessNewConsumer StreamConnection is null currentState={State.ToString()}");
+                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+                //Stash.Stash();
                 return;
             }
 
             if (!_streamConnection.IsOpen)
             {
-                _logger.Warn($"Method=AddConsumerToQueue StreamConnection is closed currentState={State.ToString()}");
+                _logger.Warn($"Method=ProcessNewConsumer StreamConnection is closed currentState={State.ToString()}");
+                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+                //Stash.Stash();
                 return;
             }
 
@@ -220,11 +223,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 if (subscriber != null)
                     subscriber.Dispose();
                 timeoutCounter++;
-                _logger.Warn($"Method=AddConsumerToQueue StartConsuming errored for consumerId={consumer.Id} {e}");
+                _logger.Warn($"Method=ProcessNewConsumer StartConsuming errored for consumerId={consumer.Id} {e}");
                 if (timeoutCounter > TimeoutCounterLimit)
                     throw;
             }
-            _logger.Debug($"Method=AddConsumerToQueue successfully executed consumr={consumer.Id}");
+            _logger.Debug($"Method=ProcessNewConsumer successfully executed consumr={consumer.Id}");
         }
 
         /// <summary>
