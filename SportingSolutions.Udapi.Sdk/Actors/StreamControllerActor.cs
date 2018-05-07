@@ -69,13 +69,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             CancelValidationMessages();
             _validateCancellation= Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(10000, 10000, Self, new ValidateStateMessage(), Self);
 
-            _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
+            _logger.DebugFormat("StreamController initialised, AutoReconnect={0}, UseStreamControllerMailbox={1} ", AutoReconnect, UDAPI.Configuration.UseStreamControllerMailbox);
         }
 
         private static void CancelValidationMessages()
         {
-            
-            if (_validateCancellation == null )
+
+            if (_validateCancellation == null)
                 return;
             _logger.Debug("CancelValidationMessages triggered");
             _validateCancellation.Cancel();
@@ -119,7 +119,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             State = ConnectionState.DISCONNECTED;
         }
 
-        
+
 
 
         /// <summary>
@@ -140,7 +140,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             State = ConnectionState.DISCONNECTED;
         }
 
-        
+
 
         /// <summary>
         /// this is the state when the connection is open
@@ -287,10 +287,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             try
             {
                 subscriber = new StreamSubscriber(model, consumer, Dispatcher);
-                //TODO rem
-                var rnd = new Random((int)DateTime.Now.Ticks);
-                if (rnd.Next(3) == 2)
-                    throw new Exception("TestProcessNewConsumerException");
                 subscriber.StartConsuming(queue.Name);
             }
             catch (Exception e)

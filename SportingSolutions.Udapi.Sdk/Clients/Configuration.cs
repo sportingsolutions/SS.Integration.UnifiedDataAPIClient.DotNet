@@ -28,8 +28,9 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         private const bool DEFAULT_VERBOSE_LOGGING = true;
         private const ushort DEFAULT_AMQP_HEARTBEAT = 15;
         private bool DEFAULT_ENABLE_AUTO_RECONNECT = true;
+        private const bool DEFAULT_USE_STREAMCONTROLLER_MAILBOX = false;
         private int DEFAULT_DISCONNECTION_DELAY = 10;
-
+        
         static Configuration()
         {
             Instance = new Configuration();
@@ -46,6 +47,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             VerboseLogging = DEFAULT_VERBOSE_LOGGING;
             AMQPMissedHeartbeat = DEFAULT_AMQP_HEARTBEAT;
             AutoReconnect = DEFAULT_ENABLE_AUTO_RECONNECT;
+            UseStreamControllerMailbox = DEFAULT_USE_STREAMCONTROLLER_MAILBOX;
             DisconnectionDelay = DEFAULT_DISCONNECTION_DELAY;
         }
 
@@ -66,7 +68,11 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         public bool VerboseLogging { get; set; }
 
         public ushort AMQPMissedHeartbeat { get; set; }
+
         public bool AutoReconnect { get; set; }
+
+        public bool UseStreamControllerMailbox { get; }
+
         public int DisconnectionDelay { get; set; }
     }
 }
