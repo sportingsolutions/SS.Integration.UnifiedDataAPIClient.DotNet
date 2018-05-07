@@ -68,7 +68,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             CancelValidationMessages();
             _validateCancellation = Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(60000, 60000, Self, new ValidateStateMessage(), Self);
 
-            _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
+            _logger.DebugFormat("StreamController initialised, AutoReconnect={0}, UseStreamControllerMailbox={1} ", AutoReconnect, UDAPI.Configuration.UseStreamControllerMailbox);
         }
 
         private static void CancelValidationMessages()
