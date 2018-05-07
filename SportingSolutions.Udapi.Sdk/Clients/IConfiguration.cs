@@ -62,6 +62,11 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         /// </summary>
         bool AutoReconnect { get;  }
 
+        /// <summary>
+        /// Enables mailbox for StreamControllerActor
+        /// </summary>
+        bool UseStreamControllerMailbox { get; }
+
         int DisconnectionDelay { get; }
     }
 }

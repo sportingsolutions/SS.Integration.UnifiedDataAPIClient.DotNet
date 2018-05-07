@@ -66,15 +66,15 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             AutoReconnect = UDAPI.Configuration.AutoReconnect;
             CancelValidationMessages();
-            _validateCancellation= Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(60000, 60000, Self, new ValidateStateMessage(), Self);
+            _validateCancellation = Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(60000, 60000, Self, new ValidateStateMessage(), Self);
 
             _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
         }
 
         private static void CancelValidationMessages()
         {
-            
-            if (_validateCancellation == null )
+
+            if (_validateCancellation == null)
                 return;
             _logger.Debug("CancelValidationMessages triggered");
             _validateCancellation.Cancel();
@@ -118,7 +118,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             State = ConnectionState.DISCONNECTED;
         }
 
-        
+
 
 
         /// <summary>
@@ -139,7 +139,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             State = ConnectionState.DISCONNECTED;
         }
 
-        
+
 
         /// <summary>
         /// this is the state when the connection is open
@@ -196,7 +196,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (_streamConnection == null)
             {
                 _logger.Warn($"Method=ProcessNewConsumer StreamConnection is null currentState={State.ToString()}");
-                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+                if (UDAPI.Configuration.UseStreamControllerMailbox)
+                    Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+                else
+                    DisconnectedHandler(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
                 Self.Tell(newConsumerMessage);
                 return;
             }
@@ -204,7 +207,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (!_streamConnection.IsOpen)
             {
                 _logger.Warn($"Method=ProcessNewConsumer StreamConnection is closed currentState={State.ToString()}");
-                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+                if (UDAPI.Configuration.UseStreamControllerMailbox)
+                    Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+                else
+                    DisconnectedHandler(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
                 Self.Tell(newConsumerMessage);
                 return;
             }
