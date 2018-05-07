@@ -324,10 +324,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     Self.Tell(DefaultDisconnectedMessage);
                 else
                     DisconnectedHandler(DefaultDisconnectedMessage);
-
-
-
-                DisconnectedHandler(DefaultDisconnectedMessage);
+                
 
                 return false;
             }
@@ -552,6 +549,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (NeedRaiseDisconnect)
             {
                 _logger.Warn($"{message} disconnected event will be raised");
+                if (UDAPI.Configuration.UseStreamControllerMailbox)
+                    Self.Tell(DefaultDisconnectedMessage);
+                else
+                    DisconnectedHandler(DefaultDisconnectedMessage);
             }
             else
             {
