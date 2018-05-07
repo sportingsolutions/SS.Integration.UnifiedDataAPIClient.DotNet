@@ -69,7 +69,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             CancelValidationMessages();
             _validateCancellation= Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(10000, 10000, Self, new ValidateStateMessage(), Self);
 
-            _logger.DebugFormat("StreamController initialised, AutoReconnect={0}, UseStreamControllerMailbox={1} ", AutoReconnect, UDAPI.Configuration.UseStreamControllerMailbox);
+            _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
         }
 
         private static void CancelValidationMessages()
@@ -320,10 +320,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     $"Method=ProcessNewConsumer connectionStatus={ConnectionStatus} {(_streamConnection == null ? "this should not happening" : "")}");
 
 
-                if (UDAPI.Configuration.UseStreamControllerMailbox)
-                    Self.Tell(DefaultDisconnectedMessage);
-                else
-                    DisconnectedHandler(DefaultDisconnectedMessage);
+               DisconnectedHandler(DefaultDisconnectedMessage);
                 
 
                 return false;
@@ -336,10 +333,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private void ProcessNewConsumerErrorHandler(Exception e)
         {
             _logger.Error($"ProcessNewConsumer limit exceeded with errorsCout={_processNewConsumerErrorCounter}  disconnected event will be raised  {e}");
-            if (UDAPI.Configuration.UseStreamControllerMailbox)
-                Self.Tell(DefaultDisconnectedMessage);
-            else
-                DisconnectedHandler(DefaultDisconnectedMessage);
+            DisconnectedHandler(DefaultDisconnectedMessage);
             _processNewConsumerErrorCounter = 0;
         }
 
@@ -553,10 +547,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             if (NeedRaiseDisconnect)
             {
                 _logger.Warn($"{message} disconnected event will be raised");
-                if (UDAPI.Configuration.UseStreamControllerMailbox)
-                    Self.Tell(DefaultDisconnectedMessage);
-                else
-                    DisconnectedHandler(DefaultDisconnectedMessage);
+                DisconnectedHandler(DefaultDisconnectedMessage);
             }
             else
             {

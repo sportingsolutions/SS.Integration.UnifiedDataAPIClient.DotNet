@@ -167,7 +167,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     if (consumer.Value.EchosCountDown < UDAPI.Configuration.MissedEchos)
                     {
                         var msg = $"consumerId={consumer.Key} missed count={UDAPI.Configuration.MissedEchos - consumer.Value.EchosCountDown} echos";
-                        if (consumer.Value.EchosCountDown <= 1)
+                        if (consumer.Value.EchosCountDown < 1)
                         {
                             _logger.Warn($"{msg} and it will be disconnected");
                             invalidConsumers.Add(consumer.Value.Subscriber);
