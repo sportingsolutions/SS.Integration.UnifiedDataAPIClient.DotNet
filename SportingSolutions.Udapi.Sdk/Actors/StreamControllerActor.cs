@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
@@ -45,28 +47,27 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
 
         public const string ActorName = "StreamControllerActor";
-        public int timeoutCounter = 0;
-        public const int TimeoutCounterLimit = 20;
+        private int _processNewConsumerErrorCounter = 0;
+        public const int NewConsumerErrorLimit = 5;
+        public const int NewConsumerErrorLimitForConsumer = 3;
         private static ICancelable _validateCancellation;
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamControllerActor));
         protected IConnection _streamConnection;
         private volatile ConnectionState _state;
         private readonly ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
+        private Dictionary<string, int> _newConsumerErrorsCount = new Dictionary<string, int>();
 
 
         public StreamControllerActor(IActorRef dispatcherActor)
         {
-            if (dispatcherActor == null)
-                throw new ArgumentNullException("dispatcher");
-
-            Dispatcher = dispatcherActor;
-            timeoutCounter = 0;
+            Dispatcher = dispatcherActor ?? throw new ArgumentNullException("dispatcher");
+            _processNewConsumerErrorCounter = 0;
             //Start in Disconnected state
             DisconnectedState();
 
             AutoReconnect = UDAPI.Configuration.AutoReconnect;
             CancelValidationMessages();
-            _validateCancellation= Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(60000, 60000, Self, new ValidateStateMessage(), Self);
+            _validateCancellation= Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(10000, 10000, Self, new ValidateStateMessage(), Self);
 
             _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
         }
@@ -149,15 +150,26 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _logger.Info("Moved to ConnectedState");
 
             Receive<ValidationStartMessage>(x => ValidationStart(x));
-            Receive<NewConsumerMessage>(x => ProcessNewConsumer(x));
+            Receive<NewConsumerMessage>(x =>
+            {
+                if (ValidateNewConsumerCanBeProcessed(x.Consumer))
+                {
+                    NewConsumerHandler(x);
+                }
+                else
+                {
+                    Stash.Stash();
+                }
+            });
             Receive<DisconnectedMessage>(x => DisconnectedHandler(x));
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
             Receive<ValidateConnectionMessage>(x => ValidateConnection(x));
             Receive<ValidateStateMessage>(x => ValidateState(x));
 
-            Stash.UnstashAll();
             State = ConnectionState.CONNECTED;
+            Stash.UnstashAll();
+            
         }
 
         private void ValidationStart(ValidationStartMessage validationStartMessage)
@@ -175,59 +187,154 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 , ActorRefs.NoSender);
         }
 
-        private void ProcessNewConsumer(NewConsumerMessage newConsumerMessage)
+
+
+        private DisconnectedMessage DefaultDisconnectedMessage => new DisconnectedMessage {IDConnection = _streamConnection?.GetHashCode()};
+
+
+        
+
+        private void NewConsumerHandler(NewConsumerMessage newConsumerMessage)
         {
-            var consumer = newConsumerMessage.Consumer;
-            if (consumer == null)
+            if (ProcessNewConsumer(newConsumerMessage.Consumer ))
             {
-                _logger.Warn("Method=ProcessNewConsumer Consumer is null");
+                HandleNewConsumerMessageProcessed(newConsumerMessage);
+            }
+            else
+            {
+                HandleNewConsumerMessageUnprocessed(newConsumerMessage);                
+            }
+        }
+
+        private void HandleNewConsumerMessageProcessed(NewConsumerMessage newConsumerMessage)
+        {
+            var fixtureId = newConsumerMessage?.Consumer?.Id;
+
+            if (fixtureId == null)
+            {
+                _logger.Warn("HandleNewConsumerMessageProcessed failed as fixtureId=NULL");
                 return;
             }
-            _logger.Debug($"Method=ProcessNewConsumer triggered consumr={consumer.Id}");
+
+            if (_newConsumerErrorsCount.ContainsKey(fixtureId))
+            {
+                _newConsumerErrorsCount.Remove(fixtureId);
+            }
+        }
+
+        private void HandleNewConsumerMessageUnprocessed(NewConsumerMessage newConsumerMessage)
+        {
+            var fixtureId = newConsumerMessage?.Consumer?.Id;
+
+            if (fixtureId == null)
+            {
+                _logger.Warn("HandleNewConsumerMessageUnprocessed failed as fixtureId=NULL");
+                return;
+            }
+
+            if (_newConsumerErrorsCount.ContainsKey(fixtureId))
+            {
+                _newConsumerErrorsCount[fixtureId] = _newConsumerErrorsCount[fixtureId] + 1;
+            }
+            else
+            {
+                _newConsumerErrorsCount[fixtureId] = 1;
+            }
+
+
+            if (_newConsumerErrorsCount[fixtureId] > NewConsumerErrorLimitForConsumer)
+            {
+                _logger.Warn($"HandleNewConsumerMessageUnprocessed message will not be resend for fixtureId={fixtureId}");
+            }
+            else
+            {
+                _logger.Warn($"HandleNewConsumerMessageUnprocessed message will be resend for fixtureId={fixtureId}");
+                SdkActorSystem.ActorSystem.Scheduler.ScheduleTellOnce(TimeSpan.FromSeconds(10), Self, newConsumerMessage, Self);
+
+            }
+        }
+
+        private bool ProcessNewConsumer(IConsumer consumer)
+        {
+            _logger.Debug($"Method=ProcessNewConsumer triggered fixtureId={consumer?.Id} currentState={State.ToString()} connectionStatus={ConnectionStatus} ");
 
             var queue = consumer.GetQueueDetails();
 
             if (string.IsNullOrEmpty(queue?.Name))
             {
                 _logger.Warn("Method=ProcessNewConsumer Invalid queue details");
-                return;
+                return false;
             }
 
-            if (_streamConnection == null)
+
+            IModel model;
+            try
             {
-                _logger.Warn($"Method=ProcessNewConsumer StreamConnection is null currentState={State.ToString()}");
-                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
-                Self.Tell(newConsumerMessage);
-                return;
+                model = _streamConnection.CreateModel();
             }
-
-            if (!_streamConnection.IsOpen)
+            catch (Exception e)
             {
-                _logger.Warn($"Method=ProcessNewConsumer StreamConnection is closed currentState={State.ToString()}");
-                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
-                Self.Tell(newConsumerMessage);
-                return;
+                _processNewConsumerErrorCounter++;
+                _logger.Warn(
+                    $"Method=ProcessNewConsumer CreateModel errored errorsCout={_processNewConsumerErrorCounter} for fixtureId={consumer.Id} {e}");
+                if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
+                    ProcessNewConsumerErrorHandler(e);
+                return false;
             }
-
-            var model = _streamConnection.CreateModel();
 
             StreamSubscriber subscriber = null;
 
             try
             {
                 subscriber = new StreamSubscriber(model, consumer, Dispatcher);
+                //TODO rem
+                var rnd = new Random((int)DateTime.Now.Ticks);
+                if (rnd.Next(3) == 2)
+                    throw new Exception("TestProcessNewConsumerException");
                 subscriber.StartConsuming(queue.Name);
             }
             catch (Exception e)
             {
-                if (subscriber != null)
-                    subscriber.Dispose();
-                timeoutCounter++;
-                _logger.Warn($"Method=ProcessNewConsumer StartConsuming errored for consumerId={consumer.Id} {e}");
-                if (timeoutCounter > TimeoutCounterLimit)
-                    throw;
+                _processNewConsumerErrorCounter++;
+                subscriber?.Dispose();
+                _logger.Warn(
+                    $"Method=ProcessNewConsumer StartConsuming errored errorsCout={_processNewConsumerErrorCounter} for fixtureId={consumer.Id} {e}");
+                if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
+                    ProcessNewConsumerErrorHandler(e);
+                return false;
             }
+            
             _logger.Debug($"Method=ProcessNewConsumer successfully executed consumr={consumer.Id}");
+
+            _processNewConsumerErrorCounter = 0;
+            return true;
+        }
+
+        private bool ValidateNewConsumerCanBeProcessed(IConsumer consumer)
+        {
+            if (consumer == null)
+            {
+                _logger.Warn("Method=ProcessNewConsumer Consumer is null");
+                return false;
+            }
+
+            if (_streamConnection == null || !_streamConnection.IsOpen)
+            {
+                _logger.Warn(
+                    $"Method=ProcessNewConsumer connectionStatus={ConnectionStatus} {(_streamConnection == null ? "this should not happening" : "")}");
+                DisconnectedHandler(DefaultDisconnectedMessage);
+
+                return false;
+            }
+
+            return true;
+        }
+
+
+        private void ProcessNewConsumerErrorHandler(Exception e)
+        {
+            _logger.Error($"ProcessNewConsumer limit exceeded with errorsCout={_processNewConsumerErrorCounter}  disconnected event will be raised  {e}");
+            _processNewConsumerErrorCounter = 0;
         }
 
         /// <summary>
@@ -425,7 +532,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             
             if (!AutoReconnect)
             {
-                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(DefaultDisconnectedMessage);
             }
             else
             {
@@ -435,11 +542,23 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void ValidateState(ValidateStateMessage validateStateMessage)
         {
-            _logger.Warn($"Method=ValidateState  currentState={State.ToString()} connection={_streamConnection}");
-
+            var message = $"Method=ValidateState  currentState={State.ToString()} connectionStatus={ConnectionStatus} ";
+            
+            if (NeedRaiseDisconnect)
+            {
+                _logger.Warn($"{message} disconnected event will be raised");
+            }
+            else
+            {
+                _logger.Debug(message);
+            }
         }
 
-        private void DisconnectedHandler(DisconnectedMessage disconnectedMessage)
+        private bool NeedRaiseDisconnect => State == ConnectionState.CONNECTED && (_streamConnection == null || !_streamConnection.IsOpen);
+
+        private string ConnectionStatus => _streamConnection == null ? "NULL" : (_streamConnection.IsOpen ? "open" : "closed");
+
+        private void DisconnectedHandler(DisconnectedMessage disconnectedMessage )
         {
             _logger.Info($"Disconnect message received");
             if (State == ConnectionState.DISCONNECTED || State == ConnectionState.CONNECTING)
@@ -462,7 +581,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void DisconnecteOnDisconnectedHandler(DisconnectedMessage disconnectedMessage)
         {
-            _logger.Warn($"Disconnect message On Disconnected state received");
+            _logger.Warn($"Disconnect message On Disconnected state received messageConnectionHash={disconnectedMessage.IDConnection}");
         }
 
         private void ValidateConnection(ValidateConnectionMessage validateConnectionMessage)
@@ -551,9 +670,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 if (subscriber != null)
                     subscriber.Dispose();
-                timeoutCounter++;
+                _processNewConsumerErrorCounter++;
                 _logger.Warn($"Method=AddConsumerToQueue StartConsuming errored for consumerId={consumer.Id} {e}");
-                if (timeoutCounter > TimeoutCounterLimit)
+                if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
                     throw;
             }
             _logger.Debug($"Method=AddConsumerToQueue successfully executed consumr={consumer.Id}");

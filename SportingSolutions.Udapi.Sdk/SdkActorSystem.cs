@@ -38,7 +38,7 @@ namespace SportingSolutions.Udapi.Sdk
                     Props.Create(() => new UpdateDispatcherActor()),
                     UpdateDispatcherActor.ActorName);
                 ActorSystem.ActorOf(
-                    Props.Create(() => new StreamControllerActor(dispatcher)).WithMailbox("streamcontrolleractor-mailbox"),
+                    Props.Create(() => new StreamControllerActor(dispatcher)),
                     StreamControllerActor.ActorName);
                 ActorSystem.ActorOf(
                     Props.Create(() => new EchoControllerActor()),

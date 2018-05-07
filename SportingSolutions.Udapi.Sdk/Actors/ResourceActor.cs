@@ -30,7 +30,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         public ResourceActor(IConsumer resource)
             //: base(restItem, client)
         {
-            id = new Guid().ToString();
+            id = this.GetHashCode().ToString();
             _resource = resource;
             
             Logger = LogManager.GetLogger(typeof(ResourceActor).ToString());
@@ -90,11 +90,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         
 
-        public void StartStreaming()
-        {
-            //StartStreaming(DEFAULT_ECHO_INTERVAL_MS, DEFAULT_ECHO_MAX_DELAY_MS);
-        }
-
+        
         public void StartStreaming(int echoInterval, int echoMaxDelay)
         {
             Logger.Debug($"resourceActorId={id} REQUESTING Streaming request for fixtureName=\"{((IResource)_resource)?.Name}\" fixtureId=\"{Id}\"");
