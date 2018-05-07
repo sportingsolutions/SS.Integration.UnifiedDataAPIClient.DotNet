@@ -64,7 +64,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             //Start in Disconnected state
             DisconnectedState();
 
-            //AutoReconnect = UDAPI.Configuration.AutoReconnect;
+            AutoReconnect = UDAPI.Configuration.AutoReconnect;
             CancelValidationMessages();
             _validateCancellation= Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(60000, 60000, Self, new ValidateStateMessage(), Self);
 
@@ -197,7 +197,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _logger.Warn($"Method=ProcessNewConsumer StreamConnection is null currentState={State.ToString()}");
                 Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
-                //Stash.Stash();
+                Self.Tell(newConsumerMessage);
                 return;
             }
 
@@ -205,7 +205,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _logger.Warn($"Method=ProcessNewConsumer StreamConnection is closed currentState={State.ToString()}");
                 Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
-                //Stash.Stash();
+                Self.Tell(newConsumerMessage);
                 return;
             }
 
@@ -597,7 +597,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         }
 
-        private class DisconnectedMessage
+        public class DisconnectedMessage
         {
             public int? IDConnection { get; set; }
         }

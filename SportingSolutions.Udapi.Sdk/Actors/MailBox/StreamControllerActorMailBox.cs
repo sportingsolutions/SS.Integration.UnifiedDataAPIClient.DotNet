@@ -22,13 +22,14 @@ namespace SportingSolutions.Udapi.Sdk.Actors.MailBox
 
         protected override int PriorityGenerator(object message)
         {
-            _logger.Debug("StreamControlerActorMailBox.PriorityGenerator entry");
-            if (message as DisconnectMessage != null)
+            var messageType = message.GetType();
+            _logger.Debug($"StreamControlerActorMailBox.PriorityGenerator entry with messageType={messageType}");
+            if (message is StreamControllerActor.DisconnectedMessage)
             {
-                _logger.Debug("StreamControlerActorMailBox.PriorityGenerator prioryty=0");
+                _logger.Debug($"StreamControlerActorMailBox.PriorityGenerator priority=0 with messageType={messageType}");
                 return 0;
             }
-            _logger.Debug("StreamControlerActorMailBox.PriorityGenerator prioryty=1");
+            _logger.Debug($"StreamControlerActorMailBox.PriorityGenerator priority=1 with messageType={messageType}");
             return 1;
         }
     }
