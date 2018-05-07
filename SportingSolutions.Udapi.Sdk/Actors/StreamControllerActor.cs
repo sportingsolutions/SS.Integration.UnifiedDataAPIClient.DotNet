@@ -336,6 +336,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private void ProcessNewConsumerErrorHandler(Exception e)
         {
             _logger.Error($"ProcessNewConsumer limit exceeded with errorsCout={_processNewConsumerErrorCounter}  disconnected event will be raised  {e}");
+            if (UDAPI.Configuration.UseStreamControllerMailbox)
+                Self.Tell(DefaultDisconnectedMessage);
+            else
+                DisconnectedHandler(DefaultDisconnectedMessage);
             _processNewConsumerErrorCounter = 0;
         }
 
