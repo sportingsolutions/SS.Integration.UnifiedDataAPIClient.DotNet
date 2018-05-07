@@ -318,6 +318,15 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _logger.Warn(
                     $"Method=ProcessNewConsumer connectionStatus={ConnectionStatus} {(_streamConnection == null ? "this should not happening" : "")}");
+
+
+                if (UDAPI.Configuration.UseStreamControllerMailbox)
+                    Self.Tell(DefaultDisconnectedMessage);
+                else
+                    DisconnectedHandler(DefaultDisconnectedMessage);
+
+
+
                 DisconnectedHandler(DefaultDisconnectedMessage);
 
                 return false;
