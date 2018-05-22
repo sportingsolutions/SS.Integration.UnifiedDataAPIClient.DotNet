@@ -300,7 +300,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 return false;
             }
             
-            _logger.Debug($"Method=ProcessNewConsumer successfully executed consumr={consumer.Id}");
+            _logger.Debug($"Method=ProcessNewConsumer successfully executed fixtureId={consumer.Id}");
 
             _processNewConsumerErrorCounter = 0;
             return true;
@@ -501,14 +501,14 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 queue = consumer.GetQueueDetails();
                 if (queue == null || string.IsNullOrEmpty(queue.Name))
                 {
-                    var e = new Exception("queue's name is not valid for consumerId=" + consumer.Id);
+                    var e = new Exception("queue's name is not valid for fixtureId=" + consumer.Id);
                     ConnectionError = e;
                     throw e;
                 }
             }
             catch (Exception e)
             {
-                _logger.Error("Error acquiring queue details for consumerId=" + consumer.Id, e);
+                _logger.Error("Error acquiring queue details for fixtureId=" + consumer.Id, e);
                 ConnectionError = e;
                 throw;
             }
@@ -631,7 +631,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.Warn("Method=AddConsumerToQueue Consumer is null");
                 return;
             }
-            _logger.Debug($"Method=AddConsumerToQueue triggered consumr={consumer.Id}");
+            _logger.Debug($"Method=AddConsumerToQueue triggered fixtureId={consumer.Id}");
 
             var queue = consumer.GetQueueDetails();
 
@@ -672,11 +672,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 if (subscriber != null)
                     subscriber.Dispose();
                 _processNewConsumerErrorCounter++;
-                _logger.Warn($"Method=AddConsumerToQueue StartConsuming errored for consumerId={consumer.Id} {e}");
+                _logger.Warn($"Method=AddConsumerToQueue StartConsuming errored for fixtureId={consumer.Id} {e}");
                 if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
                     throw;
             }
-            _logger.Debug($"Method=AddConsumerToQueue successfully executed consumr={consumer.Id}");
+            _logger.Debug($"Method=AddConsumerToQueue successfully executed fixtureId={consumer.Id}");
         }
 
         public void RemoveConsumer(IConsumer consumer)
