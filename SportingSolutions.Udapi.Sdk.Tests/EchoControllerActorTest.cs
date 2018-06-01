@@ -240,8 +240,14 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var echoMessage = new EchoMessage() {Id = Id2};
 
             testing.Tell(sendEchoMessage);
+            
             testing.Tell(echoMessage);
-            for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
+
+            testing.Tell(sendEchoMessage);
+            
+            testing.Tell(echoMessage);
+            
+            for (int i = 0; i < UDAPI.Configuration.MissedEchos-1; i++)
             {
                 testing.Tell(sendEchoMessage);
             }
@@ -249,7 +255,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             AwaitAssert(() =>
                 {
                     testing.UnderlyingActor.ConsumerCount.Should().Be(1);
-                    //testing.UnderlyingActor.GetEchosCountDown(Id2).Should().Be(1);
+                    testing.UnderlyingActor.GetEchosCountDown(Id2).Should().Be(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
@@ -302,9 +308,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             testing.Tell(sendEchoMessage);
             testing.Tell(echoMessage);
+            testing.Tell(echoMessage);
 
-
-            for (int i = 0; i < UDAPI.Configuration.MissedEchos-1; i++)
+            for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
             {
                 testing.Tell(sendEchoMessage);
 
@@ -312,8 +318,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             AwaitAssert(() =>
                 {
-                    sendEchoCallCount1.Should().Be(UDAPI.Configuration.MissedEchos);
-                    //sendEchoCallCount2.Should().Be(1);
+                   sendEchoCallCount2.Should().Be(1);
+                   sendEchoCallCount1.Should().Be(UDAPI.Configuration.MissedEchos);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));

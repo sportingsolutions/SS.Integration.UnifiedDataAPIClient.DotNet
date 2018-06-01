@@ -51,12 +51,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
         protected override void EstablishConnection(ConnectionFactory factory)
         {
             //ToDo replace this
-            //OnConnectionStatusChanged(ConnectionState.CONNECTED);
-            //setConnetionStatus();
+
            
             _streamConnection = StreamConnectionMock.Object;
-            setConnetionStatus();
-            //Become(ConnectedState)
+            Self.Tell(new ConnectedMessage());
         }
 
 

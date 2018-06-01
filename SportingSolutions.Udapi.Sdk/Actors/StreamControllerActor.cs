@@ -72,16 +72,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
         }
 
-        protected void  setConnetionStatus()
-        {
-            State = ConnectionState.CONNECTING;
-            Self.Tell(new ConnectedMessage());
-        }
-
-        protected void setDisconnetionStatus()
-        {
-            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new DisconnectedMessage());
-        }
+       
 
 
         private static void CancelValidationMessages()
@@ -157,7 +148,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         /// <summary>
         /// this is the state when the connection is open
         /// </summary>
-        protected void ConnectedState()
+        private void ConnectedState()
         {
             _logger.Info("Moved to ConnectedState");
 
@@ -584,8 +575,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.Warn($"DisconnectedHandler will not be executed as we are already in connection with connectionHash={_streamConnection?.GetHashCode()}, messageConnectionHash={disconnectedMessage?.IDConnection}");
             }
 
-            
-            Become(DisconnectedState);
+                        Become(DisconnectedState);
             CloseConnection();
             NotifyDispatcherConnectionError();
             EstablishConnection(_connectionFactory);
@@ -594,7 +584,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void DisconnecteOnDisconnectedHandler(DisconnectedMessage disconnectedMessage)
         {
-            State =State = ConnectionState.DISCONNECTED;
             _logger.Warn($"Disconnect message On Disconnected state received messageConnectionHash={disconnectedMessage.IDConnection}");
         }
 
