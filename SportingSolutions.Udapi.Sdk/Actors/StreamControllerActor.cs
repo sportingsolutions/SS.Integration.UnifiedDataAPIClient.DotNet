@@ -72,6 +72,18 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
         }
 
+        protected void  setConnetionStatus()
+        {
+            State = ConnectionState.CONNECTING;
+            Self.Tell(new ConnectedMessage());
+        }
+
+        protected void setDisconnetionStatus()
+        {
+            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new DisconnectedMessage());
+        }
+
+
         private static void CancelValidationMessages()
         {
 
@@ -116,7 +128,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<ValidateStateMessage>(x => ValidateState(x));
             Receive<DisconnectedMessage>(x => DisconnecteOnDisconnectedHandler(x));
 
-            State = ConnectionState.DISCONNECTED;
+             State = ConnectionState.DISCONNECTED;
         }
 
 
@@ -145,7 +157,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         /// <summary>
         /// this is the state when the connection is open
         /// </summary>
-        private void ConnectedState()
+        protected void ConnectedState()
         {
             _logger.Info("Moved to ConnectedState");
 
@@ -301,7 +313,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
             
             _logger.Debug($"Method=ProcessNewConsumer successfully executed fixtureId={consumer.Id}");
-
+            
             _processNewConsumerErrorCounter = 0;
             return true;
         }
@@ -490,7 +502,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
             
             CreateConectionFactory(consumer);
-            EstablishConnection(_connectionFactory);
+             EstablishConnection(_connectionFactory);
         }
 
         private void CreateConectionFactory(IConsumer consumer)
@@ -582,6 +594,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void DisconnecteOnDisconnectedHandler(DisconnectedMessage disconnectedMessage)
         {
+            State =State = ConnectionState.DISCONNECTED;
             _logger.Warn($"Disconnect message On Disconnected state received messageConnectionHash={disconnectedMessage.IDConnection}");
         }
 
@@ -712,7 +725,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         #endregion
 
         #region Private messages
-        private class ConnectedMessage
+        public class ConnectedMessage
         {
 
         }
