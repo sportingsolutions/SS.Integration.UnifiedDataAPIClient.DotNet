@@ -712,7 +712,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         #endregion
 
         #region Private messages
-        private class ConnectedMessage
+        public class ConnectedMessage
         {
 
         }

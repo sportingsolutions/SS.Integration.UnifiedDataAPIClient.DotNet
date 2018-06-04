@@ -18,6 +18,7 @@ using Moq;
 using RabbitMQ.Client;
 using SportingSolutions.Udapi.Sdk.Actors;
 using SportingSolutions.Udapi.Sdk.Interfaces;
+using SportingSolutions.Udapi.Sdk.Model.Message;
 
 namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
 {
@@ -30,6 +31,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
             : base(dispatcher)
         {
             Instance = this;
+            
+            StreamConnectionMock.Setup(x => x.CreateModel()).Returns(new Mock<IModel>().Object);
+
+            
         }
 
         public static StreamControllerActor Instance { get; set; }
@@ -41,12 +46,18 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
             base.CloseConnection();
         }
 
+  
+        
         protected override void EstablishConnection(ConnectionFactory factory)
         {
             //ToDo replace this
-            //OnConnectionStatusChanged(ConnectionState.CONNECTED);
+
+           
             _streamConnection = StreamConnectionMock.Object;
+            Self.Tell(new ConnectedMessage());
         }
+
+
 
         protected override void AddConsumerToQueue(IConsumer consumer)
         {
