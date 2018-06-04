@@ -71,8 +71,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
         }
-
-       
+        
 
 
         private static void CancelValidationMessages()
@@ -575,11 +574,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.Warn($"DisconnectedHandler will not be executed as we are already in connection with connectionHash={_streamConnection?.GetHashCode()}, messageConnectionHash={disconnectedMessage?.IDConnection}");
             }
 
-                        Become(DisconnectedState);
+            Become(DisconnectedState);
             CloseConnection();
             NotifyDispatcherConnectionError();
             EstablishConnection(_connectionFactory);
-            
         }
 
         private void DisconnecteOnDisconnectedHandler(DisconnectedMessage disconnectedMessage)
