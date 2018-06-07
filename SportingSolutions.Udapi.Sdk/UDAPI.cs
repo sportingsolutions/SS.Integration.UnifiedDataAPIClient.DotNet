@@ -28,7 +28,6 @@ namespace SportingSolutions.Udapi.Sdk
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
             Configuration = Clients.Configuration.Instance;
-            SdkActorSystem.Init();
         }
 
         public static void Init()
@@ -39,6 +38,7 @@ namespace SportingSolutions.Udapi.Sdk
         public static void Init(IConfiguration configuration)
         {
             Configuration = configuration ?? Clients.Configuration.Instance;
+            SdkActorSystem.Init();
         }
 
         public static void Dispose()

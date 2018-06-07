@@ -62,6 +62,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         /// </summary>
         bool AutoReconnect { get;  }
 
+        
         int DisconnectionDelay { get; }
     }
 }

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
@@ -34,7 +36,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
     /// </summary>
     internal class StreamControllerActor : ReceiveActor, IWithUnboundedStash
     {
-        public const string ActorName = "StreamControllerActor";
+
 
         internal enum ConnectionState
         {
@@ -43,26 +45,41 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             CONNECTED = 2
         }
 
-        private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamControllerActor));
 
+        public const string ActorName = "StreamControllerActor";
+        private int _processNewConsumerErrorCounter = 0;
+        public const int NewConsumerErrorLimit = 5;
+        public const int NewConsumerErrorLimitForConsumer = 3;
+        private static ICancelable _validateCancellation;
+        private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamControllerActor));
         protected IConnection _streamConnection;
         private volatile ConnectionState _state;
-        private ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
+        private readonly ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
+        private Dictionary<string, int> _newConsumerErrorsCount = new Dictionary<string, int>();
 
 
         public StreamControllerActor(IActorRef dispatcherActor)
         {
-            if (dispatcherActor == null)
-                throw new ArgumentNullException("dispatcher");
-
-            Dispatcher = dispatcherActor;
-
+            Dispatcher = dispatcherActor ?? throw new ArgumentNullException("dispatcher");
+            _processNewConsumerErrorCounter = 0;
             //Start in Disconnected state
             DisconnectedState();
 
             AutoReconnect = UDAPI.Configuration.AutoReconnect;
+            CancelValidationMessages();
+            _validateCancellation= Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(10000, 10000, Self, new ValidateStateMessage(), Self);
 
-            _logger.DebugFormat("StreamController initialised");
+            _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
+        }
+
+        private static void CancelValidationMessages()
+        {
+
+            if (_validateCancellation == null)
+                return;
+            _logger.Debug("CancelValidationMessages triggered");
+            _validateCancellation.Cancel();
+            _validateCancellation = null;
         }
 
         protected override void PreRestart(Exception reason, object message)
@@ -72,7 +89,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 (message != null
                     ? $" last processing messageType={message.GetType().Name}"
                     : ""));
-            base.PreRestart(reason, message);
+
+            CancelValidationMessages();
+
+            base.PreRestart(reason, new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
         }
 
         /// <summary>
@@ -82,22 +102,25 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             _logger.Info("Moved to DisconnectedState");
 
-            Receive<ConnectStreamMessage>(x => ConnectStream(x));
-            Receive<ValidateMessage>(x => ValidateConnection(x));
-
+            Receive<ValidateConnectionMessage>(x => ValidateConnection(x));
             Receive<ConnectedMessage>(x => Become(ConnectedState));
 
             Receive<NewConsumerMessage>(x =>
             {
                 Stash.Stash();
-                Connect(x.Consumer);
+                GetQueueDetailsAndEstablisConnection(x.Consumer);
 
             });
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
+            Receive<ValidateStateMessage>(x => ValidateState(x));
+            Receive<DisconnectedMessage>(x => DisconnecteOnDisconnectedHandler(x));
 
             State = ConnectionState.DISCONNECTED;
         }
+
+
+
 
         /// <summary>
         /// this is the state when the connection is being automatically recovered by RabbitMQ
@@ -106,15 +129,18 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             _logger.Info("Moved to ValidationState");
 
-            Receive<DisconnectedMessage>(x => Become(DisconnectedState));
-            Receive<ValidateMessage>(x => ValidateConnection(x));
+            Receive<DisconnectedMessage>(x => DisconnectedHandler(x));
+            Receive<ValidateConnectionMessage>(x => ValidateConnection(x));
             Receive<ValidationSucceededMessage>(x => Become(ConnectedState));
             Receive<NewConsumerMessage>(x => Stash.Stash());
             Receive<RemoveConsumerMessage>(x => Stash.Stash());
             Receive<DisposeMessage>(x => Dispose());
+            Receive<ValidateStateMessage>(x => ValidateState(x));
 
             State = ConnectionState.DISCONNECTED;
         }
+
+
 
         /// <summary>
         /// this is the state when the connection is open
@@ -124,19 +150,31 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _logger.Info("Moved to ConnectedState");
 
             Receive<ValidationStartMessage>(x => ValidationStart(x));
-            Receive<NewConsumerMessage>(x => ProcessNewConsumer(x));
-            Receive<DisconnectedMessage>(x => Become(DisconnectedState));
+            Receive<NewConsumerMessage>(x =>
+            {
+                if (ValidateNewConsumerCanBeProcessed(x.Consumer))
+                {
+                    NewConsumerHandler(x);
+                }
+                else
+                {
+                    Stash.Stash();
+                }
+            });
+            Receive<DisconnectedMessage>(x => DisconnectedHandler(x));
             Receive<RemoveConsumerMessage>(x => RemoveConsumer(x.Consumer));
             Receive<DisposeMessage>(x => Dispose());
-            Receive<ValidateMessage>(x => ValidateConnection(x));
-
-            Stash.UnstashAll();
+            Receive<ValidateConnectionMessage>(x => ValidateConnection(x));
+            Receive<ValidateStateMessage>(x => ValidateState(x));
 
             State = ConnectionState.CONNECTED;
+            Stash.UnstashAll();
+            
         }
 
         private void ValidationStart(ValidationStartMessage validationStartMessage)
         {
+            _logger.Debug("ValidationStart triggered");
             Become(ValidationState);
 
             //schedule check in the near future (10s by default) whether the connection has recovered
@@ -145,13 +183,158 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             SdkActorSystem.ActorSystem.Scheduler.ScheduleTellOnce(
                 TimeSpan.FromSeconds(UDAPI.Configuration.DisconnectionDelay)
                 , SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath)
-                , new ValidateMessage()
+                , new ValidateConnectionMessage()
                 , ActorRefs.NoSender);
         }
 
-        private void ProcessNewConsumer(NewConsumerMessage newConsumerMessage)
+
+
+        private DisconnectedMessage DefaultDisconnectedMessage => new DisconnectedMessage {IDConnection = _streamConnection?.GetHashCode()};
+
+
+        
+
+        private void NewConsumerHandler(NewConsumerMessage newConsumerMessage)
         {
-            AddConsumerToQueue(newConsumerMessage.Consumer);
+            if (ProcessNewConsumer(newConsumerMessage.Consumer ))
+            {
+                HandleNewConsumerMessageProcessed(newConsumerMessage);
+            }
+            else
+            {
+                HandleNewConsumerMessageUnprocessed(newConsumerMessage);                
+            }
+        }
+
+        private void HandleNewConsumerMessageProcessed(NewConsumerMessage newConsumerMessage)
+        {
+            var fixtureId = newConsumerMessage?.Consumer?.Id;
+
+            if (fixtureId == null)
+            {
+                _logger.Warn("HandleNewConsumerMessageProcessed failed as fixtureId=NULL");
+                return;
+            }
+
+            if (_newConsumerErrorsCount.ContainsKey(fixtureId))
+            {
+                _newConsumerErrorsCount.Remove(fixtureId);
+            }
+        }
+
+        private void HandleNewConsumerMessageUnprocessed(NewConsumerMessage newConsumerMessage)
+        {
+            var fixtureId = newConsumerMessage?.Consumer?.Id;
+
+            if (fixtureId == null)
+            {
+                _logger.Warn("HandleNewConsumerMessageUnprocessed failed as fixtureId=NULL");
+                return;
+            }
+
+            if (_newConsumerErrorsCount.ContainsKey(fixtureId))
+            {
+                _newConsumerErrorsCount[fixtureId] = _newConsumerErrorsCount[fixtureId] + 1;
+            }
+            else
+            {
+                _newConsumerErrorsCount[fixtureId] = 1;
+            }
+
+
+            if (_newConsumerErrorsCount[fixtureId] > NewConsumerErrorLimitForConsumer)
+            {
+                _logger.Warn($"HandleNewConsumerMessageUnprocessed message will not be resend for fixtureId={fixtureId}");
+            }
+            else
+            {
+                _logger.Warn($"HandleNewConsumerMessageUnprocessed message will be resend for fixtureId={fixtureId}");
+                SdkActorSystem.ActorSystem.Scheduler.ScheduleTellOnce(TimeSpan.FromSeconds(10), Self, newConsumerMessage, Self);
+
+            }
+        }
+
+        private bool ProcessNewConsumer(IConsumer consumer)
+        {
+            _logger.Debug($"Method=ProcessNewConsumer triggered fixtureId={consumer?.Id} currentState={State.ToString()} connectionStatus={ConnectionStatus} ");
+
+            var queue = consumer.GetQueueDetails();
+
+            if (string.IsNullOrEmpty(queue?.Name))
+            {
+                _logger.Warn("Method=ProcessNewConsumer Invalid queue details");
+                return false;
+            }
+
+
+            IModel model;
+            try
+            {
+                model = _streamConnection.CreateModel();
+            }
+            catch (Exception e)
+            {
+                _processNewConsumerErrorCounter++;
+                _logger.Warn(
+                    $"Method=ProcessNewConsumer CreateModel errored errorsCout={_processNewConsumerErrorCounter} for fixtureId={consumer.Id} {e}");
+                if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
+                    ProcessNewConsumerErrorHandler(e);
+                return false;
+            }
+
+            StreamSubscriber subscriber = null;
+
+            try
+            {
+                subscriber = new StreamSubscriber(model, consumer, Dispatcher);
+                subscriber.StartConsuming(queue.Name);
+            }
+            catch (Exception e)
+            {
+                _processNewConsumerErrorCounter++;
+                subscriber?.Dispose();
+                _logger.Warn(
+                    $"Method=ProcessNewConsumer StartConsuming errored errorsCout={_processNewConsumerErrorCounter} for fixtureId={consumer.Id} {e}");
+                if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
+                    ProcessNewConsumerErrorHandler(e);
+                return false;
+            }
+            
+            _logger.Debug($"Method=ProcessNewConsumer successfully executed fixtureId={consumer.Id}");
+
+            _processNewConsumerErrorCounter = 0;
+            return true;
+        }
+
+        private bool ValidateNewConsumerCanBeProcessed(IConsumer consumer)
+        {
+            if (consumer == null)
+            {
+                _logger.Warn("Method=ProcessNewConsumer Consumer is null");
+                return false;
+            }
+
+            if (_streamConnection == null || !_streamConnection.IsOpen)
+            {
+                _logger.Warn(
+                    $"Method=ProcessNewConsumer connectionStatus={ConnectionStatus} {(_streamConnection == null ? "this should not happening" : "")}");
+
+
+               DisconnectedHandler(DefaultDisconnectedMessage);
+                
+
+                return false;
+            }
+
+            return true;
+        }
+
+
+        private void ProcessNewConsumerErrorHandler(Exception e)
+        {
+            _logger.Error($"ProcessNewConsumer limit exceeded with errorsCout={_processNewConsumerErrorCounter}  disconnected event will be raised  {e}");
+            DisconnectedHandler(DefaultDisconnectedMessage);
+            _processNewConsumerErrorCounter = 0;
         }
 
         /// <summary>
@@ -172,48 +355,71 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         public IStash Stash { get; set; }
 
         internal Exception ConnectionError;
+        private ConnectionFactory _connectionFactory;
 
         internal ConnectionState State
         {
-            get
-            {
-                // as it is volatile, reading this property is thread-safe
-                return _state;
-            }
-            private set
-            {
-                _state = value;
-            }
+            get => _state;
+            private set => _state = value;
         }
 
         #region Connection management
 
         protected virtual void CloseConnection()
         {
+            if (_streamConnection != null)
+            {
+                _logger.Debug($"CloseConnection triggered {_streamConnection}");
+                try
+                {
+                    {
+                        _streamConnection.ConnectionShutdown -= OnConnectionShutdown;
+                        if (_streamConnection.IsOpen)
+                        {
+                            _streamConnection.Close();
+                            _logger.Debug("Connection Closed");
+                        }
+                        
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.Warn($"Failed to close connection {e}");
+                }
+
+                try
+                {
+                    {
+                        _streamConnection.Dispose();
+                        _logger.Debug("Connection Disposed");
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.Warn($"Failed to dispose connection {e}");
+                }
+                _streamConnection = null;
+
+            }
+            else
+            {
+                _logger.Debug("No need to CloseConnection");
+            }
+
+
+
+        }
+
+        protected void NotifyDispatcherConnectionError()
+        {
             try
             {
-                if (_streamConnection != null)
-                {
-                    _streamConnection.ConnectionShutdown -= OnConnectionShutdown;
-                    if (_streamConnection.IsOpen)
-                        _streamConnection.Close();
-                    _streamConnection.Dispose();
-                    _streamConnection = null;
-                }
-            }
-            // }
-            catch
-            {
-            }
-            finally
-            {
-                _streamConnection = null;
                 Dispatcher.Tell(new RemoveAllSubscribers());
             }
-
-            OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
-
-
+            catch (Exception e)
+            {
+                _logger.Warn($"Failed to tell diapstcher RemoveAllSubscribers diapstcher={Dispatcher}");
+            }
         }
 
         protected virtual void EstablishConnection(ConnectionFactory factory)
@@ -229,118 +435,157 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             // _connectionLock must be acquire before calling
             // this method.
 
-            var newstate = ConnectionState.DISCONNECTED;
+            _logger.DebugFormat("Connecting to the streaming server");
 
-            try
+            if (factory == null)
             {
-                _logger.DebugFormat("Connecting to the streaming server");
-
-                long attempt = 1;
-                bool result = false;
-                while (!_connectionCancellation.IsCancellationRequested && !result)
-                {
-                    _logger.DebugFormat("Establishing connection to the streaming server, attempt={0}", attempt);
-
-                    try
-                    {
-                        _streamConnection = factory.CreateConnection();
-                        _streamConnection.ConnectionShutdown += OnConnectionShutdown;
-
-                        _logger.Info("Connection to the streaming server correctly established");
-
-                        newstate = ConnectionState.CONNECTED;
-                        result = true;
-
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error("Error connecting to the streaming server", ex);
-                        Thread.Sleep(100);
-                    }
-
-                    attempt++;
-                }
-            }
-            finally
-            {
-                // notify any sleeping threads
-                OnConnectionStatusChanged(newstate);
-            }
-        }
-
-        private void ConnectStream(ConnectStreamMessage connectStreamMessage)
-        {
-            Connect(connectStreamMessage.Consumer);
-        }
-
-        private void Connect(IConsumer consumer)
-        {
-            if (State == ConnectionState.CONNECTED) return;
-
-            if (State == ConnectionState.CONNECTED || _connectionCancellation.IsCancellationRequested)
+                _logger.Warn("Connecting to the streaming server Failed as connectionFactory=NULL");
                 return;
+            }
 
             State = ConnectionState.CONNECTING;
 
-            // GetQueueDetails() returns the credentials for connecting to the AMQP server
-            // but it also asks the server to create an AMQP queue for the caller.
-            // As the time to establish a connection could take a while (just think about
-            // a not reliable network), the created AMQP queue could expire before we 
-            // call BasicConsume() on it. 
-            //
-            // To prevent this situation, we call GetQueueDetails() twice for the consumer
-            // who establish the connection, one here, and the second time on  
-            // AddConsumeToQueue()
+            long attempt = 1;
+            while (!_connectionCancellation.IsCancellationRequested)
+            {
+                _logger.DebugFormat("Establishing connection to the streaming server, attempt={0}", attempt);
 
+                try
+                {
+                    _streamConnection = factory.CreateConnection();
+                    _streamConnection.ConnectionShutdown += OnConnectionShutdown;
+
+                    _logger.Info("Connection to the streaming server correctly established");
+
+                    Self.Tell(new ConnectedMessage());
+                    return;
+
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error("Error connecting to the streaming server", ex);
+                    Thread.Sleep(100);
+                }
+
+                attempt++;
+            }
+
+            State = ConnectionState.DISCONNECTED;
+
+
+        }
+
+        
+
+        private void GetQueueDetailsAndEstablisConnection(IConsumer consumer)
+        {
+            _logger.Debug($"GetQueueDetailsAndEstablisConnection triggered state={State} isCancellationRequested={_connectionCancellation.IsCancellationRequested}");
+
+
+            if (State == ConnectionState.CONNECTED || State == ConnectionState.CONNECTING ||
+                _connectionCancellation.IsCancellationRequested)
+            {
+                _logger.Info($"GetQueueDetailsAndEstablisConnection will not be executed state={State} isCancellationRequested={_connectionCancellation.IsCancellationRequested}");
+                return;
+            }
+            
+            CreateConectionFactory(consumer);
+            EstablishConnection(_connectionFactory);
+        }
+
+        private void CreateConectionFactory(IConsumer consumer)
+        {
             QueueDetails queue = null;
             try
             {
                 queue = consumer.GetQueueDetails();
                 if (queue == null || string.IsNullOrEmpty(queue.Name))
                 {
-                    var e = new Exception("queue's name is not valid for consumerId=" + consumer.Id);
+                    var e = new Exception("queue's name is not valid for fixtureId=" + consumer.Id);
                     ConnectionError = e;
                     throw e;
                 }
             }
             catch (Exception e)
             {
-                _logger.Error("Error acquiring queue details for consumerId=" + consumer.Id, e);
-                OnConnectionStatusChanged(ConnectionState.DISCONNECTED);
+                _logger.Error("Error acquiring queue details for fixtureId=" + consumer.Id, e);
                 ConnectionError = e;
                 throw;
             }
 
-            var factory = new ConnectionFactory
+            _connectionFactory = new ConnectionFactory
             {
                 RequestedHeartbeat = UDAPI.Configuration.AMQPMissedHeartbeat,
                 HostName = queue.Host,
-                AutomaticRecoveryEnabled = UDAPI.Configuration.AutoReconnect,
+                AutomaticRecoveryEnabled = AutoReconnect,
                 Port = queue.Port,
                 UserName = queue.UserName,
                 Password = queue.Password,
                 VirtualHost = "/" + queue.VirtualHost // this is not used anymore, we keep it for retro-compatibility
             };
-
-            EstablishConnection(factory);
         }
 
         internal virtual void OnConnectionShutdown(object sender, ShutdownEventArgs sea)
         {
-            _logger.ErrorFormat("The AMQP connection was shutdown: {0}. AutoReconnect is enabled={1}", sea, AutoReconnect);
+            _logger.Error($"The AMQP connection was shutdown. AutoReconnect is enabled={AutoReconnect}, sender={sender} {sea}");
 
+            
             if (!AutoReconnect)
             {
-                CloseConnection();
+                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(DefaultDisconnectedMessage);
             }
             else
             {
-                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath)
-                    .Tell(new ValidationStartMessage());
+                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new ValidationStartMessage());
             }
         }
 
-        private void ValidateConnection(ValidateMessage validateMessage)
+        private void ValidateState(ValidateStateMessage validateStateMessage)
+        {
+            var message = $"Method=ValidateState  currentState={State.ToString()} connectionStatus={ConnectionStatus} ";
+            
+            if (NeedRaiseDisconnect)
+            {
+                _logger.Warn($"{message} disconnected event will be raised");
+                DisconnectedHandler(DefaultDisconnectedMessage);
+            }
+            else
+            {
+                _logger.Debug(message);
+            }
+        }
+
+        private bool NeedRaiseDisconnect => State == ConnectionState.CONNECTED && (_streamConnection == null || !_streamConnection.IsOpen);
+
+        private string ConnectionStatus => _streamConnection == null ? "NULL" : (_streamConnection.IsOpen ? "open" : "closed");
+
+        private void DisconnectedHandler(DisconnectedMessage disconnectedMessage )
+        {
+            _logger.Info($"Disconnect message received");
+            if (State == ConnectionState.DISCONNECTED || State == ConnectionState.CONNECTING)
+            {
+                _logger.Warn($"DisconnectedHandler will not be executed as currentState={State}");
+            }
+
+            if (disconnectedMessage.IDConnection !=null && disconnectedMessage.IDConnection != _streamConnection?.GetHashCode())
+            {
+                _logger.Warn($"DisconnectedHandler will not be executed as we are already in connection with connectionHash={_streamConnection?.GetHashCode()}, messageConnectionHash={disconnectedMessage?.IDConnection}");
+            }
+
+            
+            Become(DisconnectedState);
+            CloseConnection();
+            NotifyDispatcherConnectionError();
+            EstablishConnection(_connectionFactory);
+            
+        }
+
+        private void DisconnecteOnDisconnectedHandler(DisconnectedMessage disconnectedMessage)
+        {
+            _logger.Warn($"Disconnect message On Disconnected state received messageConnectionHash={disconnectedMessage.IDConnection}");
+        }
+
+        private void ValidateConnection(ValidateConnectionMessage validateConnectionMessage)
         {
             //validate whether the reconnection was successful 
             _logger.InfoFormat("Starting validation for reconnection connHash={0}",
@@ -351,10 +596,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             if (testConnection == null)
             {
-                _logger.WarnFormat(
-                    "Reconnection failed, connection has been disposed, the disconnection event needs to be raised");
-                CloseConnection();
-                
+                _logger.WarnFormat("Reconnection failed, connection has been disposed, the disconnection event needs to be raised");
+                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+
                 return;
             }
 
@@ -369,32 +613,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
             else
             {
-                _logger.Warn(
-                    "Connection validation failed, connection is not open - calling CloseConnection() to dispose it");
-                CloseConnection();
+                _logger.Warn("Connection validation failed, connection is not open - calling CloseConnection() to dispose it");
+                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
             }
         }
-
-        protected virtual void OnConnectionStatusChanged(ConnectionState newState)
-        {
-            State = newState;
-            object message = null;
-
-            switch (newState)
-            {
-                case ConnectionState.DISCONNECTED:
-                    message = new DisconnectedMessage();
-                    break;
-                case ConnectionState.CONNECTED:
-                    message = new ConnectedMessage();
-                    ConnectionError = null;
-                    break;
-                case ConnectionState.CONNECTING:
-                    break;
-            }
-
-            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(message);
-        }
+        
 
         #endregion
 
@@ -402,10 +625,38 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected virtual void AddConsumerToQueue(IConsumer consumer)
         {
+            
+            if (consumer == null)
+            {
+                _logger.Warn("Method=AddConsumerToQueue Consumer is null");
+                return;
+            }
+            _logger.Debug($"Method=AddConsumerToQueue triggered fixtureId={consumer.Id}");
 
             var queue = consumer.GetQueueDetails();
+
             if (string.IsNullOrEmpty(queue?.Name))
-                throw new Exception("Invalid queue details");
+            {
+                _logger.Warn("Method=AddConsumerToQueue Invalid queue details");
+                return;
+            }
+
+
+            if (_streamConnection == null)
+            {
+                _logger.Warn($"Method=AddConsumerToQueue StreamConnection is null currentState={State.ToString()}");
+                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+                Stash.Stash();
+                return;
+            }
+
+            if (!_streamConnection.IsOpen)
+            {
+                _logger.Warn($"Method=AddConsumerToQueue StreamConnection is closed currentState={State.ToString()}");
+                Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
+                Stash.Stash();
+                return;
+            }
 
             var model = _streamConnection.CreateModel();
 
@@ -416,13 +667,16 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 subscriber = new StreamSubscriber(model, consumer, Dispatcher);
                 subscriber.StartConsuming(queue.Name);
             }
-            catch
+            catch (Exception e)
             {
                 if (subscriber != null)
                     subscriber.Dispose();
-
-                throw;
+                _processNewConsumerErrorCounter++;
+                _logger.Warn($"Method=AddConsumerToQueue StartConsuming errored for fixtureId={consumer.Id} {e}");
+                if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
+                    throw;
             }
+            _logger.Debug($"Method=AddConsumerToQueue successfully executed fixtureId={consumer.Id}");
         }
 
         public void RemoveConsumer(IConsumer consumer)
@@ -444,36 +698,31 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         #region IDisposable Members
 
-        public virtual void Shutdown()
+        public void Dispose()
         {
             _logger.Debug("Shutting down StreamController");
             _connectionCancellation.Cancel();
-
+            CancelValidationMessages();
             Dispatcher.Tell(new DisposeMessage());
-            CloseConnection();
+            Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
 
             _logger.Info("StreamController correctly disposed");
-        }
-
-        public void Dispose()
-        {
-            Shutdown();
         }
 
         #endregion
 
         #region Private messages
-        private class ConnectedMessage
+        public class ConnectedMessage
         {
 
         }
 
-        private class DisconnectedMessage
+        public class DisconnectedMessage
         {
-
+            public int? IDConnection { get; set; }
         }
 
-        private class ValidateMessage
+        private class ValidateConnectionMessage
         {
         }
 
@@ -483,6 +732,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private class ValidationSucceededMessage
         {
+        }
+
+        private class ValidateStateMessage
+        {
+
         }
 
         #endregion
