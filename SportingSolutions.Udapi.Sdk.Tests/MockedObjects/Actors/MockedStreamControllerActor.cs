@@ -43,12 +43,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
 
         public void ForceCloseConnection()
         {
-            base.CloseConnection();
+            base.CloseConnection(StreamConnectionMock.Object);
         }
 
   
         
-        protected override void EstablishConnection(ConnectionFactory factory)
+        protected override void EstablishConnection()
         {
             //ToDo replace this
 

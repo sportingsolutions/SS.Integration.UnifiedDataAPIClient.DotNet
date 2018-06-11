@@ -16,6 +16,7 @@ using Akka.Actor;
 using Akka.TestKit.NUnit;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
+using RabbitMQ.Client;
 
 namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects
 {
@@ -32,6 +33,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects
         public IConsumer Consumer { get; set; }
 
         public IActorRef Dispatcher { get; set; }
+
+        public void ChangeConnection(IModel newSlaveModel, bool isChangeMaster = false)
+        {
+
+        }
 
         public void StopConsuming()
         {
