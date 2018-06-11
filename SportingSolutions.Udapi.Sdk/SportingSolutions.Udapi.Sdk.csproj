@@ -119,6 +119,7 @@
     <Compile Include="Actors\EchoControllerActor.cs" />
     <Compile Include="Events\SdkErrorMessage.cs" />
     <Compile Include="Exceptions\EchoControllerActorException.cs" />
+    <Compile Include="Model\Message\ChangeConnectionMessage.cs" />
     <Compile Include="Model\Message\CriticalActorRestartedMessage.cs" />
     <Compile Include="Model\Message\DisposeMessage.cs" />
     <Compile Include="Model\Message\PathMessage.cs" />

@@ -36,7 +36,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
     /// </summary>
     internal class StreamControllerActor : ReceiveActor, IWithUnboundedStash
     {
-
+        
 
         internal enum ConnectionState
         {
@@ -53,6 +53,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private static ICancelable _validateCancellation;
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamControllerActor));
         protected IConnection _streamConnection;
+        protected IConnection _streamConnectionSlave;
         private volatile ConnectionState _state;
         private readonly ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
         private Dictionary<string, int> _newConsumerErrorsCount = new Dictionary<string, int>();
@@ -267,10 +268,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
 
 
-            IModel model;
+            IModel modelM, modelS;
             try
             {
-                model = _streamConnection.CreateModel();
+                modelM = _streamConnection.CreateModel();
+                modelS = _streamConnectionSlave.CreateModel();
+                
             }
             catch (Exception e)
             {
@@ -286,7 +289,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             try
             {
-                subscriber = new StreamSubscriber(model, consumer, Dispatcher);
+                subscriber = new StreamSubscriber(modelM, modelS, consumer, Dispatcher);
+                //subscriber = new StreamSubscriber(modelM, consumer, Dispatcher);
                 subscriber.StartConsuming(queue.Name);
             }
             catch (Exception e)
@@ -422,7 +426,35 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
         }
 
-        protected virtual void EstablishConnection(ConnectionFactory factory)
+        private void CreateMasterConnection()
+        {
+            try
+            {
+                _streamConnection = _connectionFactory.CreateConnection();
+                _streamConnection.ConnectionShutdown += OnConnectionShutdown;
+            }
+            catch(Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        private void CreateSlaveConnection()
+        {
+            try
+            {
+                _streamConnectionSlave = _connectionFactory.CreateConnection();
+                _streamConnectionSlave.ConnectionShutdown += OnConnectionShutdownSlave;
+            }
+            catch(Exception ex)
+            {
+                throw ex;
+            }
+        }
+        
+
+
+        protected virtual void EstablishConnection()
         {
             // this method doesn't quit until
             // 1) a connection is established
@@ -437,7 +469,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             _logger.DebugFormat("Connecting to the streaming server");
 
-            if (factory == null)
+            if (_connectionFactory == null)
             {
                 _logger.Warn("Connecting to the streaming server Failed as connectionFactory=NULL");
                 return;
@@ -452,8 +484,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
                 try
                 {
-                    _streamConnection = factory.CreateConnection();
-                    _streamConnection.ConnectionShutdown += OnConnectionShutdown;
+                    CreateMasterConnection();
+                    CreateSlaveConnection();
+                   
+                    
+                                      
+
 
                     _logger.Info("Connection to the streaming server correctly established");
 
@@ -490,7 +526,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
             
             CreateConectionFactory(consumer);
-            EstablishConnection(_connectionFactory);
+            EstablishConnection();
         }
 
         private void CreateConectionFactory(IConsumer consumer)
@@ -526,13 +562,46 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         }
 
         internal virtual void OnConnectionShutdown(object sender, ShutdownEventArgs sea)
+        {           
+            try
+            {
+                CreateSlaveConnection();
+            }
+            catch
+            {
+                OnConnectionProcessing(_streamConnection, sender, sea);
+                return;
+            }
+            IModel modelSlave = _streamConnectionSlave.CreateModel();
+            var msg = new ChangeConnectionMessage{ NewSlaveModel = modelSlave, isChangeMaster = true};
+            Dispatcher.Tell(msg);
+        }
+            
+
+
+        internal virtual void OnConnectionShutdownSlave(object sender, ShutdownEventArgs sea)
+        {            
+            try
+            {
+                CreateSlaveConnection();
+            }
+            catch
+            {
+                OnConnectionProcessing(_streamConnectionSlave, sender, sea);
+                return;
+            }
+            IModel modelSlave = _streamConnectionSlave.CreateModel();
+            var msg = new ChangeConnectionMessage{ NewSlaveModel = modelSlave };
+            Dispatcher.Tell(msg);
+        }
+
+
+        private void OnConnectionProcessing(IConnection conn, object sender, ShutdownEventArgs sea)
         {
             _logger.Error($"The AMQP connection was shutdown. AutoReconnect is enabled={AutoReconnect}, sender={sender} {sea}");
-
-            
             if (!AutoReconnect)
             {
-                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(DefaultDisconnectedMessage);
+                SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new DisconnectedMessage{ IDConnection = conn?.GetHashCode()});
             }
             else
             {
@@ -658,13 +727,14 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 return;
             }
 
-            var model = _streamConnection.CreateModel();
+            var modelM = _streamConnection.CreateModel();
+            var modelS = _streamConnectionSlave.CreateModel();
 
             StreamSubscriber subscriber = null;
 
             try
             {
-                subscriber = new StreamSubscriber(model, consumer, Dispatcher);
+                subscriber = new StreamSubscriber(modelM, modelS, consumer, Dispatcher);
                 subscriber.StartConsuming(queue.Name);
             }
             catch (Exception e)

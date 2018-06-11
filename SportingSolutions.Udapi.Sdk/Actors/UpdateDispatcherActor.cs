@@ -29,7 +29,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<RetrieveSubscriberMessage>(x => AskForSubscriber(x.Id));
             Receive<SubscribersCountMessage>(x => AskSubsbscribersCount());
             Receive<RemoveAllSubscribers>(x => RemoveAll());
-
+            Receive<ChangeConnectionMessage>(x => ChangeConnection(x));
             Receive<DisposeMessage>(x => Dispose());
 
             _logger.Info("UpdateDispatcherActor was created");
@@ -114,6 +114,18 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private void AskSubsbscribersCount()
         {
             Sender.Tell(_subscribers.Count);
+        }
+
+        private void ChangeConnection(ChangeConnectionMessage msg)
+        {
+            foreach(var subscriberId in _subscribers.Keys)
+            {
+                ResourceSubscriber resourceSubscriber;
+                if (_subscribers.TryGetValue(subscriberId, out resourceSubscriber) && resourceSubscriber != null)
+                {
+                    resourceSubscriber.StreamSubscriber.ChangeConnection(msg.NewSlaveModel, msg.isChangeMaster);
+                }
+            }
         }
 
         private void AskForSubscriber(string subscriberId)

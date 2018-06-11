@@ -11,6 +11,7 @@
 //WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //See the License for the specific language governing permissions and
 //limitations under the License.
+using RabbitMQ.Client;
 
 namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
@@ -21,5 +22,9 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         void StopConsuming();
 
         void StartConsuming(string queueName);
+
+        void ChangeConnection(IModel NewSlaveModel, bool isChangeMaster=false);
+
+        
     }
 }

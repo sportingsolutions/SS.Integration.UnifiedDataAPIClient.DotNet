@@ -36,9 +36,40 @@ namespace SportingSolutions.Udapi.Sdk
 
         internal bool IsDisposed => _isDisposed;
 
-        public StreamSubscriber(IModel model, IConsumer consumer, IActorRef dispatcher)
-            : base(model)
+        private IModel ModelSlave;
+                             
+
+        private string _queueName;
+
+
+        public void ChangeConnection(IModel NewSlaveModel, bool isChangeMaster=false)
         {
+            if (isChangeMaster)
+            {
+                Model.BasicCancel(ConsumerTag);
+                Model = ModelSlave;
+                Model.BasicConsume(_queueName, true, Consumer.Id, this);
+            }
+            ModelSlave = NewSlaveModel;
+            _logger.Error("Changing Model");
+        }
+
+     
+  
+        public StreamSubscriber(IModel modelMaster, IModel modelSlave, IConsumer consumer, IActorRef dispatcher)
+            : base(modelMaster)
+        {
+            ModelSlave = modelSlave;
+            Consumer = consumer;
+            ConsumerTag = consumer.Id;
+            Dispatcher = dispatcher;
+            _isDisposed = false;
+        }
+
+        public StreamSubscriber(IModel modelMaster, IConsumer consumer, IActorRef dispatcher)
+            : base(modelMaster)
+        {
+            
             Consumer = consumer;
             ConsumerTag = consumer.Id;
             Dispatcher = dispatcher;
@@ -50,6 +81,7 @@ namespace SportingSolutions.Udapi.Sdk
             try
             {
                 Model.BasicConsume(queueName, true, Consumer.Id, this);
+                _queueName = queueName;
             }
             catch (Exception e)
             {
