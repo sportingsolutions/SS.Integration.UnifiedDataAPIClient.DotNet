@@ -369,18 +369,25 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         #region Connection management
 
-        protected virtual void CloseConnection()
+        protected virtual void CloseConnection(IConnection streamConnection, bool isMasterConnection = true)
         {
-            if (_streamConnection != null)
+            if (streamConnection != null)
             {
-                _logger.Debug($"CloseConnection triggered {_streamConnection}");
+                _logger.Debug($"CloseConnection triggered {streamConnection}");
                 try
                 {
                     {
-                        _streamConnection.ConnectionShutdown -= OnConnectionShutdown;
-                        if (_streamConnection.IsOpen)
+                        if (isMasterConnection)
                         {
-                            _streamConnection.Close();
+                            streamConnection.ConnectionShutdown -= OnConnectionShutdown;
+                        }
+                        else
+                        {
+                            streamConnection.ConnectionShutdown -= OnConnectionShutdownSlave;
+                        }
+                        if (streamConnection.IsOpen)
+                        {
+                            streamConnection.Close();
                             _logger.Debug("Connection Closed");
                         }
                         
@@ -394,7 +401,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 try
                 {
                     {
-                        _streamConnection.Dispose();
+                        streamConnection.Dispose();
                         _logger.Debug("Connection Disposed");
                     }
                 }
@@ -402,8 +409,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 {
                     _logger.Warn($"Failed to dispose connection {e}");
                 }
-                _streamConnection = null;
-
+                streamConnection = null;
             }
             else
             {
@@ -643,9 +649,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             
             Become(DisconnectedState);
-            CloseConnection();
+            CloseConnection(_streamConnection);
+            CloseConnection(_streamConnectionSlave, false);
             NotifyDispatcherConnectionError();
-            EstablishConnection(_connectionFactory);
+            EstablishConnection();
             
         }
 

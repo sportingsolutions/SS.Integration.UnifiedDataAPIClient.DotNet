@@ -46,7 +46,26 @@ namespace SportingSolutions.Udapi.Sdk
         {
             if (isChangeMaster)
             {
-                Model.BasicCancel(ConsumerTag);
+                try 
+                {
+                    Model.BasicCancel(ConsumerTag);
+                }
+                catch (AlreadyClosedException e)
+                {
+                    _logger.Warn($"Connection already closed for consumerId={ConsumerTag} , \n {e}");
+                }
+                catch (ObjectDisposedException e)
+                {
+                    _logger.Warn("Stopp stream called for already disposed object for consumerId=" + ConsumerTag, e);
+                }
+                catch (TimeoutException e)
+                {
+                    _logger.Warn($"RabbitMQ timeout on StopStreaming for consumerId={ConsumerTag} {e}");
+                }
+                catch (Exception e)
+                {
+                    _logger.Error("Error stopping stream for consumerId=" + ConsumerTag, e);
+                }
                 Model = ModelSlave;
                 Model.BasicConsume(_queueName, true, Consumer.Id, this);
             }
