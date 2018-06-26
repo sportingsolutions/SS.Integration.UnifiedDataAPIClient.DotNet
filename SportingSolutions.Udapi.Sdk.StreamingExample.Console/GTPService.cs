@@ -22,6 +22,7 @@ using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.StreamingExample.Console.Configuration;
 using SportingSolutions.Udapi.Sdk.StreamingExample.Console.Model;
 using log4net;
+using SportingSolutions.Udapi.Sdk;
 
 namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 {
@@ -39,9 +40,10 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         {
             _settings = settings ?? Settings.Instance;
             _logger = LogManager.GetLogger(typeof(GTPService).ToString());
-            _sportsList = new List<string> { "Football", "Basketball", "IceHockey", "Tennis", "RugbyUnion", "TennisDoubles", "Volleyball" };
+            _sportsList = new List<string> { "Tennis"};
             _listeners = new ConcurrentDictionary<string, StreamListener>();
             _activeFixtures = new ConcurrentDictionary<string, bool>();
+            UDAPI.SdkActroSystemInit();
         }
 
         public void Start()
@@ -68,7 +70,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
                 return;
 
             try
-            {
+            { 
                 FixtureController.BeginAddingItems();
                 Parallel.ForEach(_sportsList, new ParallelOptions { MaxDegreeOfParallelism = 10 },
                                  sport =>
