@@ -117,9 +117,6 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 
         private void ProcessFixture(IResource fixture, string sport)
         {
-            if (fixture.Id == "cHr2GRRjCB9D7yXi4FoEQ2bt-KI")
-                return;
-
             if (!FixtureController.Contains(fixture.Id))
             {
                 try
