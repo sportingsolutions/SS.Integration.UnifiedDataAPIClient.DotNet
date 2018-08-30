@@ -22,9 +22,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright (c) Sporting Solutions Ltd. 2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
-[assembly: AssemblyVersion("2.1.11.0")]
-[assembly: AssemblyFileVersion("2.1.11.0")]
-[assembly: AssemblyInformationalVersion("2.1.11.0")]
+[assembly: AssemblyVersion("0.0.0.1")]
+[assembly: AssemblyFileVersion("0.0.0.1")]
+[assembly: AssemblyInformationalVersion("0.0.0.1")]
 
 [assembly: InternalsVisibleTo("SportingSolutions.Udapi.Sdk.Tests")]
 

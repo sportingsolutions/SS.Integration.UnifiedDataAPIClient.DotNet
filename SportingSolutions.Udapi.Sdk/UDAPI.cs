@@ -30,6 +30,12 @@ namespace SportingSolutions.Udapi.Sdk
             Configuration = Clients.Configuration.Instance;
         }
 
+        public static void SdkActroSystemInit()
+        {
+            SdkActorSystem.Init();
+        }
+
+
         public static void Init()
         {
             Init(Clients.Configuration.Instance);
