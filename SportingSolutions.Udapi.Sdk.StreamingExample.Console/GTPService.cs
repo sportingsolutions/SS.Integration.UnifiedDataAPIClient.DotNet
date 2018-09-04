@@ -72,10 +72,13 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             try
             { 
                 FixtureController.BeginAddingItems();
+                var features = theService.GetFeatures();
                 Parallel.ForEach(_sportsList, new ParallelOptions { MaxDegreeOfParallelism = 10 },
                                  sport =>
                                  {
-                                     var theFeature = theService.GetFeature(sport);
+                                     _logger.Info($"Get feature = {sport}");
+
+                                     var theFeature = features.Find(f => f.Name.Equals(sport));
                                      if (theFeature != null)
                                      {
                                          _logger.InfoFormat("Get the list of available fixtures for {0} from GTP", sport);
