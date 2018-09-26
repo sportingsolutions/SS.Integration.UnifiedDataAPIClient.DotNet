@@ -72,10 +72,13 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             try
             { 
                 FixtureController.BeginAddingItems();
+                var features = theService.GetFeatures();
                 Parallel.ForEach(_sportsList, new ParallelOptions { MaxDegreeOfParallelism = 10 },
                                  sport =>
                                  {
-                                     var theFeature = theService.GetFeature(sport);
+                                     _logger.Info($"Get feature = {sport}");
+
+                                     var theFeature = features.Find(f => f.Name.Equals(sport));
                                      if (theFeature != null)
                                      {
                                          _logger.InfoFormat("Get the list of available fixtures for {0} from GTP", sport);
@@ -117,9 +120,6 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 
         private void ProcessFixture(IResource fixture, string sport)
         {
-            if (fixture.Id == "cHr2GRRjCB9D7yXi4FoEQ2bt-KI")
-                return;
-
             if (!FixtureController.Contains(fixture.Id))
             {
                 try
