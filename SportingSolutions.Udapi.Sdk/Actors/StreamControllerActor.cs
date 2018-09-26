@@ -256,9 +256,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private bool ProcessNewConsumer(IConsumer consumer)
         {
-            _logger.Debug($"Method=ProcessNewConsumer triggered fixtureId={consumer?.Id} currentState={State.ToString()} connectionStatus={ConnectionStatus} ");
-
+            _logger.Debug($"Method=ProcessNewConsumer triggered fixtureId={consumer?.Id} currentState={State.ToString()} connectionStatus={ConnectionStatus}");
             var queue = consumer.GetQueueDetails();
+            _logger.Debug($"Method=ProcessNewConsumer queueName={queue?.Name}");
 
             if (string.IsNullOrEmpty(queue?.Name))
             {
@@ -470,6 +470,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 attempt++;
             }
 
+            _logger.Warn("EstablishConnection connection Cancelled");
+
             State = ConnectionState.DISCONNECTED;
 
 
@@ -512,6 +514,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 ConnectionError = e;
                 throw;
             }
+
+            //_logger.Info($"ConnectionFactory h={queue.Host} u={queue.UserName} p={queue.Password} ch={queue.VirtualHost}");
 
             _connectionFactory = new ConnectionFactory
             {

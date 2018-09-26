@@ -158,7 +158,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 // acquiring the consumer here prevents to put another lock on the
                 // dictionary
                 IStreamSubscriber sendEchoConsumer = null;
-
+                _logger.Info($"CheckEchos consumersCount={_consumers.Count}");
                 foreach (var consumer in _consumers)
                 {
                     if (sendEchoConsumer == null)
