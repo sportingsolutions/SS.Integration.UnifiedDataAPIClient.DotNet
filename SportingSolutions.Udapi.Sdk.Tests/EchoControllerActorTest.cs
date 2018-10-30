@@ -319,7 +319,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             AwaitAssert(() =>
                 {
                    sendEchoCallCount2.Should().Be(1);
-                   sendEchoCallCount1.Should().Be(UDAPI.Configuration.MissedEchos);
+                   sendEchoCallCount1.Should().Be(UDAPI.Configuration.MissedEchos + 1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
