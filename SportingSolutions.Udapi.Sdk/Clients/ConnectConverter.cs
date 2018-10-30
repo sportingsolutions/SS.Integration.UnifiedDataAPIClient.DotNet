@@ -55,9 +55,6 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         string IDeserializer.RootElement { get; set; }
         string IDeserializer.Namespace { get; set; }
         string IDeserializer.DateFormat { get; set; }
-        string ISerializer.RootElement { get; set; }
-        string ISerializer.Namespace { get; set; }
-        string ISerializer.DateFormat { get; set; }
         public string ContentType { get; set; }
     }
 }
