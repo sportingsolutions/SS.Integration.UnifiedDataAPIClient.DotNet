@@ -44,12 +44,8 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
         public ConnectClient(Uri baseUrl, ICredentials credentials)
         {
-            if (baseUrl == null) throw new ArgumentNullException("baseUrl");
-            if (credentials == null) throw new ArgumentNullException("credentials");
-
-            _credentials = credentials;
-            _baseUrl = baseUrl;
-
+            _baseUrl = baseUrl ?? throw new ArgumentNullException("baseUrl");
+            _credentials = credentials ?? throw new ArgumentNullException("credentials");
             Logger = LogManager.GetLogger(typeof(ConnectClient).ToString());
         }
 
