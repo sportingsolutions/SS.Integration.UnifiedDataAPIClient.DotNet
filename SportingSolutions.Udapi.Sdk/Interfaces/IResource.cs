@@ -63,9 +63,6 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         /// </summary>
         event EventHandler<StreamEventArgs> StreamEvent;
 
-        [Obsolete]
-        event EventHandler StreamSynchronizationError;
-
         /// <summary>
         ///     Retrieves the current resource's snapshot
         /// </summary>

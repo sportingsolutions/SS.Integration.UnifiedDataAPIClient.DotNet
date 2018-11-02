@@ -31,17 +31,9 @@ namespace SportingSolutions.Udapi.Sdk
         private const int DEFAULT_ECHO_INTERVAL_MS = 10000;
         private const int DEFAULT_ECHO_MAX_DELAY_MS = 3000;
 
-
-        public event EventHandler Tick;
-
-        
-
         public event EventHandler StreamConnected;
         public event EventHandler StreamDisconnected;
         public event EventHandler<StreamEventArgs> StreamEvent;
-
-        [Obsolete]
-        public event EventHandler StreamSynchronizationError;
 
         private readonly ManualResetEvent _pauseStream;
         private string _virtualHost;
@@ -137,25 +129,19 @@ namespace SportingSolutions.Udapi.Sdk
         public virtual void OnStreamDisconnected()
         {
             Logger.DebugFormat("Resource \"{0}\" OnStreamDisconnected()", Id);
-
-            if (StreamDisconnected != null)
-                StreamDisconnected(this, EventArgs.Empty);
+            StreamDisconnected?.Invoke(this, EventArgs.Empty);
         }
 
         public virtual void OnStreamConnected()
         {
             Logger.DebugFormat("Resource \"{0}\" OnStreamConnected()", Id);
-
-            if (StreamConnected != null)
-                StreamConnected(this, EventArgs.Empty);
+            StreamConnected?.Invoke(this, EventArgs.Empty);
         }
 
         public virtual void OnStreamEvent(StreamEventArgs e)
         {
             Logger.DebugFormat("Resource \"{0}\" OnStreamEvent()", Id);
-
-            if (StreamEvent != null)
-                StreamEvent(this, e);
+            StreamEvent?.Invoke(this, e);
         }
 
         public QueueDetails GetQueueDetails()

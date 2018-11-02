@@ -31,8 +31,6 @@ namespace SportingSolutions.Udapi.Sdk.Tests
     [TestFixture]
     internal class StreamTestsActor : SdkTestKit
     {
-        private MockedStreamControllerActor _streamControllerAct;
-
         private readonly QueueDetails _queryDetails = new QueueDetails
         {
             Host = "testhost",

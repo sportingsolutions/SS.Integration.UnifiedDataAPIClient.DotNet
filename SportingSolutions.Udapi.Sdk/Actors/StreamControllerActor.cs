@@ -418,7 +418,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
             catch (Exception e)
             {
-                _logger.Warn($"Failed to tell diapstcher RemoveAllSubscribers diapstcher={Dispatcher}");
+                _logger.Warn($"Failed to tell diapstcher RemoveAllSubscribers diapstcher={Dispatcher}, {e}");
             }
         }
 
@@ -693,9 +693,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected virtual void RemoveConsumerFromQueue(IConsumer consumer)
         {
-            var sub = Dispatcher.Ask(new RetrieveSubscriberMessage { Id = consumer.Id }).Result as IStreamSubscriber;
-            if (sub != null)
-                sub.StopConsuming();
+            var res = Dispatcher.Ask(new RetrieveSubscriberMessage { Id = consumer.Id }).Result;
+            if (res is IStreamSubscriber s)
+                s.StopConsuming();
         }
 
         #endregion
