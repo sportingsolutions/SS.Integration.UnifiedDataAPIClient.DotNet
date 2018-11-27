@@ -22,10 +22,12 @@ namespace SportingSolutions.Udapi.Sdk
 {
     public class SessionFactory
     {
-        private static readonly SessionFactory _sessionFactory = new SessionFactory();
+		public static ConnectClient ConnectClient => connectClient;
+	    private static readonly SessionFactory _sessionFactory = new SessionFactory();
         private readonly ConcurrentDictionary<string, ISession> _sessions;
+	    private static ConnectClient connectClient;
 
-        private SessionFactory()
+		private SessionFactory()
         {
             _sessions = new ConcurrentDictionary<string, ISession>();
         }
@@ -35,13 +37,15 @@ namespace SportingSolutions.Udapi.Sdk
             return _sessionFactory.GetSession(serverUri, credentials);
         }
 
+
+
         private ISession GetSession(Uri serverUri, ICredentials credentials)
         {
             ISession session = null;
             _sessions.TryGetValue(serverUri + credentials.UserName, out session);
             if (session == null)
             {
-                var connectClient = new ConnectClient(serverUri, new Clients.Credentials(credentials.UserName, credentials.Password));
+                connectClient = new ConnectClient(serverUri, new Clients.Credentials(credentials.UserName, credentials.Password));
                 session = new Session(connectClient);
                 _sessions.TryAdd(serverUri + credentials.UserName, session);
             }

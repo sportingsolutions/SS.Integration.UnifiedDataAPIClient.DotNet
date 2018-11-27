@@ -16,10 +16,10 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
     public interface IStreamSubscriber
     {
-        IConsumer Consumer { get; }
+		IConsumer Consumer { get; }
+		//string _queue {  get; }
+		void StopConsuming();
 
-        void StopConsuming();
-
-        void StartConsuming(string queueName);
+        //void NewFixture(IConsumer consumer);
     }
 }

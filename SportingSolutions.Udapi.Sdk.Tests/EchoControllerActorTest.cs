@@ -81,248 +81,248 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         }
 
-        [Test]
-        public void AddConsumerWithNullTest()
-        {
-            var testing = new EchoControllerActor();
-            testing.AddConsumer(null);
-            testing.ConsumerCount.Should().Be(0);
-        }
+        //[Test]
+        //public void AddConsumerWithNullTest()
+        //{
+        //    var testing = new EchoControllerActor();
+        //    testing.AddConsumer(null);
+        //    testing.ConsumerCount.Should().Be(0);
+        //}
 
-        [Test]
-        public void Add1ConsumerTest()
-        {
-            var testing = new EchoControllerActor();
+        //[Test]
+        //public void Add1ConsumerTest()
+        //{
+        //    var testing = new EchoControllerActor();
             
-            Mock<IConsumer> consumer = new Mock<IConsumer>();
-            consumer.Setup(x => x.Id).Returns(Id1);
+        //    Mock<IConsumer> consumer = new Mock<IConsumer>();
+        //    consumer.Setup(x => x.Id).Returns(Id1);
 
 
-            Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
-            subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
+        //    Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
+        //    subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
             
-            testing.AddConsumer(subscriber.Object);
-            testing.ConsumerCount.Should().Be(1);
+        //    testing.AddConsumer(subscriber.Object);
+        //    testing.ConsumerCount.Should().Be(1);
             
 
-        }
+        //}
 
-        [Test]
-        public void AddSameConsumerTest()
-        {
-            var testing = GetEchoControllerActorWith1Consumer(Id1);
-            AddConsumer(testing, Id1);
-            testing.ConsumerCount.Should().Be(1);
-        }
+        //[Test]
+        //public void AddSameConsumerTest()
+        //{
+        //    var testing = GetEchoControllerActorWith1Consumer(Id1);
+        //    AddConsumer(testing, Id1);
+        //    testing.ConsumerCount.Should().Be(1);
+        //}
 
-        [Test]
-        public void RemoveConsumerPositiveTest()
-        {
-            var testing = new EchoControllerActor();
-
-            
-            Mock<IConsumer> consumer = new Mock<IConsumer>();
-            consumer.Setup(x => x.Id).Returns(Id1);
-
-
-            Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
-            subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
-
-
-
-            testing.AddConsumer(subscriber.Object);
-            testing.ConsumerCount.Should().Be(1);
-
-            testing.RemoveConsumer(subscriber.Object);
-            testing.ConsumerCount.Should().Be(0);
-
-        }
-
-        [Test]
-        public void RemoveConsumerNegativeTest()
-        {
-            var testing = new EchoControllerActor();
-
-            Mock<IConsumer> consumer1 = new Mock<IConsumer>();
-            consumer1.Setup(x => x.Id).Returns(Id1);
-
-            Mock<IConsumer> consumer2 = new Mock<IConsumer>();
-            consumer2.Setup(x => x.Id).Returns(Id2);
-
-
-            Mock<IStreamSubscriber> subscriber1 = new Mock<IStreamSubscriber>();
-            subscriber1.Setup(x => x.Consumer).Returns(consumer1.Object);
-
-            Mock<IStreamSubscriber> subscriber2 = new Mock<IStreamSubscriber>();
-            subscriber2.Setup(x => x.Consumer).Returns(consumer2.Object);
-
-
-            testing.AddConsumer(subscriber1.Object);
-            testing.ConsumerCount.Should().Be(1);
-            testing.RemoveConsumer(subscriber2.Object);
-            testing.ConsumerCount.Should().Be(1);
-
-        }
-
-        [Test]
-        public void GetDefaultEchosCountDownTest()
-        {
-            var testing = new EchoControllerActor();
-
-
-            Mock<IConsumer> consumer = new Mock<IConsumer>();
-            consumer.Setup(x => x.Id).Returns(Id1);
-
-
-            Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
-            subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
-            
-            testing.AddConsumer(subscriber.Object);
-            testing.GetEchosCountDown(Id1).Should().Be(UDAPI.Configuration.MissedEchos);
-        }
-
-        [Test]
-        public void CheckEchosDecteaseEchosCountDownTest()
-        {
-            var testing = GetMockedEchoControllerActorWith1Consumer(Id1);
-            var message = new EchoControllerActor.SendEchoMessage();
-
-            testing.Tell(message);
-            AwaitAssert(() =>
-                {
-                    testing.UnderlyingActor.GetEchosCountDown(Id1).Should().Be(UDAPI.Configuration.MissedEchos - 1);
-                },
-                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
-        }
-
-        [Test]
-        public void CheckEchosUntillAllSubscribersClearTest()
-        {
-            var testing = GetMockedEchoControllerActorWith1Consumer(Id1);
-            AddConsumer(testing, Id2);
-
-            AwaitAssert(() =>
-                {
-                    testing.UnderlyingActor.ConsumerCount.Should().Be(2);
-                },
-                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
-
-            var message = new EchoControllerActor.SendEchoMessage();
-            for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
-            {
-                testing.Tell(message);
-            }
-
-            AwaitAssert(() =>
-                {
-                    testing.UnderlyingActor.ConsumerCount.Should().Be(0);
-                },
-                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
-        }
-
-        [Test]
-        public void CheckEchosWithProcessEchoClearTest()
-        {
-            var testing = GetMockedEchoControllerActorWith1Consumer(Id1);
-            AddConsumer(testing, Id2);
-
-            AwaitAssert(() =>
-                {
-                    testing.UnderlyingActor.ConsumerCount.Should().Be(2);
-                },
-                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
-
-            var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
-            var echoMessage = new EchoMessage() {Id = Id2};
-
-            testing.Tell(sendEchoMessage);
-            
-            testing.Tell(echoMessage);
-
-            testing.Tell(sendEchoMessage);
-            
-            testing.Tell(echoMessage);
-            
-            for (int i = 0; i < UDAPI.Configuration.MissedEchos-1; i++)
-            {
-                testing.Tell(sendEchoMessage);
-            }
-
-            AwaitAssert(() =>
-                {
-                    testing.UnderlyingActor.ConsumerCount.Should().Be(1);
-                    testing.UnderlyingActor.GetEchosCountDown(Id2).Should().Be(1);
-                },
-                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
-        }
-
-        [Test]
-        public void SendEchoCallTest()
-        {
-            var testing = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), EchoControllerActor.ActorName);
-            var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
-
-
-            Mock<IConsumer> consumer1 = new Mock<IConsumer>();
-            consumer1.Setup(x => x.Id).Returns(Id1);
-            int sendEchoCallCount1 = 0;
-            consumer1.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount1++);
-
-
-            Mock<IConsumer> consumer2 = new Mock<IConsumer>();
-            consumer2.Setup(x => x.Id).Returns(Id2);
-            int sendEchoCallCount2 = 0;
-            consumer2.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount2++);
-
-
-            Mock<IStreamSubscriber> subscriber1 = new Mock<IStreamSubscriber>();
-            subscriber1.Setup(x => x.Consumer).Returns(consumer1.Object);
-
-
-            Mock<IStreamSubscriber> subscriber2 = new Mock<IStreamSubscriber>();
-            subscriber2.Setup(x => x.Consumer).Returns(consumer2.Object);
-
+        //[Test]
+        //public void RemoveConsumerPositiveTest()
+        //{
+        //    var testing = new EchoControllerActor();
 
             
-            testing.Tell(new NewSubscriberMessage(){ Subscriber = subscriber1.Object});
-            testing.Tell(new NewSubscriberMessage(){Subscriber = subscriber2.Object});
+        //    Mock<IConsumer> consumer = new Mock<IConsumer>();
+        //    consumer.Setup(x => x.Id).Returns(Id1);
 
-            updateDispatcherActor.Tell(new NewSubscriberMessage() {Subscriber = subscriber1.Object}); 
-            updateDispatcherActor.Tell(new NewSubscriberMessage() {Subscriber = subscriber2.Object}); 
+
+        //    Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
+        //    subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
+
+
+
+        //    testing.AddConsumer(subscriber.Object);
+        //    testing.ConsumerCount.Should().Be(1);
+
+        //    testing.RemoveConsumer(subscriber.Object);
+        //    testing.ConsumerCount.Should().Be(0);
+
+        //}
+
+        //[Test]
+        //public void RemoveConsumerNegativeTest()
+        //{
+        //    var testing = new EchoControllerActor();
+
+        //    Mock<IConsumer> consumer1 = new Mock<IConsumer>();
+        //    consumer1.Setup(x => x.Id).Returns(Id1);
+
+        //    Mock<IConsumer> consumer2 = new Mock<IConsumer>();
+        //    consumer2.Setup(x => x.Id).Returns(Id2);
+
+
+        //    Mock<IStreamSubscriber> subscriber1 = new Mock<IStreamSubscriber>();
+        //    subscriber1.Setup(x => x.Consumer).Returns(consumer1.Object);
+
+        //    Mock<IStreamSubscriber> subscriber2 = new Mock<IStreamSubscriber>();
+        //    subscriber2.Setup(x => x.Consumer).Returns(consumer2.Object);
+
+
+        //    testing.AddConsumer(subscriber1.Object);
+        //    testing.ConsumerCount.Should().Be(1);
+        //    testing.RemoveConsumer(subscriber2.Object);
+        //    testing.ConsumerCount.Should().Be(1);
+
+        //}
+
+        //[Test]
+        //public void GetDefaultEchosCountDownTest()
+        //{
+        //    var testing = new EchoControllerActor();
+
+
+        //    Mock<IConsumer> consumer = new Mock<IConsumer>();
+        //    consumer.Setup(x => x.Id).Returns(Id1);
+
+
+        //    Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
+        //    subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
+            
+        //    testing.AddConsumer(subscriber.Object);
+        //    testing.GetEchosCountDown(Id1).Should().Be(UDAPI.Configuration.MissedEchos);
+        //}
+
+        //[Test]
+        //public void CheckEchosDecteaseEchosCountDownTest()
+        //{
+        //    var testing = GetMockedEchoControllerActorWith1Consumer(Id1);
+        //    var message = new EchoControllerActor.SendEchoMessage();
+
+        //    testing.Tell(message);
+        //    AwaitAssert(() =>
+        //        {
+        //            testing.UnderlyingActor.GetEchosCountDown(Id1).Should().Be(UDAPI.Configuration.MissedEchos - 1);
+        //        },
+        //        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+        //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+        //}
+
+        //[Test]
+        //public void CheckEchosUntillAllSubscribersClearTest()
+        //{
+        //    var testing = GetMockedEchoControllerActorWith1Consumer(Id1);
+        //    AddConsumer(testing, Id2);
+
+        //    AwaitAssert(() =>
+        //        {
+        //            testing.UnderlyingActor.ConsumerCount.Should().Be(2);
+        //        },
+        //        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+        //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+
+        //    var message = new EchoControllerActor.SendEchoMessage();
+        //    for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
+        //    {
+        //        testing.Tell(message);
+        //    }
+
+        //    AwaitAssert(() =>
+        //        {
+        //            testing.UnderlyingActor.ConsumerCount.Should().Be(0);
+        //        },
+        //        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+        //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+        //}
+
+        //[Test]
+        //public void CheckEchosWithProcessEchoClearTest()
+        //{
+        //    var testing = GetMockedEchoControllerActorWith1Consumer(Id1);
+        //    AddConsumer(testing, Id2);
+
+        //    AwaitAssert(() =>
+        //        {
+        //            testing.UnderlyingActor.ConsumerCount.Should().Be(2);
+        //        },
+        //        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+        //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+
+        //    var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
+        //    var echoMessage = new EchoMessage() {Id = Id2};
+
+        //    testing.Tell(sendEchoMessage);
+            
+        //    testing.Tell(echoMessage);
+
+        //    testing.Tell(sendEchoMessage);
+            
+        //    testing.Tell(echoMessage);
+            
+        //    for (int i = 0; i < UDAPI.Configuration.MissedEchos-1; i++)
+        //    {
+        //        testing.Tell(sendEchoMessage);
+        //    }
+
+        //    AwaitAssert(() =>
+        //        {
+        //            testing.UnderlyingActor.ConsumerCount.Should().Be(1);
+        //            testing.UnderlyingActor.GetEchosCountDown(Id2).Should().Be(1);
+        //        },
+        //        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+        //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+        //}
+
+        //[Test]
+        //public void SendEchoCallTest()
+        //{
+        //    var testing = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), EchoControllerActor.ActorName);
+        //    var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
+
+
+        //    Mock<IConsumer> consumer1 = new Mock<IConsumer>();
+        //    consumer1.Setup(x => x.Id).Returns(Id1);
+        //    int sendEchoCallCount1 = 0;
+        //    consumer1.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount1++);
+
+
+        //    Mock<IConsumer> consumer2 = new Mock<IConsumer>();
+        //    consumer2.Setup(x => x.Id).Returns(Id2);
+        //    int sendEchoCallCount2 = 0;
+        //    consumer2.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount2++);
+
+
+        //    Mock<IStreamSubscriber> subscriber1 = new Mock<IStreamSubscriber>();
+        //    subscriber1.Setup(x => x.Consumer).Returns(consumer1.Object);
+
+
+        //    Mock<IStreamSubscriber> subscriber2 = new Mock<IStreamSubscriber>();
+        //    subscriber2.Setup(x => x.Consumer).Returns(consumer2.Object);
+
+
+            
+        //    testing.Tell(new NewSubscriberMessage(){ Subscriber = subscriber1.Object});
+        //    testing.Tell(new NewSubscriberMessage(){Subscriber = subscriber2.Object});
+
+        //    updateDispatcherActor.Tell(new NewSubscriberMessage() {Subscriber = subscriber1.Object}); 
+        //    updateDispatcherActor.Tell(new NewSubscriberMessage() {Subscriber = subscriber2.Object}); 
             
             
-            AwaitAssert(() =>
-                {
-                    testing.UnderlyingActor.ConsumerCount.Should().Be(2);
-                },
-                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+        //    AwaitAssert(() =>
+        //        {
+        //            testing.UnderlyingActor.ConsumerCount.Should().Be(2);
+        //        },
+        //        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+        //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-            var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
-            var echoMessage = new EchoMessage { Id = Id2 };
+        //    var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
+        //    var echoMessage = new EchoMessage { Id = Id2 };
 
-            testing.Tell(sendEchoMessage);
-            testing.Tell(echoMessage);
-            testing.Tell(echoMessage);
+        //    testing.Tell(sendEchoMessage);
+        //    testing.Tell(echoMessage);
+        //    testing.Tell(echoMessage);
 
-            for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
-            {
-                testing.Tell(sendEchoMessage);
+        //    for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
+        //    {
+        //        testing.Tell(sendEchoMessage);
 
-            }
+        //    }
 
-            AwaitAssert(() =>
-                {
-                   sendEchoCallCount2.Should().Be(1);
-                   sendEchoCallCount1.Should().Be(UDAPI.Configuration.MissedEchos);
-                },
-                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
-        }
+        //    AwaitAssert(() =>
+        //        {
+        //           sendEchoCallCount2.Should().Be(1);
+        //           sendEchoCallCount1.Should().Be(UDAPI.Configuration.MissedEchos);
+        //        },
+        //        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+        //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+        //}
     }
 }

@@ -87,7 +87,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.CONNECTED);
 
-            streamCtrlActorTestRef.Tell(new RemoveConsumerMessage { Consumer = consumer.Object });
+	        //todo use it
+	        //streamCtrlActorTestRef.Tell(new SubriberErroredMessage { Consumer = consumer.Object });
 
             streamCtrlActorTestRef.UnderlyingActor.State.Should().Be(StreamControllerActor.ConnectionState.CONNECTED);
         }
@@ -162,7 +163,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         //        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
         //    // STEP 4: remove the consumer
-        //    streamCtrlActorTestRef.Tell(new RemoveConsumerMessage { Consumer = consumer.Object });
+        //    streamCtrlActorTestRef.Tell(new SubriberErroredMessage { Consumer = consumer.Object });
 
         //    AwaitAssert(() =>
         //        {
@@ -347,7 +348,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 }
             }
 
-            updateDispatcherActor.Tell(new RemoveAllSubscribers());
+            updateDispatcherActor.Tell(new DisconnectionAccuredMessage());
 
             AwaitAssert(() =>
                 {

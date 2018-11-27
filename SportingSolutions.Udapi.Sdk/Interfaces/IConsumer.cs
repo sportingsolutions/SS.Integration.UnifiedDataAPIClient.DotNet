@@ -14,6 +14,7 @@
 
 
 using SportingSolutions.Udapi.Sdk.Events;
+using SportingSolutions.Udapi.Sdk.Model.Message;
 
 namespace SportingSolutions.Udapi.Sdk.Interfaces
 {
@@ -30,5 +31,7 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         void OnStreamEvent(StreamEventArgs e);
 
         void SendEcho();
+	    EchoLinksMessage RequestEchoUrl();
+
     }
 }

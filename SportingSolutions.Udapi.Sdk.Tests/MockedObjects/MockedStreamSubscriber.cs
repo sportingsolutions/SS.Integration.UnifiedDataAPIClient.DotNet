@@ -25,9 +25,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects
         {
             Consumer = consumer;
             Dispatcher = dispatcher;
+			
         }
 
-        #region IStreamSubscriber Members
+	    public string _queue { get; set; }
+
+	    #region IStreamSubscriber Members
 
         public IConsumer Consumer { get; set; }
 
@@ -39,10 +42,17 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects
 
         }
 
-        public void StartConsuming(string queueName)
-        {
-            Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
-        }
+		//todo
+
+	    public void NewFixture(IConsumer consumer)
+	    {
+		    throw new System.NotImplementedException();
+	    }
+
+	    //public void NewFixture(string queueName)
+     //   {
+     //       Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
+     //   }
 
         #endregion
     }

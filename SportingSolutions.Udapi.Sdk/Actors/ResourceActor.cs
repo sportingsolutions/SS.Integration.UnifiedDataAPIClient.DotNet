@@ -64,7 +64,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private void StreamUpdate(StreamUpdateMessage streamMsg)
         {
             Logger.Debug($"resourceActorId={id} New update arrived for {streamMsg.Id}");
-            _resource.OnStreamEvent(new StreamEventArgs(streamMsg.Message));
+            _resource.OnStreamEvent(new StreamEventArgs(streamMsg.Message, streamMsg.ReceivedAt));
         }
 
         private void Connected(ConnectMessage connectMsg)
@@ -77,9 +77,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             Receive<StreamUpdateMessage>(streamMsg => StreamUpdate(streamMsg));
             Receive<DisconnectMessage>(msg => Disconnect(msg));
-        }
+		}
 
-        #region IResource Members
+	    
+
+	    #region IResource Members
 
         public string Id
         {
@@ -110,19 +112,21 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             //_pauseStream.Set();
         }
 
-        public void StopStreaming()
-        {
-            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new RemoveConsumerMessage() { Consumer = _resource });
+		
+	    //TODO review
+		public void StopStreaming()
+		{
+			SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.UpdateDispatcherPath).Tell(new RemoveConsumerMessage() {Consumer = _resource});
 
-            //StreamController.Instance.RemoveConsumer(_resource);
-            Logger.Debug($"resourceActorId={id} REQUESTED Streaming stopped for fixtureName=\"{((IResource)_resource)?.Name}\" fixtureId=\"{Id}\"");
-        }
+			//StreamController.Instance.RemoveConsumer(_resource);
+			Logger.Debug($"resourceActorId={id} REQUESTED Streaming stopped for fixtureName=\"{((IResource)_resource)?.Name}\" fixtureId=\"{Id}\"");
+		}
 
-        #endregion
+		#endregion
 
-        #region IDisposable Members
+		#region IDisposable Members
 
-        public void Dispose()
+		public void Dispose()
         {
             StopStreaming();
             IsDisposed = true;

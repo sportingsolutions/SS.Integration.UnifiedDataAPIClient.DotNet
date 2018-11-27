@@ -10,5 +10,6 @@ namespace SportingSolutions.Udapi.Sdk.Model.Message
     internal class NewSubscriberMessage
     {
         public IStreamSubscriber Subscriber { get; internal set; }
+		//public IConsumer Consumer { get; set; }
     }
 }

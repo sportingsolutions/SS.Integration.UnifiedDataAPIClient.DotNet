@@ -58,20 +58,20 @@ namespace SportingSolutions.Udapi.Sdk.Tests.MockedObjects.Actors
         }
 
 
+		//TODO
+        //protected override void AddConsumerToQueue(IConsumer consumer)
+        //{
+        //    new MockedStreamSubscriber(consumer, Dispatcher).NewFixture("");
+        //}
 
-        protected override void AddConsumerToQueue(IConsumer consumer)
-        {
-            new MockedStreamSubscriber(consumer, Dispatcher).StartConsuming("");
-        }
+        //protected override void RemoveConsumerFromQueue(IConsumer consumer)
+        //{
+        //    var s = Dispatcher.Ask(new RetrieveSubscriberMessage { Id = consumer.Id }).Result as IStreamSubscriber;
 
-        protected override void RemoveConsumerFromQueue(IConsumer consumer)
-        {
-            var s = Dispatcher.Ask(new RetrieveSubscriberMessage { Id = consumer.Id }).Result as IStreamSubscriber;
+        //    if (s == null)
+        //        throw new Exception("Subscriber with Id=" + consumer.Id + " not found");
 
-            if (s == null)
-                throw new Exception("Subscriber with Id=" + consumer.Id + " not found");
-
-            s.StopConsuming();
-        }
+        //    s.StopConsuming();
+        //}
     }
 }

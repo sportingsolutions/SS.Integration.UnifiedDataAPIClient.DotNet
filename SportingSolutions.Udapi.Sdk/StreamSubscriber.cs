@@ -14,11 +14,14 @@
 
 
 using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Akka.Actor;
 using log4net;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
+using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model.Message;
 
@@ -30,42 +33,144 @@ namespace SportingSolutions.Udapi.Sdk
     {
         private readonly ILog _logger = LogManager.GetLogger(typeof(StreamSubscriber));
 
-        private bool _isDisposed;
+	    public IConsumer Consumer { get; }
 
-        internal bool IsStreamingStopped => Model == null || !Model.IsOpen;
+	    private bool _isDisposed;
+	    private bool _isConsuming;
+	    private string _queue;
+
+		internal bool IsStreamingStopped => Model == null || !Model.IsOpen || !_isConsuming;
 
         internal bool IsDisposed => _isDisposed;
 
-        public StreamSubscriber(IModel model, IConsumer consumer, IActorRef dispatcher)
+        public StreamSubscriber(IModel model, /*IConsumer consumer,*/ IActorRef dispatcher)
             : base(model)
         {
-            Consumer = consumer;
-            ConsumerTag = consumer.Id;
-            Dispatcher = dispatcher;
+	        
+	        ConsumerTag = "SingleQueue";
+	        Dispatcher = dispatcher;
             _isDisposed = false;
-        }
+		}
 
-        public void StartConsuming(string queueName)
-        {
-            try
-            {
-                Model.BasicConsume(queueName, true, Consumer.Id, this);
-            }
-            catch (Exception e)
-            {
-                _logger.Error("Error starting stream for consumerId=" + Consumer.Id, e);
-                throw;
-            }
-        }
+
+
+	    public bool ResumeConsuming(string queue)
+	    {
+		    _logger.Info($"ResumeConsuming trigered for queue={queue}");
+
+		    if (queue == null)
+			    return false;
+		    try
+		    {
+			    QueueBind(Model, queue);
+			    try
+			    {
+				    Model.BasicConsume(queue, true, /*Consumer.Id*/ ConsumerTag, this);
+				    _isConsuming = true;
+				    _queue = queue;
+					    
+			    }
+			    catch (Exception e)
+			    {
+				    _logger.Warn("Failed ReConsuming  Queue ", e);
+				    return false;
+			    }
+
+		    }
+		    catch (Exception e)
+		    {
+			    _logger.Warn("Failed ReBind to Queue ", e);
+			    return false;
+		    }
+		    _logger.Info($"ResumeConsuming executed for queue={queue}");
+		    Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
+			return true;
+		}
+
+
+		public string StartConsuming()
+	    {
+		    _logger.Info($"StartConsuming trigered");
+
+			_queue = CreateNewQueue(Model);
+
+			try
+		    {
+			    Model.BasicConsume(_queue, true, /*Consumer.Id*/ ConsumerTag, this);
+			    _isConsuming = true;
+
+			}
+		    catch (Exception e)
+		    {
+			    _logger.Error("Error Consuming  Queue ", e);
+			    throw;
+		    }
+
+		    Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
+			return _queue;
+
+
+	    }
+
+
+		private void QueueBind(IModel model, string queue)
+	    {
+		    model.QueueBind(queue, "priceupdates", "priceupdates.#", null);
+		    model.QueueBind(queue, "priceupdates", "echo.#", null);
+		}
+
+	    private string CreateNewQueue(IModel model)
+	    {
+			
+		    var newQueue = Guid.NewGuid().ToString();
+		    _logger.Info($"Creating queue with queueId={newQueue} for channelNumber={model.ChannelNumber}");
+
+		    var args = new Dictionary<string, object>()
+		    {
+			    {"x-max-length", 100},
+			    {"x-message-ttl", 30000},
+			    {"x-expires", 10000}
+		    };
+		    try
+		    {
+			    model.QueueDeclare(newQueue, false, false, false, args);
+			}
+		    catch (Exception e)
+		    {
+				_logger.Error($"Error creating queue {newQueue} ", e);
+				throw;
+		    }
+
+		    try
+		    {
+			    QueueBind(model, newQueue);
+		    }
+		    catch (Exception e)
+		    {
+			    _logger.Error($"Error binding to the  queue={newQueue} ", e);
+			    throw;
+		    }
+
+			return newQueue;
+	    }
 
         public void StopConsuming()
         {
-            try
+			if (!_isConsuming)
+				return;
+
+
+	        _logger.Info($"StopConsuming trigered for {_queue}");
+
+			try
             {
-                if (!IsStreamingStopped)
+                if (!IsStreamingStopped )
                 {
-                    Model.BasicCancel(ConsumerTag);
+                    Model.BasicCancel(_queue);
                 }
+
+	            _isConsuming = false;
+
             }
             catch (AlreadyClosedException e)
             {
@@ -88,19 +193,19 @@ namespace SportingSolutions.Udapi.Sdk
             }
             finally
             {
-                Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
+				Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
 
-                try
-                {
-                    Dispose();
-                }
-                catch { }
+				try
+				{
+					Dispose();
+				}
+				catch { }
 
-                _logger.DebugFormat("Streaming stopped for consumerId={0}", ConsumerTag);
+				_logger.DebugFormat($"Streaming stopped for queue={_queue}");
             }
         }
 
-        public IConsumer Consumer { get; }
+        //public IConsumer Consumer { get; }
 
         public IActorRef Dispatcher { get; }
 
@@ -109,7 +214,7 @@ namespace SportingSolutions.Udapi.Sdk
         public override void HandleBasicConsumeOk(string consumerTag)
         {
             _logger.Debug($"HandleBasicConsumeOk consumerTag={consumerTag ?? "null"}");
-            Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
+            //Dispatcher.Tell(new NewSubscriberMessage { Subscriber = this });
 
             base.HandleBasicConsumeOk(consumerTag);
         }
@@ -128,7 +233,7 @@ namespace SportingSolutions.Udapi.Sdk
                 $" routingKey={routingKey ?? "null"}" +
                 (body == null ? " body=null" : $" bodyLength={body.Length}"));
 
-            Dispatcher.Tell(new StreamUpdateMessage { Id = consumerTag, Message = Encoding.UTF8.GetString(body) });
+            Dispatcher.Tell(new StreamUpdateMessage { Id = routingKey.ExtractIdFromRoutingKey(), Message = Encoding.UTF8.GetString(body), ReceivedAt = DateTime.UtcNow});
         }
 
         public override void HandleBasicCancel(string consumerTag)
@@ -139,6 +244,8 @@ namespace SportingSolutions.Udapi.Sdk
         }
 
         #endregion
+
+		
 
         #region IDisposable
 

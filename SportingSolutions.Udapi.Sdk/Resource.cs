@@ -117,7 +117,7 @@ namespace SportingSolutions.Udapi.Sdk
             //StreamController.Instance.RemoveConsumer(this);
             Logger.DebugFormat("Streaming stopped for fixtureName=\"{0}\" fixtureId=\"{1}\"", Name, Id);
             
-            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new RemoveConsumerMessage() { Consumer = this });
+            SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.UpdateDispatcherPath).Tell(new RemoveConsumerMessage() { Consumer = this });
         }
 
         #endregion
@@ -231,6 +231,22 @@ namespace SportingSolutions.Udapi.Sdk
             }
         }
 
-        #endregion
-    }
+	    public EchoLinksMessage RequestEchoUrl()
+	    {
+		    if (string.IsNullOrEmpty(_virtualHost))
+			    throw new Exception("virtualHost is not defined");
+
+		    var link = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/batchecho");
+
+		    return new EchoLinksMessage()
+		    {
+				EchoLink = link.Href,
+				VirtualHost = _virtualHost
+		    };
+
+			//return link.Href;
+		}
+
+		#endregion
+	}
 }

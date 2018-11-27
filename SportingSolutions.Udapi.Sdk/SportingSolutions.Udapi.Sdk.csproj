@@ -94,9 +94,8 @@
     <Reference Include="RabbitMQ.Client, Version=5.0.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
       <HintPath>..\packages\RabbitMQ.Client.5.0.1\lib\net451\RabbitMQ.Client.dll</HintPath>
     </Reference>
-    <Reference Include="RestSharp, Version=105.2.3.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\RestSharp.105.2.3\lib\net4\RestSharp.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="RestSharp, Version=106.5.4.0, Culture=neutral, PublicKeyToken=598062e77f915f75, processorArchitecture=MSIL">
+      <HintPath>..\packages\RestSharp.106.5.4\lib\net452\RestSharp.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Collections.Immutable, Version=1.2.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -115,17 +114,21 @@
   <ItemGroup>
     <Compile Include="Actors\FaultControllerActor.cs" />
     <Compile Include="Actors\MailBox\StreamControllerActorMailBox.cs" />
+    <Compile Include="Actors\QueueActor.cs" />
     <Compile Include="Actors\SdkDeadletterMonitorActor.cs" />
     <Compile Include="Actors\EchoControllerActor.cs" />
     <Compile Include="Events\SdkErrorMessage.cs" />
     <Compile Include="Exceptions\EchoControllerActorException.cs" />
+    <Compile Include="Extensions\StringHelper.cs" />
     <Compile Include="Model\Message\CriticalActorRestartedMessage.cs" />
     <Compile Include="Model\Message\DisposeMessage.cs" />
+    <Compile Include="Model\Message\EchoLinksMessage.cs" />
     <Compile Include="Model\Message\PathMessage.cs" />
     <Compile Include="Model\Message\NotFoundMessage.cs" />
     <Compile Include="Model\Message\RemoveSubscriberMessage.cs" />
     <Compile Include="Model\Message\NewSubscriberMessage.cs" />
     <Compile Include="Model\Message\RemoveConsumerMessage.cs" />
+    <Compile Include="Model\Message\SubriberErroredMessage.cs" />
     <Compile Include="Model\Message\NewConsumerMessage.cs" />
     <Compile Include="Actors\ResourceActor.cs" />
     <Compile Include="Model\Message\ResetAllMessage.cs" />
