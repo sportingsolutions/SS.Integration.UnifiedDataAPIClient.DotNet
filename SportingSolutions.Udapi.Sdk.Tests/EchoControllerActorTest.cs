@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using Akka.TestKit;
 using FluentAssertions;
 using Moq;
@@ -308,18 +309,19 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             testing.Tell(sendEchoMessage);
             testing.Tell(echoMessage);
-            testing.Tell(echoMessage);
+            //testing.Tell(echoMessage);
 
             for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
             {
                 testing.Tell(sendEchoMessage);
-
+				
             }
+			Thread.Sleep(1000);
 
             AwaitAssert(() =>
                 {
                    sendEchoCallCount2.Should().Be(1);
-                   sendEchoCallCount1.Should().Be(UDAPI.Configuration.MissedEchos + 1);
+                   sendEchoCallCount1.Should().Be(UDAPI.Configuration.MissedEchos );
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
