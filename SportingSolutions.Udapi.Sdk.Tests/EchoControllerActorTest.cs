@@ -265,7 +265,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [Test]
         public void SendEchoCallTest()
         {
-            var testing = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), EchoControllerActor.ActorName);
+	        const int  UDAPI_Configuration_MissedEchos = 3;
+
+
+
+			var testing = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), EchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
 
 
@@ -309,9 +313,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             testing.Tell(sendEchoMessage);
             testing.Tell(echoMessage);
-            //testing.Tell(echoMessage);
-
-            for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
+			Thread.Sleep(1000);
+			for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
             {
                 testing.Tell(sendEchoMessage);
 				
