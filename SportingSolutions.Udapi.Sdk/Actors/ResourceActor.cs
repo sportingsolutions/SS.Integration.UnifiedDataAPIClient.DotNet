@@ -64,7 +64,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private void StreamUpdate(StreamUpdateMessage streamMsg)
         {
             Logger.Debug($"resourceActorId={id} New update arrived for {streamMsg.Id}");
-            _resource.OnStreamEvent(new StreamEventArgs(streamMsg.Message));
+            _resource.OnStreamEvent(new StreamEventArgs(streamMsg.Message, streamMsg.ReceivedAt));
         }
 
         private void Connected(ConnectMessage connectMsg)

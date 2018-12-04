@@ -128,7 +128,7 @@ namespace SportingSolutions.Udapi.Sdk
                 $" routingKey={routingKey ?? "null"}" +
                 (body == null ? " body=null" : $" bodyLength={body.Length}"));
 
-            Dispatcher.Tell(new StreamUpdateMessage { Id = consumerTag, Message = Encoding.UTF8.GetString(body) });
+            Dispatcher.Tell(new StreamUpdateMessage { Id = consumerTag, Message = Encoding.UTF8.GetString(body), ReceivedAt = DateTime.UtcNow });
         }
 
         public override void HandleBasicCancel(string consumerTag)
