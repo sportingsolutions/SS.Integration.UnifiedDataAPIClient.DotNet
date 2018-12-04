@@ -234,7 +234,13 @@ namespace SportingSolutions.Udapi.Sdk
 	    public EchoLinksMessage RequestEchoUrl()
 	    {
 		    if (string.IsNullOrEmpty(_virtualHost))
-			    throw new Exception("virtualHost is not defined");
+		    {
+				Logger.Warn($"virtualHost is not defined attemping to request it for {this}");
+			    GetQueueDetails();
+		    }
+
+		    if (string.IsNullOrEmpty(_virtualHost))
+				throw new Exception($"virtualHost is not defined  {this}");
 
 		    var link = State.Links.First(restLink => restLink.Relation == "http://api.sportingsolutions.com/rels/stream/batchecho");
 

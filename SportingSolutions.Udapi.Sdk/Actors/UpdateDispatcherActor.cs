@@ -115,8 +115,18 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
 	        if (!_consumers.Any())
 	        {
-		        var msg = consumer.RequestEchoUrl();
-		        Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(msg);
+		        try
+		        {
+			        var msg = consumer.RequestEchoUrl();
+			        Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(msg);
+				}
+		        catch (Exception e)
+		        {
+					_logger.Error($"RequestEchoUrl failed {e}");
+		        }
+
+		        
+		        
 			}
 
             _consumers[consumer.Id] = newResourceSubscriber;

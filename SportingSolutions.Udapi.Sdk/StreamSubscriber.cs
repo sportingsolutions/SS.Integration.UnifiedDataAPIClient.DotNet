@@ -127,9 +127,9 @@ namespace SportingSolutions.Udapi.Sdk
 
 		    var args = new Dictionary<string, object>()
 		    {
-			    {"x-max-length", 100},
-			    {"x-message-ttl", 30000},
-			    {"x-expires", 10000}
+			    {"x-max-length", 100}, //max messages count
+			    {"x-message-ttl", 30000}, // message timeout mS
+			    {"x-expires", 10000} // queue timeout mS
 		    };
 		    try
 		    {
