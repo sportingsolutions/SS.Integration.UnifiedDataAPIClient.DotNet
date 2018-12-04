@@ -157,13 +157,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
                 // acquiring the consumer here prevents to put another lock on the
                 // dictionary
-                IStreamSubscriber sendEchoConsumer = null;
+                
                 _logger.Info($"CheckEchos consumersCount={_consumers.Count}");
-                foreach (var consumer in _consumers)
+
+	            IStreamSubscriber sendEchoConsumer = _consumers.FirstOrDefault(_ => _.Value.EchosCountDown > 0).Value.Subscriber;
+
+				foreach (var consumer in _consumers)
                 {
-                    if (sendEchoConsumer == null)
-                        sendEchoConsumer = consumer.Value.Subscriber;
-                    
                     if (consumer.Value.EchosCountDown < UDAPI.Configuration.MissedEchos)
                     {
                         var msg = $"consumerId={consumer.Key} missed count={UDAPI.Configuration.MissedEchos - consumer.Value.EchosCountDown} echos";
@@ -171,9 +171,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                         {
                             _logger.Warn($"{msg} and it will be disconnected");
                             invalidConsumers.Add(consumer.Value.Subscriber);
-
-                            if (sendEchoConsumer == consumer.Value.Subscriber)
-                                sendEchoConsumer = null;
                         }
                         else
                         {
@@ -182,10 +179,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     }
                     consumer.Value.EchosCountDown--;
                 }
-
-                // this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
-                // for the invalid consumers
-                RemoveSubribers(invalidConsumers);
+				
+				// this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
+				// for the invalid consumers
+				RemoveSubribers(invalidConsumers);
 
                 invalidConsumers.Clear();
 
