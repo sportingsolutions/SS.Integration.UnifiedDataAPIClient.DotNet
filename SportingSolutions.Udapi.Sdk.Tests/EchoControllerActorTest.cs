@@ -56,15 +56,19 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         private TestActorRef<EchoControllerActor> GetMockedEchoControllerActorWith1Consumer(string consumerId)
         {
-            var mock = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), EchoControllerActor.ActorName);
+	        var mock = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), EchoControllerActor.ActorName);
             
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(consumerId);
-            
-            Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
+	        consumer.Setup(x => x.SendEcho()).Callback(() => {});
+
+			Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
             subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
 
-            mock.UnderlyingActor.AddConsumer(subscriber.Object);
+
+	        
+
+			mock.UnderlyingActor.AddConsumer(subscriber.Object);
 
             return mock;
         }
@@ -73,9 +77,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         {
             Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(consumerId);
+	        consumer.Setup(x => x.SendEcho()).Callback(() => { });
 
-
-            Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
+			Mock<IStreamSubscriber> subscriber = new Mock<IStreamSubscriber>();
             subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
 
             actor.UnderlyingActor.AddConsumer(subscriber.Object);
@@ -211,7 +215,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
             var message = new EchoControllerActor.SendEchoMessage();
-            for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
+            for (int i = 0; i < UDAPI.Configuration.MissedEchos + 1; i++)
             {
                 testing.Tell(message);
             }
@@ -253,7 +257,9 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 testing.Tell(sendEchoMessage);
             }
 
-            AwaitAssert(() =>
+	        Thread.Sleep(1000);
+
+			AwaitAssert(() =>
                 {
                     testing.UnderlyingActor.ConsumerCount.Should().Be(1);
                     testing.UnderlyingActor.GetEchosCountDown(Id2).Should().Be(1);

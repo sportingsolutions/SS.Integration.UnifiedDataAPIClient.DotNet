@@ -160,7 +160,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 
                 _logger.Info($"CheckEchos consumersCount={_consumers.Count}");
 
-	            IStreamSubscriber sendEchoConsumer = _consumers.FirstOrDefault(_ => _.Value.EchosCountDown > 0).Value.Subscriber;
+	            IStreamSubscriber sendEchoConsumer = _consumers.Values.FirstOrDefault(_ => _.EchosCountDown > 0)?.Subscriber;
 
 				foreach (var consumer in _consumers)
                 {
