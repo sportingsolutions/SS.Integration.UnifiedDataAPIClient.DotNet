@@ -268,73 +268,71 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
         }
 
-        [Test]
-        public void SendEchoCallTest()
-        {
-	        var testing = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), EchoControllerActor.ActorName);
-            var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
+	    [Test]
+	    public void SendEchoCallTest()
+	    {
+		    var testing =
+			    ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(),
+				    EchoControllerActor.ActorName);
+		    var updateDispatcherActor = ActorOfAsTestActorRef<UpdateDispatcherActor>(() => new UpdateDispatcherActor(),
+			    UpdateDispatcherActor.ActorName);
 
 
-            Mock<IConsumer> consumer1 = new Mock<IConsumer>();
-            consumer1.Setup(x => x.Id).Returns(Id1);
-            int sendEchoCallCount1 = 0;
-            consumer1.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount1++);
+		    Mock<IConsumer> consumer1 = new Mock<IConsumer>();
+		    consumer1.Setup(x => x.Id).Returns(Id1);
+		    int sendEchoCallCount1 = 0;
+		    consumer1.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount1++);
 
 
-            Mock<IConsumer> consumer2 = new Mock<IConsumer>();
-            consumer2.Setup(x => x.Id).Returns(Id2);
-            int sendEchoCallCount2 = 0;
-            consumer2.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount2++);
+		    Mock<IConsumer> consumer2 = new Mock<IConsumer>();
+		    consumer2.Setup(x => x.Id).Returns(Id2);
+		    int sendEchoCallCount2 = 0;
+		    consumer2.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount2++);
 
 
-            Mock<IStreamSubscriber> subscriber1 = new Mock<IStreamSubscriber>();
-            subscriber1.Setup(x => x.Consumer).Returns(consumer1.Object);
+		    Mock<IStreamSubscriber> subscriber1 = new Mock<IStreamSubscriber>();
+		    subscriber1.Setup(x => x.Consumer).Returns(consumer1.Object);
 
 
-            Mock<IStreamSubscriber> subscriber2 = new Mock<IStreamSubscriber>();
-            subscriber2.Setup(x => x.Consumer).Returns(consumer2.Object);
+		    Mock<IStreamSubscriber> subscriber2 = new Mock<IStreamSubscriber>();
+		    subscriber2.Setup(x => x.Consumer).Returns(consumer2.Object);
 
 
-            
-            testing.Tell(new NewSubscriberMessage(){ Subscriber = subscriber1.Object});
-            testing.Tell(new NewSubscriberMessage(){Subscriber = subscriber2.Object});
 
-            updateDispatcherActor.Tell(new NewSubscriberMessage() {Subscriber = subscriber1.Object}); 
-            updateDispatcherActor.Tell(new NewSubscriberMessage() {Subscriber = subscriber2.Object}); 
-            
-            
-            AwaitAssert(() =>
-                {
-                    testing.UnderlyingActor.ConsumerCount.Should().Be(2);
-                },
-                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+		    testing.Tell(new NewSubscriberMessage() {Subscriber = subscriber1.Object});
+		    testing.Tell(new NewSubscriberMessage() {Subscriber = subscriber2.Object});
 
-            var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
-            var echoMessage = new EchoMessage { Id = Id2 };
-
-            testing.Tell(sendEchoMessage);
-            testing.Tell(echoMessage);
-			
-			for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
-            {
-                testing.Tell(sendEchoMessage);
-	            Thread.Sleep(1000);
-
-			}
+		    updateDispatcherActor.Tell(new NewSubscriberMessage() {Subscriber = subscriber1.Object});
+		    updateDispatcherActor.Tell(new NewSubscriberMessage() {Subscriber = subscriber2.Object});
 
 
-	        AwaitAssert(() =>
-		        {
-			        testing.UnderlyingActor.ConsumerCount.Should().Be(1);
-		        },
-		        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-		        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+		    AwaitAssert(() => { testing.UnderlyingActor.ConsumerCount.Should().Be(2); },
+			    TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+			    TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-			Assert.AreEqual(sendEchoCallCount2, 1);
-	        Assert.AreEqual(sendEchoCallCount1, UDAPI.Configuration.MissedEchos);
+		    var sendEchoMessage = new EchoControllerActor.SendEchoMessage();
+		    var echoMessage = new EchoMessage {Id = Id2};
+
+		    testing.Tell(sendEchoMessage);
+		    testing.Tell(echoMessage);
+
+		    for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
+		    {
+			    testing.Tell(sendEchoMessage);
+			    Thread.Sleep(1000);
+
+		    }
 
 
-			
+		    AwaitAssert(() => { testing.UnderlyingActor.ConsumerCount.Should().Be(1); },
+			    TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+			    TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+
+		    Assert.AreEqual(sendEchoCallCount2, 1);
+		    Assert.AreEqual(sendEchoCallCount1, UDAPI.Configuration.MissedEchos);
+	    }
+
+
+
     }
 }
