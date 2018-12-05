@@ -319,7 +319,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 		    for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
 		    {
 			    testing.Tell(sendEchoMessage);
-			    Thread.Sleep(1000);
+			    testing.Tell(echoMessage);
+				Thread.Sleep(1000);
 
 		    }
 
