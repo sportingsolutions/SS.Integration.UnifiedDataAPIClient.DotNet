@@ -322,15 +322,19 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 	            Thread.Sleep(1000);
 
 			}
-			Thread.Sleep(1000);
 
-            AwaitAssert(() =>
-                {
-                   sendEchoCallCount2.Should().Be(1);
-                   sendEchoCallCount1.Should().Be(UDAPI.Configuration.MissedEchos );
-                },
-                TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
-                TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
-        }
+
+	        AwaitAssert(() =>
+		        {
+			        testing.UnderlyingActor.ConsumerCount.Should().Be(1);
+		        },
+		        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+		        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+
+			Assert.AreEqual(sendEchoCallCount2, 1);
+	        Assert.AreEqual(sendEchoCallCount1, UDAPI.Configuration.MissedEchos);
+
+
+			
     }
 }
