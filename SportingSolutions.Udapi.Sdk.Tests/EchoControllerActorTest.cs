@@ -280,14 +280,13 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
 		    Mock<IConsumer> consumer1 = new Mock<IConsumer>();
 		    consumer1.Setup(x => x.Id).Returns(Id1);
-		    int sendEchoCallCount1 = 0;
-		    consumer1.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount1++);
+		    int sendEchoCallCount = 0;
+		    consumer1.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount++);
 
 
 		    Mock<IConsumer> consumer2 = new Mock<IConsumer>();
 		    consumer2.Setup(x => x.Id).Returns(Id2);
-		    int sendEchoCallCount2 = 0;
-		    consumer2.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount2++);
+		    consumer2.Setup(x => x.SendEcho()).Callback(() => sendEchoCallCount++);
 
 
 		    Mock<IStreamSubscriber> subscriber1 = new Mock<IStreamSubscriber>();
@@ -329,8 +328,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 			    TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
 			    TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-		    Assert.AreEqual(sendEchoCallCount2, 1);
-		    Assert.AreEqual(sendEchoCallCount1, UDAPI.Configuration.MissedEchos);
+		    Assert.AreEqual(sendEchoCallCount, UDAPI.Configuration.MissedEchos+1);
 	    }
 
 
