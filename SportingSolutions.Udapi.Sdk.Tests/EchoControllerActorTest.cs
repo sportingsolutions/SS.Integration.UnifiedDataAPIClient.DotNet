@@ -251,8 +251,16 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             testing.Tell(sendEchoMessage);
             
             testing.Tell(echoMessage);
-            
-            for (int i = 0; i < UDAPI.Configuration.MissedEchos-1; i++)
+
+	        AwaitAssert(() =>
+		        {
+					testing.UnderlyingActor.GetEchosCountDown(Id2).Should().Be(UDAPI.Configuration.MissedEchos);
+				},
+		        TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
+		        TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
+
+
+			for (int i = 0; i < UDAPI.Configuration.MissedEchos-1; i++)
             {
                 testing.Tell(sendEchoMessage);
             }
