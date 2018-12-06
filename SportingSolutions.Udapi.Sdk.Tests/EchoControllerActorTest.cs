@@ -262,11 +262,12 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 			AwaitAssert(() =>
                 {
                     testing.UnderlyingActor.ConsumerCount.Should().Be(1);
-                    testing.UnderlyingActor.GetEchosCountDown(Id2).Should().Be(1);
                 },
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
-        }
+
+	        testing.UnderlyingActor.GetEchosCountDown(Id2).Should().Be(1);
+		}
 
 	    [Test]
 	    public void SendEchoCallTest()
