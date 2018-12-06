@@ -331,7 +331,8 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 			    TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
 			    TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-		    Assert.AreEqual(sendEchoCallCount, repeat + 1);
+		    sendEchoCallCount.Should().Be(repeat + 1);
+		    
 	    }
 
 
