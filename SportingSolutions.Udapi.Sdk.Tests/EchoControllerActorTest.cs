@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using Akka.Actor;
 using Akka.TestKit;
 using FluentAssertions;
 using Moq;
@@ -57,9 +58,10 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         private TestActorRef<EchoControllerActor> GetMockedEchoControllerActorWith1Consumer(string consumerId)
         {
-	        var mock = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), Guid.NewGuid().ToString());
-            
-            Mock<IConsumer> consumer = new Mock<IConsumer>();
+	        var testingProps = Props.Create(() => new EchoControllerActor());
+	        var testing = ActorOfAsTestActorRef<EchoControllerActor>(testingProps);
+
+			Mock<IConsumer> consumer = new Mock<IConsumer>();
             consumer.Setup(x => x.Id).Returns(consumerId);
 	        consumer.Setup(x => x.SendEcho()).Callback(() => {});
 
@@ -67,11 +69,11 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             subscriber.Setup(x => x.Consumer).Returns(consumer.Object);
 
 
-	        
 
-			mock.UnderlyingActor.AddConsumer(subscriber.Object);
 
-            return mock;
+	        testing.UnderlyingActor.AddConsumer(subscriber.Object);
+
+            return testing;
         }
 
         private void AddConsumer(TestActorRef<EchoControllerActor> actor, string consumerId)
@@ -128,8 +130,6 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [Test]
         public void RemoveConsumerPositiveTest()
         {
-	        
-	        
 			var testing = new EchoControllerActor();
 
             
@@ -153,10 +153,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         [Test]
         public void RemoveConsumerNegativeTest()
         {
-	        
-	        
-
-			var testing = new EchoControllerActor();
+	     	var testing = new EchoControllerActor();
 
             Mock<IConsumer> consumer1 = new Mock<IConsumer>();
             consumer1.Setup(x => x.Id).Returns(Id1);
@@ -296,9 +293,18 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 	    [Test]
 	    public void SendEchoCallTest()
 	    {
-		   var repeat = UDAPI.Configuration.MissedEchos;
-			
-			var testing = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), Guid.NewGuid().ToString());
+		    var testingProps = Props.Create(() => new EchoControllerActor());
+		    var testing = ActorOfAsTestActorRef<EchoControllerActor>(testingProps);
+
+			//var authProps = Props.Create(() => new EchoControllerActor());
+			//var testing = Sys.ActorOf(authProps);
+
+			//var system = new ActorSystem();
+
+			//var probe = this.CreateTestProbe();
+		    //var testing = Sys.ActorOf<EchoControllerActor>();
+
+			//var testing = ActorOfAsTestActorRef<EchoControllerActor>(() => new EchoControllerActor(), EchoControllerActor.ActorName);
 		    
 		    Mock<IConsumer> consumer1 = new Mock<IConsumer>();
 		    consumer1.Setup(x => x.Id).Returns(Id1);
@@ -331,7 +337,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 		    testing.Tell(sendEchoMessage);
 		    testing.Tell(echoMessage);
 
-		    for (int i = 0; i < repeat; i++)
+		    for (int i = 0; i < UDAPI.Configuration.MissedEchos; i++)
 		    {
 			    testing.Tell(sendEchoMessage);
 			    testing.Tell(echoMessage);
@@ -342,7 +348,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 			    TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
 			    TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-		    sendEchoCallCount.Should().Be(repeat + 1);
+		    sendEchoCallCount.Should().Be(UDAPI.Configuration.MissedEchos + 1);
 		    
 	    }
 
