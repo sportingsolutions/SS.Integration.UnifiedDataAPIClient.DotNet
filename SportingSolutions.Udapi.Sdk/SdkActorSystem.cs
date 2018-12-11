@@ -12,7 +12,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         private const string UserSystemPath = "/user/";
 
-        internal static bool InitializeActors { get; set; } = true;
+        public static bool InitializeActors { get; set; } = true;
         
         public static readonly string UpdateDispatcherPath = UserSystemPath + UpdateDispatcherActor.ActorName;
         public static readonly string StreamControllerActorPath = UserSystemPath + StreamControllerActor.ActorName;

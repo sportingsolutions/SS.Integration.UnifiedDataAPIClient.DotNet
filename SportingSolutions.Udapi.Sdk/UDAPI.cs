@@ -50,6 +50,7 @@ namespace SportingSolutions.Udapi.Sdk
         public static void Dispose()
         {
             SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new DisposeMessage());
+            SdkActorSystem.InitializeActors = true;
         }
 
         public static IConfiguration Configuration { get; set; }
