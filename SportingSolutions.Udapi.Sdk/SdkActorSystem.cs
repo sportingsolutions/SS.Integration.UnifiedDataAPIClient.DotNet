@@ -2,13 +2,19 @@
 using Akka.Actor;
 using Akka.Dispatch;
 using Akka.Event;
+using System.Threading;
+using System.Threading.Tasks;
 using SportingSolutions.Udapi.Sdk.Actors;
+using log4net;
 
 namespace SportingSolutions.Udapi.Sdk
 {
-    public class SdkActorSystem
+    public static class SdkActorSystem
     {
-        private static ActorSystem _actorSystem = ActorSystem.Create("SDKSystem");
+        public static ActorSystem ActorSystem { get; internal set; } = ActorSystem.Create("SDKSystem");
+
+
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(SdkActorSystem));
 
         private const string UserSystemPath = "/user/";
 
@@ -24,19 +30,29 @@ namespace SportingSolutions.Udapi.Sdk
 
         static SdkActorSystem()
         {
-            
+
         }
 
         /// <summary>
         /// 
         /// </summary>
-        public static void Init()
+        public static void Init(bool needToRecreateActorSystem = false)
         {
             if (InitializeActors)
             {
+                if (needToRecreateActorSystem)
+                {
+                    if (SdkActorSystem.ActorSystem != null)
+                        TerminateActorSystem();
+
+                    ActorSystem = ActorSystem.Create("SDKSystem");
+                    Logger.Debug($"ActorSystem is created, type={ActorSystem.GetType().ToString()}, creating actors, sdkActorSystemId={InstanceId}");
+                }
+
                 var dispatcher = ActorSystem.ActorOf(
                     Props.Create(() => new UpdateDispatcherActor()),
                     UpdateDispatcherActor.ActorName);
+
                ActorSystem.ActorOf(
                     Props.Create(() => new StreamControllerActor(dispatcher)),
                     StreamControllerActor.ActorName);
@@ -49,20 +65,23 @@ namespace SportingSolutions.Udapi.Sdk
                     Props.Create(() =>new FaultControllerActor()),
                     FaultControllerActor.ActorName);
 
-                // Setup an actor that will handle deadletter type messages
-                var deadletterWatchMonitorProps = Props.Create(() => new SdkDeadletterMonitorActor());
-                var deadletterWatchActorRef =
-                    _actorSystem.ActorOf(deadletterWatchMonitorProps, "SdkDeadletterMonitorActor");
+                var deadletterWatchActorRef = ActorSystem.ActorOf(
+                    Props.Create(() => new SdkDeadletterMonitorActor()),
+                    "SdkDeadletterMonitorActor");
 
                 // subscribe to the event stream for messages of type "DeadLetter"
-                _actorSystem.EventStream.Subscribe(deadletterWatchActorRef, typeof(DeadLetter));
+                ActorSystem.EventStream.Subscribe(deadletterWatchActorRef, typeof(DeadLetter));
+                Logger.Debug($"Actors are created, sdkActorSystemId={InstanceId}");
+
+                InitializeActors = false;
             }
         }
 
-        public static ActorSystem ActorSystem
+        private static void TerminateActorSystem()
         {
-            get => _actorSystem;
-            internal set => _actorSystem = value;
+            Logger.Debug("Terminating ActorSystem");
+            SdkActorSystem.ActorSystem.Terminate().Wait();
+            Logger.Debug("ActorSystem is terminated");
         }
     }
 }

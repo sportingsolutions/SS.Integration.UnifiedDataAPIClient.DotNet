@@ -443,6 +443,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 return;
             }
 
+            CloseConnection();
+
             State = ConnectionState.CONNECTING;
 
             long attempt = 1;
@@ -544,10 +546,27 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
         }
 
+        private static bool _failedThreadRun = false;
+
+        bool FailedThreadFunc()
+        {
+            Thread.Sleep(1000);
+            throw new Exception("Test exception for checking SDK recovering");
+        }
+
         private void ValidateState(ValidateStateMessage validateStateMessage)
         {
             var message = $"Method=ValidateState  currentState={State.ToString()} connectionStatus={ConnectionStatus} ";
-            
+
+
+            if (DateTime.Now.Minute % 5 == 0 && !_failedThreadRun)
+            {
+                _logger.Info("Failing is planned after 1 sec");
+                Task.Factory.StartNew(FailedThreadFunc);
+                //Thread failedThread = new Thread(new ThreadStart(FailedThreadFunc));
+                _failedThreadRun = true;
+            }
+
             if (NeedRaiseDisconnect)
             {
                 _logger.Warn($"{message} disconnected event will be raised");
@@ -578,7 +597,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             
             Become(DisconnectedState);
-            CloseConnection();
             NotifyDispatcherConnectionError();
             EstablishConnection(_connectionFactory);
             
