@@ -40,9 +40,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
 
 
-
+		//TODO delete it
 		private EchoEntry _echoEntry;
-        private readonly ICancelable _echoCancellation = new Cancelable(Context.System.Scheduler);
+
+	    private readonly ICancelable _echoCancellation = new Cancelable(Context.System.Scheduler);
 
         public EchoControllerActor()
         {
