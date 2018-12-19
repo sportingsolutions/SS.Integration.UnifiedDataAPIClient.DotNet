@@ -46,7 +46,7 @@ namespace SportingSolutions.Udapi.Sdk
                         TerminateActorSystem();
 
                     ActorSystem = ActorSystem.Create("SDKSystem");
-                    Logger.Debug($"ActorSystem is created, type={ActorSystem.GetType().ToString()}, creating actors, sdkActorSystemId={InstanceId}");
+                    Logger.Debug($"UDAPI ActorSystem is created, creating actors...");
                 }
 
                 var dispatcher = ActorSystem.ActorOf(
@@ -71,7 +71,6 @@ namespace SportingSolutions.Udapi.Sdk
 
                 // subscribe to the event stream for messages of type "DeadLetter"
                 ActorSystem.EventStream.Subscribe(deadletterWatchActorRef, typeof(DeadLetter));
-                Logger.Debug($"Actors are created, sdkActorSystemId={InstanceId}");
 
                 InitializeActors = false;
             }
@@ -79,9 +78,9 @@ namespace SportingSolutions.Udapi.Sdk
 
         private static void TerminateActorSystem()
         {
-            Logger.Debug("Terminating ActorSystem");
+            Logger.Debug("Terminating UDAPI ActorSystem...");
             SdkActorSystem.ActorSystem.Terminate().Wait();
-            Logger.Debug("ActorSystem is terminated");
+            Logger.Debug("UDAPI ActorSystem has been terminated");
         }
     }
 }
