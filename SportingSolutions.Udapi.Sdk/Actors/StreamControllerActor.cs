@@ -435,6 +435,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             // _connectionLock must be acquire before calling
             // this method.
 
+            CloseConnection();
+
             _logger.DebugFormat("Connecting to the streaming server");
 
             if (factory == null)
@@ -544,10 +546,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
         }
 
+
         private void ValidateState(ValidateStateMessage validateStateMessage)
         {
             var message = $"Method=ValidateState  currentState={State.ToString()} connectionStatus={ConnectionStatus} ";
-            
+
             if (NeedRaiseDisconnect)
             {
                 _logger.Warn($"{message} disconnected event will be raised");
@@ -578,7 +581,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             
             Become(DisconnectedState);
-            CloseConnection();
             NotifyDispatcherConnectionError();
             EstablishConnection(_connectionFactory);
             
