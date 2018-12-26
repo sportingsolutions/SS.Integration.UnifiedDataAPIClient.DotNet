@@ -33,7 +33,7 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         /// 
         /// </summary>
         /// <param name="subscriber"></param>
-        void RemoveConsumer(IStreamSubscriber subscriber);
+        void RemoveConsumer(IStreamSubscriber subscriber, System.Guid messageId);
 
         /// <summary>
         ///     Removes all the registred IStreamSubscriber objects
@@ -48,7 +48,7 @@ namespace SportingSolutions.Udapi.Sdk.Interfaces
         /// 
         /// </summary>
         /// <param name="subscriberId"></param>
-        void ProcessEcho(string subscriberId);
+        void ProcessEcho(string subscriberId, System.Guid messageId);
 
         /// <summary>
         ///     Resets all echoes 

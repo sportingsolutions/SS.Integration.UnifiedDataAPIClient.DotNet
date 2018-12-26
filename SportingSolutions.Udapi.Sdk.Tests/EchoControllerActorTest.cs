@@ -145,7 +145,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             testing.AddConsumer(subscriber.Object);
             testing.ConsumerCount.Should().Be(1);
 
-            testing.RemoveConsumer(subscriber.Object);
+            testing.RemoveConsumer(subscriber.Object, Guid.NewGuid());
             testing.ConsumerCount.Should().Be(0);
 
         }
@@ -171,7 +171,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             testing.AddConsumer(subscriber1.Object);
             testing.ConsumerCount.Should().Be(1);
-            testing.RemoveConsumer(subscriber2.Object);
+            testing.RemoveConsumer(subscriber2.Object,Guid.NewGuid());
             testing.ConsumerCount.Should().Be(1);
 
         }

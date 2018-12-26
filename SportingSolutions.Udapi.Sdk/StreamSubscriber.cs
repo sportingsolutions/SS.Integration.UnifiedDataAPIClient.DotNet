@@ -119,6 +119,7 @@ namespace SportingSolutions.Udapi.Sdk
             if (!IsRunning)
                 return;
 
+            var messageId = Guid.NewGuid();
             _logger.Debug(
                 "HandleBasicDeliver" +
                 $" consumerTag={consumerTag ?? "null"}" +
@@ -126,9 +127,10 @@ namespace SportingSolutions.Udapi.Sdk
                 $" redelivered={redelivered}" +
                 $" exchange={exchange ?? "null"}" +
                 $" routingKey={routingKey ?? "null"}" +
+                $" messageId={messageId}" +
                 (body == null ? " body=null" : $" bodyLength={body.Length}"));
 
-            Dispatcher.Tell(new StreamUpdateMessage { Id = consumerTag, Message = Encoding.UTF8.GetString(body), ReceivedAt = DateTime.UtcNow });
+            Dispatcher.Tell(new StreamUpdateMessage { Id = consumerTag, Message = Encoding.UTF8.GetString(body), ReceivedAt = DateTime.UtcNow, MessageId = messageId });
         }
 
         public override void HandleBasicCancel(string consumerTag)

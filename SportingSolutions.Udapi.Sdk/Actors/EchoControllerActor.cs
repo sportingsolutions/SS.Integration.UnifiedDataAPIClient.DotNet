@@ -63,8 +63,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _logger.DebugFormat("EchoSender is {0}", Enabled ? "enabled" : "disabled");
 
             Receive<NewSubscriberMessage>(x => AddConsumer(x.Subscriber));
-            Receive<RemoveSubscriberMessage>(x => RemoveConsumer(x.Subscriber));
-            Receive<EchoMessage>(x => ProcessEcho(x.Id));
+            Receive<RemoveSubscriberMessage>(x => RemoveConsumer(x.Subscriber, x.MessageId));
+            Receive<EchoMessage>(x => ProcessEcho(x.Id, x.MessageId));
             Receive<SendEchoMessage>(x => CheckEchos());
             Receive<DisposeMessage>(x => Dispose());
         }
@@ -119,14 +119,19 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         }
 
-        public void RemoveConsumer(IStreamSubscriber subscriber)
+        public void RemoveConsumer(IStreamSubscriber subscriber, System.Guid messageId)
         {
             if (!Enabled || subscriber == null)
+            {
+                _logger.DebugFormat("consumerId={0} didn't remove from echos manager, useEchos={1}, messageId={2}", subscriber?.Consumer?.Id, Enabled, messageId);
                 return;
+            }
 
             EchoEntry tmp;
             if (_consumers.TryRemove(subscriber.Consumer.Id, out tmp))
-                _logger.DebugFormat("consumerId={0} removed from echos manager", subscriber.Consumer.Id);
+                _logger.DebugFormat("consumerId={0} removed from echos manager, messageId={1}", subscriber.Consumer.Id, messageId);
+            else
+                _logger.DebugFormat("consumerId={0} has already removed, messageId={1}", subscriber.Consumer.Id,messageId);
         }
 
         public void RemoveAll()
@@ -137,13 +142,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             _consumers.Clear();
         }
 
-        public void ProcessEcho(string subscriberId)
+        public void ProcessEcho(string subscriberId, System.Guid messageId)
         {
             EchoEntry entry;
             if (!string.IsNullOrEmpty(subscriberId) && _consumers.TryGetValue(subscriberId, out entry))
             {
                 if (UDAPI.Configuration.VerboseLogging)
-                    _logger.DebugFormat("Resetting echo information for fixtureId={0}", subscriberId);
+                    _logger.DebugFormat("Resetting echo information for fixtureId={0}, messageId={1}", subscriberId, messageId);
 
                 entry.EchosCountDown = UDAPI.Configuration.MissedEchos;
             }
@@ -199,7 +204,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             foreach (var s in subscribers)
             {
                 Context.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new RemoveConsumerMessage() { Consumer = s.Consumer });
-                Self.Tell(new RemoveSubscriberMessage() { Subscriber = s});
+                Self.Tell(new RemoveSubscriberMessage() { Subscriber = s, MessageId = Guid.NewGuid()});
             }
         }
 

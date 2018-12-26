@@ -2,6 +2,6 @@
 {
     internal class EchoMessage : StreamUpdateMessage
     {
-        
+        public System.Guid MessageId;
     }
 }

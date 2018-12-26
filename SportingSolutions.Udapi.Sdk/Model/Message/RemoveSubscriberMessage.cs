@@ -10,5 +10,6 @@ namespace SportingSolutions.Udapi.Sdk.Model.Message
     internal class RemoveSubscriberMessage
     {
         public IStreamSubscriber Subscriber { get; internal set; }
+        public System.Guid MessageId { get; set; }
     }
 }
