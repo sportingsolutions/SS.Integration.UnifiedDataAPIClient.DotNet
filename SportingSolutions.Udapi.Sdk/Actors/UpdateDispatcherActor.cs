@@ -88,7 +88,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.DebugFormat($"Echo arrived for fixtureId={message.Id}, messageId={messageId}");
                 Context.ActorSelection(SdkActorSystem.EchoControllerActorPath)
                     .Tell(new EchoMessage {Id = message.Id, Message = message.Message, MessageId= messageId });
-                _logger.DebugFormat($"After echo arrived for fixtureId={message.Id}, sent messageId={messageId}");
+                System.Threading.Interlocked.Increment(ref SportingSolutions.Udapi.Sdk.Actors.EchoControllerActor.MessagesCount);
+                _logger.DebugFormat($"After echo arrived for fixtureId={message.Id}, sent messageId={messageId}, EchoMessage is sent, MessagesCount incremented to {EchoControllerActor.MessagesCount}");
             }
             else if (_subscribers.ContainsKey(message.Id))
             {
@@ -109,8 +110,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Connect(subscriber);
             
             Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(new NewSubscriberMessage {Subscriber = subscriber} );
-            
-            _logger.Info($"consumerId={subscriber.Consumer.Id} added to the dispatcher, count={_subscribers.Count}");
+            System.Threading.Interlocked.Increment(ref SportingSolutions.Udapi.Sdk.Actors.EchoControllerActor.MessagesCount);
+
+            _logger.Info($"consumerId={subscriber.Consumer.Id} added to the dispatcher, count={_subscribers.Count}, NewSubscriberMessage is sent, MessagesCount incremented to {EchoControllerActor.MessagesCount}");
         }
 
         private void AskSubsbscribersCount()
@@ -147,6 +149,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 Self.Tell(disconnectMsg);
                 Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath)
                     .Tell(new RemoveSubscriberMessage {Subscriber = subscriber});
+                System.Threading.Interlocked.Increment(ref SportingSolutions.Udapi.Sdk.Actors.EchoControllerActor.MessagesCount);
+                _logger.Debug($"RemoveSubscriberMessage is sent, MessagesCount incremented to {EchoControllerActor.MessagesCount}");
             }
             catch (Exception ex)
             {
@@ -173,8 +177,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 RemoveAll();
                 Context.System.ActorSelection(SdkActorSystem.EchoControllerActorPath).Tell(new DisposeMessage());
+                System.Threading.Interlocked.Increment(ref EchoControllerActor.MessagesCount);
+                _logger.Debug($"DisposeMessage is sent, MessagesCount incremented to {EchoControllerActor.MessagesCount}");
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.Error("Dispose failed", ex);
             }

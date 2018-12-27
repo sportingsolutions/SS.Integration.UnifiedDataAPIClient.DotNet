@@ -35,10 +35,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         public const string ActorName = "EchoControllerActor";
 
-        private readonly ILog _logger = LogManager.GetLogger(typeof(EchoControllerActor));
+        protected static readonly ILog _logger = LogManager.GetLogger(typeof(EchoControllerActor));
 
 
-        
+        internal static int MessagesCount = 0;
 
 
         private readonly ConcurrentDictionary<string, EchoEntry> _consumers;
@@ -56,8 +56,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     TimeSpan.FromSeconds(0),
                     TimeSpan.FromMilliseconds(UDAPI.Configuration.EchoWaitInterval),
                     Self,
-                    new SendEchoMessage(),
-                    ActorRefs.Nobody);
+                    GetNewMessage(),
+                    ActorRefs.Nobody, 
+                    _echoCancellation);
             }
 
             _logger.DebugFormat("EchoSender is {0}", Enabled ? "enabled" : "disabled");
@@ -67,9 +68,15 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<EchoMessage>(x => ProcessEcho(x.Id, x.MessageId));
             Receive<SendEchoMessage>(x => CheckEchos());
             Receive<DisposeMessage>(x => Dispose());
+            
         }
 
-
+        private SendEchoMessage GetNewMessage()
+        {
+                System.Threading.Interlocked.Increment(ref MessagesCount);
+                _logger.Debug($"SendEchoMessage is sent, MessagesCount incremented to {MessagesCount}");
+            return new SendEchoMessage();
+        }
 
         protected override void PreRestart(Exception reason, object message)
         {
@@ -95,6 +102,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         public virtual void AddConsumer(IStreamSubscriber subscriber)
         {
+            System.Threading.Interlocked.Decrement(ref MessagesCount);
+            _logger.Debug($"AddConsumer recieved, consumerId={subscriber.Consumer.Id} MessagesCount decremented to {MessagesCount}");
+
             if (!Enabled || subscriber == null)
                 return;
 
@@ -116,22 +126,25 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 echoEntry.EchosCountDown = UDAPI.Configuration.MissedEchos;
             }
+            
 
         }
 
         public void RemoveConsumer(IStreamSubscriber subscriber, System.Guid messageId)
         {
+            System.Threading.Interlocked.Decrement(ref MessagesCount);
+
             if (!Enabled || subscriber == null)
             {
-                _logger.DebugFormat("consumerId={0} didn't remove from echos manager, useEchos={1}, messageId={2}", subscriber?.Consumer?.Id, Enabled, messageId);
+                _logger.DebugFormat("consumerId={0} didn't remove from echos manager, useEchos={1}, messageId={2}, MessagesCount decremented to {3}", subscriber?.Consumer?.Id, Enabled, messageId, MessagesCount);
                 return;
             }
 
             EchoEntry tmp;
             if (_consumers.TryRemove(subscriber.Consumer.Id, out tmp))
-                _logger.DebugFormat("consumerId={0} removed from echos manager, messageId={1}", subscriber.Consumer.Id, messageId);
+                _logger.DebugFormat("consumerId={0} removed from echos manager, messageId={1}, RemoveConsumer recieved, MessagesCount decremented to {2}", subscriber.Consumer.Id, messageId, MessagesCount);
             else
-                _logger.DebugFormat("consumerId={0} has already removed, messageId={1}", subscriber.Consumer.Id,messageId);
+                _logger.DebugFormat("consumerId={0} has already removed, messageId={1}, MessagesCount decremented to {2}", subscriber.Consumer.Id,messageId, MessagesCount);
         }
 
         public void RemoveAll()
@@ -144,6 +157,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         public void ProcessEcho(string subscriberId, System.Guid messageId)
         {
+            System.Threading.Interlocked.Decrement(ref MessagesCount);
+            _logger.Debug($"ProcessEcho: EchoMessage recieved with id={messageId}, MessagesCount decremented to {MessagesCount}");
+
             EchoEntry entry;
             if (!string.IsNullOrEmpty(subscriberId) && _consumers.TryGetValue(subscriberId, out entry))
             {
@@ -156,6 +172,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void CheckEchos()
         {
+            System.Threading.Interlocked.Decrement(ref MessagesCount);
             try
             {
                 List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
@@ -163,7 +180,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 // acquiring the consumer here prevents to put another lock on the
                 // dictionary
                 
-                _logger.Info($"CheckEchos consumersCount={_consumers.Count}");
+                _logger.Info($"CheckEchos consumersCount={_consumers.Count},SendEchoMessage recieved, MessagesCount decremented to {MessagesCount}");
 
 	            IStreamSubscriber sendEchoConsumer = _consumers.Values.FirstOrDefault(_ => _.EchosCountDown > 0)?.Subscriber;
 
@@ -228,12 +245,14 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         public void Dispose()
         {
-            _logger.DebugFormat("Disposing EchoSender");
+            System.Threading.Interlocked.Decrement(ref MessagesCount);
+            _logger.Debug($"DisposeMessage recieved, MessagesCount decremented to {MessagesCount}, disposing EchoSender");
             _echoCancellation.Cancel();
             
             RemoveAll();
             
             _logger.InfoFormat("EchoSender correctly disposed");
+            
         }
 
         #region Private messages
