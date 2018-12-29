@@ -49,6 +49,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         public static void Dispose()
         {
+            SdkActorSystem.InitializeActors = true;
             SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(new DisposeMessage());
         }
 
