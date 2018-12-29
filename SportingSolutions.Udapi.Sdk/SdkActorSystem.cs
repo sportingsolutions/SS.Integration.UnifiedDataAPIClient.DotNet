@@ -58,7 +58,7 @@ namespace SportingSolutions.Udapi.Sdk
                     StreamControllerActor.ActorName);
                 
                 ActorSystem.ActorOf(
-                    Props.Create(() => new EchoControllerActor()),
+                    Props.Create(() => new EchoControllerActor()).WithMailbox("echocontrolleractor-mailbox"),
                     EchoControllerActor.ActorName);
 
                 FaultControllerActorRef = ActorSystem.ActorOf(
