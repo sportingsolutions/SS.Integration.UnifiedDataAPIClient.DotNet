@@ -56,7 +56,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     TimeSpan.FromSeconds(0),
                     TimeSpan.FromMilliseconds(UDAPI.Configuration.EchoWaitInterval),
                     Self,
-                    GetNewMessage(),
+                    new SendEchoMessage(),
                     ActorRefs.Nobody, 
                     _echoCancellation);
             }
@@ -69,13 +69,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<SendEchoMessage>(x => CheckEchos());
             Receive<DisposeMessage>(x => Dispose());
             
-        }
-
-        private SendEchoMessage GetNewMessage()
-        {
-                System.Threading.Interlocked.Increment(ref MessagesCount);
-                _logger.Debug($"SendEchoMessage is sent, MessagesCount incremented to {MessagesCount}");
-            return new SendEchoMessage();
         }
 
         protected override void PreRestart(Exception reason, object message)
@@ -158,7 +151,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         public void ProcessEcho(string subscriberId, System.Guid messageId)
         {
             System.Threading.Interlocked.Decrement(ref MessagesCount);
-            _logger.Debug($"ProcessEcho: EchoMessage recieved with id={messageId}, MessagesCount decremented to {MessagesCount}");
+            _logger.Debug($"Process echo: EchoMessage recieved with id={messageId}, subscriberId={subscriberId}, MessagesCount decremented to {MessagesCount}");
 
             EchoEntry entry;
             if (!string.IsNullOrEmpty(subscriberId) && _consumers.TryGetValue(subscriberId, out entry))
@@ -172,15 +165,14 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void CheckEchos()
         {
-            System.Threading.Interlocked.Decrement(ref MessagesCount);
             try
             {
-                List<IStreamSubscriber> invalidConsumers = new List<IStreamSubscriber>();
+                Stack<IStreamSubscriber> invalidConsumers = new Stack<IStreamSubscriber>();
 
                 // acquiring the consumer here prevents to put another lock on the
                 // dictionary
                 
-                _logger.Info($"CheckEchos consumersCount={_consumers.Count},SendEchoMessage recieved, MessagesCount decremented to {MessagesCount}");
+                _logger.Info($"CheckEchos consumersCount={_consumers.Count},SendEchoMessage recieved, MessagesCount={MessagesCount}");
 
 	            IStreamSubscriber sendEchoConsumer = _consumers.Values.FirstOrDefault(_ => _.EchosCountDown > 0)?.Subscriber;
 
@@ -192,7 +184,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                         if (consumer.Value.EchosCountDown < 1)
                         {
                             _logger.Warn($"{msg} and it will be disconnected");
-                            invalidConsumers.Add(consumer.Value.Subscriber);
+                            invalidConsumers.Push(consumer.Value.Subscriber);
                         }
                         else
                         {
@@ -205,7 +197,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 				// this wil force indirectly a call to EchoManager.RemoveConsumer(consumer)
 				// for the invalid consumers
 				RemoveSubribers(invalidConsumers);
-
+                
                 invalidConsumers.Clear();
 
                 SendEchos(sendEchoConsumer);
