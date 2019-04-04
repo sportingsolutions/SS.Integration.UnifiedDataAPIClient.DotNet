@@ -56,7 +56,7 @@ namespace SportingSolutions.Udapi.Sdk
             return links.Select(serviceRestItem => new Service(serviceRestItem, ConnectClient)).FirstOrDefault(service => service.Name == name);
         }
 
-        private IEnumerable<RestItem> GetRoot()
+        private IEnumerable<UdapiItem> GetRoot()
         {
             var stopwatch = new Stopwatch();
             var messageStringBuilder = new StringBuilder("GetRoot request...");
@@ -70,7 +70,7 @@ namespace SportingSolutions.Udapi.Sdk
 
                 if (getRootResponse.ErrorException != null || getRootResponse.Content == null)
                 {
-                    RestErrorHelper.LogRestError(Logger, getRootResponse, "GetRoot HTTP error");
+                    RestErrorHelper.LogResponseError(Logger, getRootResponse, "GetRoot HTTP error");
                     throw new Exception("Error calling GetRoot", getRootResponse.ErrorException);
                 }
 
@@ -80,7 +80,7 @@ namespace SportingSolutions.Udapi.Sdk
                 }
 
                 if (getRootResponse.Content != null)
-                    return getRootResponse.Content.FromJson<List<RestItem>>();
+                    return getRootResponse.Content.FromJson<List<UdapiItem>>();
             }
             catch (NotAuthenticatedException)
             {

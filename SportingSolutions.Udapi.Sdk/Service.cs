@@ -33,7 +33,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         #region Constructors
 
-        internal Service(RestItem restItem, IConnectClient connectClient)
+        internal Service(UdapiItem restItem, IConnectClient connectClient)
             : base(restItem, connectClient)
         {
             Logger = LogManager.GetLogger(typeof(Service).ToString());
@@ -95,7 +95,7 @@ namespace SportingSolutions.Udapi.Sdk
 
         #region Private methods
 
-        private IEnumerable<RestItem> GetFeaturesListFromApi(StringBuilder loggingStringBuilder)
+        private IEnumerable<UdapiItem> GetFeaturesListFromApi(StringBuilder loggingStringBuilder)
         {
             loggingStringBuilder.Append("Getting features list from API - ");
 

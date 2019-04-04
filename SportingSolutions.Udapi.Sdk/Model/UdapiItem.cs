@@ -16,14 +16,14 @@ using System.Collections.Generic;
 
 namespace SportingSolutions.Udapi.Sdk.Model
 {
-    public class RestItem
+    public class UdapiItem
     {
-        public RestItem()
+        public UdapiItem()
         {
-            Links = new List<RestLink>();
+            Links = new List<UdapiLink>();
         }
 
-        public RestItem(string name)
+        public UdapiItem(string name)
             : this()
         {
             Name = name;
@@ -33,6 +33,6 @@ namespace SportingSolutions.Udapi.Sdk.Model
 
         public Summary Content { get; set; }
 
-        public List<RestLink> Links { get; set; }
+        public List<UdapiLink> Links { get; set; }
     }
 }

@@ -16,79 +16,76 @@ using System.Linq;
 using System.Text;
 using RestSharp;
 using log4net;
+using System.Net.Http;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
     public class RestErrorHelper
     {
-        public static void LogRestError(ILog logger, IRestResponse restResponse, string errorHeading)
+        public static void LogResponseError(ILog logger, HttpResponseMessage response, string errorHeading)
         {
-            if (logger != null && restResponse != null)
+            if (logger != null && response != null)
             {
-                var stringBuilder = BuildLoggingString(restResponse, errorHeading);
+                var stringBuilder = BuildLoggingString(response, errorHeading);
                 logger.Error(stringBuilder.ToString());
             }
         }
 
-        public static void LogRestWarn(ILog logger, IRestResponse restResponse, string warnHeading)
+        public static void LogResponseWarn(ILog logger, HttpResponseMessage response, string warnHeading)
         {
-            if (logger != null && restResponse != null)
+            if (logger != null && response != null)
             {
-                var stringBuilder = BuildLoggingString(restResponse, warnHeading);
+                var stringBuilder = BuildLoggingString(response, warnHeading);
                 logger.Warn(stringBuilder.ToString());
             }
         }
 
-        private static StringBuilder BuildLoggingString(IRestResponse restResponse, string logHeading)
+        private static StringBuilder BuildLoggingString(HttpResponseMessage response, string logHeading)
         {
             var stringBuilder = new StringBuilder(logHeading).AppendLine();
+            IRestRequest reqq;
 
-            if (restResponse.ResponseUri != null)
+            var request = response.RequestMessage;
+            if (request != null)
             {
-                stringBuilder.AppendFormat("Uri={0}", restResponse.ResponseUri).AppendLine();
+                if (request.RequestUri != null)
+                    stringBuilder.AppendFormat("Uri={0}", request.RequestUri).AppendLine();
+
+                stringBuilder.AppendFormat($"Request.Method={request.Method}").AppendLine();
+                stringBuilder.AppendFormat($"Request.TimeOut={request..Timeout}").AppendLine();
             }
 
-            if (restResponse.Request != null)
+            stringBuilder.AppendFormat("ResponseStatus={0}", response.ResponseStatus).AppendLine();
+
+            if (response.StatusCode != 0)
             {
-                if (restResponse.ResponseUri == null)
-                {
-                    stringBuilder.AppendFormat("Uri={0}", restResponse.Request.Resource).AppendLine();
-                }
-                stringBuilder.AppendFormat("Request.Method={0}", restResponse.Request.Method).AppendLine();
-                stringBuilder.AppendFormat("Request.TimeOut={0}", restResponse.Request.Timeout).AppendLine();
+                stringBuilder.AppendFormat("StatusCode={0} ({1})", response.StatusCode, response.StatusDescription).AppendLine();
             }
 
-            stringBuilder.AppendFormat("ResponseStatus={0}", restResponse.ResponseStatus).AppendLine();
-
-            if (restResponse.StatusCode != 0)
-            {
-                stringBuilder.AppendFormat("StatusCode={0} ({1})", restResponse.StatusCode, restResponse.StatusDescription).AppendLine();
-            }
-
-            var transactionId = GetTransactionId(restResponse);
+            var transactionId = GetTransactionId(response);
             if (!string.IsNullOrEmpty(transactionId))
             {
-                stringBuilder.AppendFormat("TransactionId={0}", GetTransactionId(restResponse)).AppendLine();
+                stringBuilder.AppendFormat("TransactionId={0}", GetTransactionId(response)).AppendLine();
             }
 
-            if (!string.IsNullOrEmpty(restResponse.Content))
+            if (!string.IsNullOrEmpty(response.Content))
             {
-                stringBuilder.AppendFormat("Content={0}", restResponse.Content).AppendLine();
+                stringBuilder.AppendFormat("Content={0}", response.Content).AppendLine();
             }
 
-            if (restResponse.ErrorException != null)
+            if (response.ErrorException != null)
             {
-                stringBuilder.AppendFormat("Exception={0}", restResponse.ErrorException).AppendLine();
+                stringBuilder.AppendFormat("Exception={0}", response.ErrorException).AppendLine();
             }
 
             return stringBuilder;
         }
 
-        private static string GetTransactionId(IRestResponse restResponse)
+        private static string GetTransactionId(HttpResponseMessage response)
         {
             var transactionId = string.Empty;
 
-            var transactionIdHeader = restResponse.Headers.FirstOrDefault(h => h.Name == "TransactionId");
+            var transactionIdHeader = response.Headers.FirstOrDefault(h => h.Key == "TransactionId");
             if (transactionIdHeader != null && transactionIdHeader.Value != null)
             {
                 transactionId = transactionIdHeader.Value.ToString();

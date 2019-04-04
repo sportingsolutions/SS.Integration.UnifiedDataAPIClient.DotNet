@@ -23,12 +23,13 @@ using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
 using Newtonsoft.Json;
+using System.Net.Http;
 
 namespace SportingSolutions.Udapi.Sdk
 {
     public abstract class Endpoint
     {
-        protected readonly RestItem State;
+        protected readonly UdapiItem State;
 
         protected readonly IConnectClient ConnectClient;
 
@@ -39,37 +40,37 @@ namespace SportingSolutions.Udapi.Sdk
             ConnectClient = connectClient;
         }
 
-        internal Endpoint(RestItem restItem, IConnectClient connectClient)
+        internal Endpoint(UdapiItem udapiItem, IConnectClient connectClient)
         {
-            State = restItem;
+            State = udapiItem;
             ConnectClient = connectClient;
         }
 
         protected Uri FindRelationUri(string relation)
         {
-            var theLink = State.Links.First(restLink => restLink.Relation == relation);
+            var theLink = State.Links.First(udapiLink => udapiLink.Relation == relation);
             var theUrl = theLink.Href;
             return new Uri(theUrl);
         }
 
-        protected IEnumerable<RestItem> FindRelationAndFollow(string relation, string errorHeading, StringBuilder loggingStringBuilder)
+        protected IEnumerable<UdapiItem> FindRelationAndFollow(string relation, string errorHeading, StringBuilder loggingStringBuilder)
         {
             var stopwatch = new Stopwatch();
 
-            IEnumerable<RestItem> result = new List<RestItem>();
+            IEnumerable<UdapiItem> result = new List<UdapiItem>();
             if (State != null)
             {
                 var theUri = FindRelationUri(relation);
 
                 loggingStringBuilder.AppendFormat("Call to url={0} ", theUri);
                 stopwatch.Start();
-                IRestResponse<List<RestItem>> response = new RestResponse<List<RestItem>>();
+                IRestResponse<List<UdapiItem>> response = new RestResponse<List<UdapiItem>>();
                 int tryIterationCounter = 1;
                 while (tryIterationCounter <= 3)
                 {
                     try
                     {
-                        response = ConnectClient.Request<List<RestItem>>(theUri, Method.GET);
+                        response = ConnectClient.Request<List<UdapiItem>>(theUri, HttpMethod.Get);
                         break;
                     }
                     catch (JsonSerializationException ex)
@@ -95,7 +96,7 @@ namespace SportingSolutions.Udapi.Sdk
                 loggingStringBuilder.AppendFormat("took duration={0}ms - ", stopwatch.ElapsedMilliseconds);
                 if (response.ErrorException != null)
                 {
-                    RestErrorHelper.LogRestError(Logger, response, errorHeading);
+                    RestErrorHelper.LogResponseError(Logger, response, errorHeading);
                     throw new Exception($"Error calling {theUri} - ", response.ErrorException);
                 }
                 result = response.Data;
@@ -115,11 +116,11 @@ namespace SportingSolutions.Udapi.Sdk
 
                 loggingStringBuilder.AppendFormat("Beginning call to url={0} ", theUri);
                 stopwatch.Start();
-                var response = ConnectClient.Request(theUri, Method.GET);
+                var response = ConnectClient.Request(theUri, HttpMethod.Get);
                 loggingStringBuilder.AppendFormat("took duration={0}ms", stopwatch.ElapsedMilliseconds);
                 if (response.ErrorException != null || response.Content == null)
                 {
-                    RestErrorHelper.LogRestError(Logger, response, errorHeading);
+                    RestErrorHelper.LogResponseError(Logger, response, errorHeading);
                     throw new Exception(string.Format("Error calling {0}", theUri), response.ErrorException);
                 }
                 result = response.Content;

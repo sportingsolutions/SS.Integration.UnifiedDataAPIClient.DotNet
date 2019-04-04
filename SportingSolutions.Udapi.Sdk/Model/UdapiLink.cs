@@ -15,15 +15,15 @@
 
 namespace SportingSolutions.Udapi.Sdk.Model
 {
-    public class RestLink
+    public class UdapiLink
     {
         public string Relation { get; set; }
         public string Href { get; set; }
         public string[] Verbs { get; set; }
 
-        public RestLink() { }
+        public UdapiLink() { }
 
-        public RestLink(string relation, string href, string[] verbs)
+        public UdapiLink(string relation, string href, string[] verbs)
         {
             Relation = relation;
             Href = href;

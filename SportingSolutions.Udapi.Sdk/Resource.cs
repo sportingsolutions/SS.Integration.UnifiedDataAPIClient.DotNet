@@ -23,6 +23,7 @@ using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
 using SportingSolutions.Udapi.Sdk.Model.Message;
+using System.Net.Http;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -31,10 +32,7 @@ namespace SportingSolutions.Udapi.Sdk
         private const int DEFAULT_ECHO_INTERVAL_MS = 10000;
         private const int DEFAULT_ECHO_MAX_DELAY_MS = 3000;
 
-
         public event EventHandler Tick;
-
-        
 
         public event EventHandler StreamConnected;
         public event EventHandler StreamDisconnected;
@@ -46,7 +44,7 @@ namespace SportingSolutions.Udapi.Sdk
         private readonly ManualResetEvent _pauseStream;
         private string _virtualHost;
 
-        public Resource(RestItem restItem, IConnectClient client)
+        public Resource(UdapiItem restItem, IConnectClient client)
             : base(restItem, client)
         {
             Logger = LogManager.GetLogger(typeof(Resource).ToString());
@@ -223,10 +221,10 @@ namespace SportingSolutions.Udapi.Sdk
                 Message = Guid.NewGuid() + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
             };
 
-            var response = ConnectClient.Request(echouri, RestSharp.Method.POST, streamEcho, UDAPI.Configuration.ContentType, 3000);
+            var response = ConnectClient.Request(echouri, HttpMethod.Post, streamEcho, UDAPI.Configuration.ContentType, 3000);
             if (response.ErrorException != null || response.Content == null)
             {
-                RestErrorHelper.LogRestError(Logger, response, "Error sending echo request");
+                RestErrorHelper.LogResponseError(Logger, response, "Error sending echo request");
                 throw new Exception(string.Format("Error calling {0}", echouri), response.ErrorException);
             }
         }
