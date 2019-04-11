@@ -29,7 +29,6 @@
       <Libraries Include="$(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\bin\$(Configuration)\log4net.dll;
                           $(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\bin\$(Configuration)\Newtonsoft.Json.dll;
                           $(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\bin\$(Configuration)\RabbitMQ.Client.dll;
-                          $(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\bin\$(Configuration)\RestSharp.dll;
                           $(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\bin\$(Configuration)\SportingSolutions.Udapi.Sdk.dll;
                           $(MSBuildProjectDirectory)\SportingSolutions.Udapi.Sdk\bin\$(Configuration)\SportingSolutions.Udapi.Sdk.pdb;" />
     </ItemGroup>

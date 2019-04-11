@@ -18,7 +18,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using RestSharp;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;

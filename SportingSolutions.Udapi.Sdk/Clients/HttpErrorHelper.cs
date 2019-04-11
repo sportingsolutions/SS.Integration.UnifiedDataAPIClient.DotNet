@@ -14,7 +14,6 @@
 
 using System.Linq;
 using System.Text;
-using RestSharp;
 using log4net;
 using System.Net.Http;
 using SportingSolutions.Udapi.Sdk.Extensions;

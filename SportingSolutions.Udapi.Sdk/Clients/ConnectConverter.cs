@@ -12,16 +12,14 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+using System.Net.Http;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using RestSharp;
-using RestSharp.Deserializers;
-using RestSharp.Serializers;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
-    public class ConnectConverter : ISerializer, IDeserializer
+    public class ConnectConverter
     {
         private static readonly JsonSerializerSettings SerializerSettings;
 
@@ -45,16 +43,13 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             return JsonConvert.SerializeObject(obj, Formatting.None, SerializerSettings);
         }
 
-        public T Deserialize<T>(IRestResponse response)
+        public T Deserialize<T>(HttpResponseMessage response)
         {
             var type = typeof(T);
 
-            return (T)JsonConvert.DeserializeObject(response.Content, type, SerializerSettings);
+            return (T)JsonConvert.DeserializeObject(response.Content.ReadAsStringAsync().Result, type, SerializerSettings);
         }
 
-        string IDeserializer.RootElement { get; set; }
-        string IDeserializer.Namespace { get; set; }
-        string IDeserializer.DateFormat { get; set; }
         public string ContentType { get; set; }
     }
 }
