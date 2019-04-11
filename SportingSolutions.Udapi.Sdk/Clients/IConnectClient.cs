@@ -13,29 +13,29 @@
 //limitations under the License.
 
 using System;
-using RestSharp;
 using System.Net.Http;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
     public interface IConnectClient
     {
-        IRestResponse Login();
+        HttpResponseMessage Login();
+        HttpResponseMessage Request(Uri uri, HttpMethod method, object body, string contentType, int timeout);
+        HttpResponseMessage Request(Uri uri, HttpMethod method);
+        T Request<T>(Uri uri, HttpMethod method) where T : new();
+        T Request<T>(Uri uri, HttpMethod method, int timeout) where T : new();
+        T Request<T>(Uri uri, HttpMethod method, object body) where T : new();
+        T Request<T>(Uri uri, HttpMethod method, object body, int timeout) where T : new();
+        T Request<T>(Uri uri, HttpMethod method, object body, string contentType) where T : new();
+        T Request<T>(Uri uri, HttpMethod method, object body, string contentType, int timeout) where T : new();
 
-        IRestResponse<T> Request<T>(Uri uri, HttpMethod method) where T : new();
-        IRestResponse Request(Uri uri, HttpMethod method, object body, string contentType, int timeout);
-        IRestResponse Request(Uri uri, HttpMethod method);
-        IRestResponse<T> Request<T>(Uri uri, HttpMethod method, int timeout) where T : new();
-        IRestResponse<T> Request<T>(Uri uri, HttpMethod method, object body) where T : new();
-        IRestResponse<T> Request<T>(Uri uri, HttpMethod method, object body, int timeout) where T : new();
-        IRestResponse<T> Request<T>(Uri uri, HttpMethod method, object body, string contentType) where T : new();
-        IRestResponse<T> Request<T>(Uri uri, HttpMethod method, object body, string contentType, int timeout) where T : new();
-
+        /*
         void RequestAsync<T>(Uri uri, HttpMethod method, Action<IRestResponse<T>> responseCallback) where T : new();
         void RequestAsync<T>(Uri uri, HttpMethod method, int timeout, Action<IRestResponse<T>> responseCallback) where T : new();
         void RequestAsync<T>(Uri uri, HttpMethod method, object body, Action<IRestResponse<T>> responseCallback) where T : new();
         void RequestAsync<T>(Uri uri, HttpMethod method, object body, int timeout, Action<IRestResponse<T>> responseCallback) where T : new();
         void RequestAsync<T>(Uri uri, HttpMethod method, object body, string contentType, Action<IRestResponse<T>> responseCallback) where T : new();
         void RequestAsync<T>(Uri uri, HttpMethod method, object body, string contentType, int timeout, Action<IRestResponse<T>> responseCallback) where T : new();
+        */
     }
 }

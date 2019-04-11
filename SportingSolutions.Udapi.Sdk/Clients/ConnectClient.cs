@@ -16,7 +16,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using RestSharp;
 using SportingSolutions.Udapi.Sdk.Exceptions;
 using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Model;
@@ -59,17 +58,20 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         private HttpClient CreateClient()
         {
             ServicePointManager.DefaultConnectionLimit = 1000;
+
+            //var restClient = new RestClient();
+            var handler = new TimeoutHandler { InnerHandler = new HttpClientHandler() };
+            var httpClient = new HttpClient(handler);
+            httpClient.Timeout = TimeSpan.FromMilliseconds(UDAPI.Configuration.Timeout);
             
-            var restClient = new RestClient();
-            var httpClient = new System.Net.Http.HttpClient();
-            restClient.BaseUrl = _baseUrl;
+            //restClient.BaseUrl = _baseUrl;
             httpClient.BaseAddress = _baseUrl;
 
-            restClient.ClearHandlers();
+            //restClient.ClearHandlers();
             httpClient.DefaultRequestHeaders.Clear();
             
-            restClient.AddHandler("*", new ConnectConverter(UDAPI.Configuration.ContentType));
-            ///?????????????????? httpClient.DefaultRequestHeaders.Add(_xAuthTokenParameter.Name, _xAuthTokenParameter.Value.ToString()); ????
+            //restClient.AddHandler("*", new ConnectConverter(UDAPI.Configuration.ContentType));
+            //httpClient.DefaultRequestHeaders.Add("*", new ConnectConverter(UDAPI.Configuration.ContentType));
 
             if (!string.IsNullOrWhiteSpace(_xAuthToken))
             {
@@ -81,11 +83,11 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
         private static HttpRequestMessage CreateRequest(Uri uri, HttpMethod method, object body, string contentType, int timeout)
         {
-            IRestRequest restRequest = new RestRequest(uri, method);
+            //IRestRequest restRequest = new RestRequest(uri, method);
             var request = new HttpRequestMessage(method, uri);
             
-            restRequest.Timeout = timeout;
-            request.SetTimeout(timeout);
+            //restRequest.Timeout = timeout;
+            request.SetTimeout(TimeSpan.FromMilliseconds(timeout));
 
             if (body != null)
             {
@@ -156,38 +158,9 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             return authenticated;
         }
 
-        public IRestResponse<T> Request<T>(Uri uri, HttpMethod method, object body, string contentType, int timeout) where T : new()
+        public HttpResponseMessage Request(Uri uri, HttpMethod method)
         {
-            var restResponse = Request(uri, method, body, contentType, timeout);
-            var response = new RestResponse<T>
-            {
-                Request = restResponse.Request,
-                StatusCode = restResponse.StatusCode,
-                Content = restResponse.Content
-            };
-
-            if (restResponse.ErrorException != null)
-            {
-                response.ErrorException = restResponse.ErrorException;
-            }
-            else
-            {
-                try
-                {
-                    response.Data = restResponse.Content.FromJson<T>();
-                }
-                catch (JsonSerializationException ex)
-                {
-                    throw new JsonSerializationException($"Serialization exception from JSON={restResponse.Content}",
-                        ex);
-                }
-                catch (Exception ex)
-                {
-                    response.ErrorException = ex;
-                }
-            }
-
-            return response;
+            return Request(uri, method, null, UDAPI.Configuration.ContentType, UDAPI.Configuration.Timeout);
         }
 
         public HttpResponseMessage Request(Uri uri, HttpMethod method, object body, string contentType, int timeout)
@@ -206,7 +179,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                     response = client.Send(request);
                     if (response.StatusCode == HttpStatusCode.Unauthorized)
                     {
-                        RestErrorHelper.LogResponseWarn(Logger, response, string.Format("Unauthenticated when using authToken={0}", _xAuthToken != null ? _xAuthToken : String.Empty));
+                        HttpErrorHelper.LogResponseWarn(Logger, response, string.Format("Unauthenticated when using authToken={0}", _xAuthToken != null ? _xAuthToken : String.Empty));
 
                         var authenticated = false;
                         lock (sysLock)
@@ -225,13 +198,13 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                         if (authenticated)
                         {
                             request = CreateRequest(uri, method, body, contentType, timeout);
-                            response = CreateClient().Execute(request);
-
-                            if (response.ResponseStatus == ResponseStatus.Error &&
-                                response.ErrorException is WebException &&
-                                ((WebException)response.ErrorException).Status == WebExceptionStatus.KeepAliveFailure)
+                            try
                             {
-                                //retry
+                                var loginResponse = CreateClient().Send(request);
+                                loginResponse.EnsureSuccessStatusCode();
+                            }
+                            catch(Exception ex)
+                            {
                                 connectionClosedRetryCounter++;
                                 Logger.WarnFormat("Request failed due underlying connection closed URL={0}", uri);
                                 continue;
@@ -258,50 +231,43 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             return response;
         }
 
-        //Not used
-        public void RequestAsync<T>(Uri uri, HttpMethod method, object body, string contentType, int timeout, Action<IRestResponse<T>> responseCallback) where T : new()
-        {
-            var request = CreateRequest(uri, method, body, contentType, timeout);
-
-            CreateClient().ExecuteAsync(request, responseCallback);
-        }
-
         #region Sync Overloads
 
-        public IRestResponse<T> Request<T>(Uri uri, HttpMethod method) where T : new()
+        public T Request<T>(Uri uri, HttpMethod method) where T : new()
         {
             return Request<T>(uri, method, null, UDAPI.Configuration.ContentType, UDAPI.Configuration.Timeout);
         }
 
-        public IRestResponse Request(Uri uri, HttpMethod method)
-        {
-            return Request(uri, method, null, UDAPI.Configuration.ContentType, UDAPI.Configuration.Timeout);
-        }
-
-        public IRestResponse<T> Request<T>(Uri uri, HttpMethod method, int timeout) where T : new()
+        public T Request<T>(Uri uri, HttpMethod method, int timeout) where T : new()
         {
             return Request<T>(uri, method, null, UDAPI.Configuration.ContentType, timeout);
         }
 
-        public IRestResponse<T> Request<T>(Uri uri, HttpMethod method, object body) where T : new()
+        public T Request<T>(Uri uri, HttpMethod method, object body) where T : new()
         {
             return Request<T>(uri, method, body, UDAPI.Configuration.ContentType, UDAPI.Configuration.Timeout);
         }
 
-        public IRestResponse<T> Request<T>(Uri uri, HttpMethod method, object body, int timeout) where T : new()
+        public T Request<T>(Uri uri, HttpMethod method, object body, int timeout) where T : new()
         {
             return Request<T>(uri, method, body, UDAPI.Configuration.ContentType, timeout);
         }
 
-        public IRestResponse<T> Request<T>(Uri uri, HttpMethod method, object body, string contentType) where T : new()
+        public T Request<T>(Uri uri, HttpMethod method, object body, string contentType) where T : new()
         {
             return Request<T>(uri, method, body, contentType, UDAPI.Configuration.Timeout);
         }
 
+        public T Request<T>(Uri uri, HttpMethod method, object body, string contentType, int timeout) where T : new()
+        {
+            return Request(uri, method, body, contentType, timeout).Content.Read<T>();
+        }
+
+
         #endregion
 
         #region Async Overloads
-
+        /*
         public void RequestAsync<T>(Uri uri, HttpMethod method, Action<IRestResponse<T>> responseCallback) where T : new()
         {
             RequestAsync(uri, method, null, UDAPI.Configuration.ContentType, UDAPI.Configuration.Timeout, responseCallback);
@@ -328,7 +294,8 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             
             RequestAsync(uri, method, body, contentType, UDAPI.Configuration.Timeout, responseCallback);
         }
-
+        */
         #endregion
+
     }
 }

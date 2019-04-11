@@ -24,6 +24,7 @@ using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
 using Newtonsoft.Json;
 using System.Net.Http;
+using SportingSolutions.Udapi.Sdk.Extensions;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -63,19 +64,20 @@ namespace SportingSolutions.Udapi.Sdk
                 var theUri = FindRelationUri(relation);
 
                 loggingStringBuilder.AppendFormat("Call to url={0} ", theUri);
+                HttpResponseMessage response = null;
                 stopwatch.Start();
-                IRestResponse<List<UdapiItem>> response = new RestResponse<List<UdapiItem>>();
                 int tryIterationCounter = 1;
                 while (tryIterationCounter <= 3)
                 {
                     try
                     {
-                        response = ConnectClient.Request<List<UdapiItem>>(theUri, HttpMethod.Get);
+                        //response = ConnectClient.Request<List<UdapiItem>>(theUri, HttpMethod.Get);
+                        response = ConnectClient.Request(theUri, HttpMethod.Get);
+                        result = response.Content.Read<List<UdapiItem>>();
                         break;
                     }
                     catch (JsonSerializationException ex)
                     {
-
                         if (tryIterationCounter == 3)
                         {
                             Logger.Warn($"JsonSerializationException Method=FindRelationAndFollow {ex}");
@@ -83,28 +85,25 @@ namespace SportingSolutions.Udapi.Sdk
                         }
                         Thread.Sleep(1000);
                     }
-                    catch (Exception ex)
-                    {
-                        throw ex;
-                    }
                     tryIterationCounter++;
                 }
 
-
-
-
+                stopwatch.Stop();
                 loggingStringBuilder.AppendFormat("took duration={0}ms - ", stopwatch.ElapsedMilliseconds);
-                if (response.ErrorException != null)
+                try
                 {
-                    RestErrorHelper.LogResponseError(Logger, response, errorHeading);
-                    throw new Exception($"Error calling {theUri} - ", response.ErrorException);
+                    response.EnsureSuccessStatusCode();
                 }
-                result = response.Data;
+                catch (HttpRequestException ex)
+                {
+                    HttpErrorHelper.LogResponseError(Logger, response, errorHeading);
+                    throw new Exception($"Error calling {theUri} - ", ex);
+                }
             }
 
-            stopwatch.Stop();
             return result;
         }
+        
 
         protected string FindRelationAndFollowAsString(string relation, string errorHeading, StringBuilder loggingStringBuilder)
         {
@@ -114,18 +113,26 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 var theUri = FindRelationUri(relation);
 
-                loggingStringBuilder.AppendFormat("Beginning call to url={0} ", theUri);
+                loggingStringBuilder.AppendFormat($"Beginning call to url={theUri}");
                 stopwatch.Start();
                 var response = ConnectClient.Request(theUri, HttpMethod.Get);
-                loggingStringBuilder.AppendFormat("took duration={0}ms", stopwatch.ElapsedMilliseconds);
-                if (response.ErrorException != null || response.Content == null)
+                stopwatch.Stop();
+                loggingStringBuilder.AppendFormat($"took duration={stopwatch.ElapsedMilliseconds}ms");
+                try
                 {
-                    RestErrorHelper.LogResponseError(Logger, response, errorHeading);
-                    throw new Exception(string.Format("Error calling {0}", theUri), response.ErrorException);
+                    response.EnsureSuccessStatusCode();
                 }
-                result = response.Content;
+                catch (HttpRequestException ex)
+                {
+                    if (response.Content == null)
+                    {
+                        HttpErrorHelper.LogResponseError(Logger, response, errorHeading);
+                        throw new Exception(string.Format($"Error calling {theUri}"), ex);
+                    }
+                }
+                result = response.Content.ReadAsStringAsync().Result;
+
             }
-            stopwatch.Stop();
             return result;
         }
     }

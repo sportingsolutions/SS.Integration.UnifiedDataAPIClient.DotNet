@@ -17,13 +17,14 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Web;
+using System.Net.Http;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Events;
 using SportingSolutions.Udapi.Sdk.Interfaces;
 using SportingSolutions.Udapi.Sdk.Model;
-using log4net;
 using SportingSolutions.Udapi.Sdk.Model.Message;
-using System.Net.Http;
+using SportingSolutions.Udapi.Sdk.Extensions;
+using log4net;
 
 namespace SportingSolutions.Udapi.Sdk
 {
@@ -221,12 +222,29 @@ namespace SportingSolutions.Udapi.Sdk
                 Message = Guid.NewGuid() + ";" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
             };
 
-            var response = ConnectClient.Request(echouri, HttpMethod.Post, streamEcho, UDAPI.Configuration.ContentType, 3000);
-            if (response.ErrorException != null || response.Content == null)
+            HttpResponseMessage response = null;
+            try
             {
-                RestErrorHelper.LogResponseError(Logger, response, "Error sending echo request");
-                throw new Exception(string.Format("Error calling {0}", echouri), response.ErrorException);
+                var request = new HttpRequestMessage(HttpMethod.Post, echouri);
+                var content = new ConnectConverter(UDAPI.Configuration.ContentType).Serialize(streamEcho);
+                request.Content = new StringContent(content, Encoding.UTF8, "application/json");
+                request.SetTimeout(TimeSpan.FromMilliseconds(3000));
+                response = ConnectClient.Request(echouri, HttpMethod.Post, streamEcho, UDAPI.Configuration.ContentType, 3000);
+                response.EnsureSuccessStatusCode();
             }
+            catch(Exception ex)
+            {
+                if (response.Content == null)
+                {
+                    HttpErrorHelper.LogResponseError(Logger, response, "Error sending echo request");
+                    throw new Exception(string.Format("Error calling {0}", echouri), ex);
+                }
+            }
+            finally
+            {
+                response.Dispose();
+            }
+
         }
 
         #endregion

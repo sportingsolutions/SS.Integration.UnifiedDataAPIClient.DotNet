@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using SportingSolutions.Udapi.Sdk.Clients;
 using SportingSolutions.Udapi.Sdk.Exceptions;
@@ -60,31 +61,34 @@ namespace SportingSolutions.Udapi.Sdk
         {
             var stopwatch = new Stopwatch();
             var messageStringBuilder = new StringBuilder("GetRoot request...");
+            HttpResponseMessage rootResponse = null;
             try
             {
                 stopwatch.Start();
 
-                var getRootResponse = ConnectClient.Login();
+                rootResponse = ConnectClient.Login();
                 messageStringBuilder.AppendFormat("took {0}ms", stopwatch.ElapsedMilliseconds);
                 stopwatch.Restart();
 
-                if (getRootResponse.ErrorException != null || getRootResponse.Content == null)
-                {
-                    RestErrorHelper.LogResponseError(Logger, getRootResponse, "GetRoot HTTP error");
-                    throw new Exception("Error calling GetRoot", getRootResponse.ErrorException);
-                }
-
-                if (getRootResponse.StatusCode == HttpStatusCode.Unauthorized)
-                {
+                if (rootResponse.StatusCode == HttpStatusCode.Unauthorized)
                     throw new NotAuthenticatedException("Username or password are incorrect");
-                }
 
-                if (getRootResponse.Content != null)
-                    return getRootResponse.Content.FromJson<List<UdapiItem>>();
+                rootResponse.EnsureSuccessStatusCode();
+
+                if (rootResponse.Content != null)
+                    return rootResponse.Content.Read<List<UdapiItem>>();
             }
             catch (NotAuthenticatedException)
             {
                 throw;
+            }
+            catch(HttpRequestException ex)
+            {
+                if (rootResponse.Content == null)
+                {
+                    HttpErrorHelper.LogResponseError(Logger, rootResponse, "GetRoot HTTP error");
+                    throw new Exception("Error calling GetRoot", ex);
+                }
             }
             catch (Exception ex)
             {

@@ -124,6 +124,7 @@
     <Compile Include="Extensions\HttpClientExtension.cs" />
     <Compile Include="Extensions\HttpRequestExtension.cs" />
     <Compile Include="Extensions\HttpResponseExtension.cs" />
+    <Compile Include="Extensions\TimeoutHandler.cs" />
     <Compile Include="Model\Message\CriticalActorRestartedMessage.cs" />
     <Compile Include="Model\Message\DisposeMessage.cs" />
     <Compile Include="Model\Message\PathMessage.cs" />
@@ -144,7 +145,7 @@
     <Compile Include="Clients\IConfiguration.cs" />
     <Compile Include="Clients\IConnectClient.cs" />
     <Compile Include="Clients\ICredentials.cs" />
-    <Compile Include="Clients\RestErrorHelper.cs" />
+    <Compile Include="Clients\HttpErrorHelper.cs" />
     <Compile Include="Model\Message\DisconnectMessage.cs" />
     <Compile Include="Model\Message\ConnectMessage.cs" />
     <Compile Include="Credentials.cs" />

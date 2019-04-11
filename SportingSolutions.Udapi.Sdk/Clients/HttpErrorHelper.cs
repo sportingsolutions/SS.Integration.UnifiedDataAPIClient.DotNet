@@ -17,50 +17,49 @@ using System.Text;
 using RestSharp;
 using log4net;
 using System.Net.Http;
+using SportingSolutions.Udapi.Sdk.Extensions;
+using System;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
-    public class RestErrorHelper
+    public class HttpErrorHelper
     {
-        public static void LogResponseError(ILog logger, HttpResponseMessage response, string errorHeading)
+        public static void LogResponseError(ILog logger, HttpResponseMessage response, string errorHeading, Exception ex = null)
         {
             if (logger != null && response != null)
             {
-                var stringBuilder = BuildLoggingString(response, errorHeading);
+                var stringBuilder = BuildLoggingString(response, errorHeading, ex);
                 logger.Error(stringBuilder.ToString());
             }
         }
 
-        public static void LogResponseWarn(ILog logger, HttpResponseMessage response, string warnHeading)
+        public static void LogResponseWarn(ILog logger, HttpResponseMessage response, string warnHeading, Exception ex = null)
         {
             if (logger != null && response != null)
             {
-                var stringBuilder = BuildLoggingString(response, warnHeading);
+                var stringBuilder = BuildLoggingString(response, warnHeading, ex);
                 logger.Warn(stringBuilder.ToString());
             }
         }
 
-        private static StringBuilder BuildLoggingString(HttpResponseMessage response, string logHeading)
+        private static StringBuilder BuildLoggingString(HttpResponseMessage response, string logHeading, Exception ex = null)
         {
             var stringBuilder = new StringBuilder(logHeading).AppendLine();
-            IRestRequest reqq;
 
             var request = response.RequestMessage;
             if (request != null)
             {
                 if (request.RequestUri != null)
-                    stringBuilder.AppendFormat("Uri={0}", request.RequestUri).AppendLine();
+                    stringBuilder.AppendFormat($"Uri={request.RequestUri}").AppendLine();
 
                 stringBuilder.AppendFormat($"Request.Method={request.Method}").AppendLine();
-                stringBuilder.AppendFormat($"Request.TimeOut={request..Timeout}").AppendLine();
+                stringBuilder.AppendFormat($"Request.TimeOut={request.GetTimeout()?.Milliseconds}").AppendLine();
             }
 
-            stringBuilder.AppendFormat("ResponseStatus={0}", response.ResponseStatus).AppendLine();
+            stringBuilder.AppendFormat($"IsSuccessStatusCode={response.IsSuccessStatusCode}").AppendLine();
 
             if (response.StatusCode != 0)
-            {
-                stringBuilder.AppendFormat("StatusCode={0} ({1})", response.StatusCode, response.StatusDescription).AppendLine();
-            }
+                stringBuilder.AppendFormat($"StatusCode={response.StatusCode} ({response.StatusCode.ToString()})").AppendLine();
 
             var transactionId = GetTransactionId(response);
             if (!string.IsNullOrEmpty(transactionId))
@@ -68,15 +67,12 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                 stringBuilder.AppendFormat("TransactionId={0}", GetTransactionId(response)).AppendLine();
             }
 
-            if (!string.IsNullOrEmpty(response.Content))
-            {
-                stringBuilder.AppendFormat("Content={0}", response.Content).AppendLine();
-            }
+            var contestStr = response.Content.ReadAsStringAsync().Result;
+            if (!string.IsNullOrWhiteSpace(contestStr))
+                stringBuilder.AppendFormat($"Content={contestStr}").AppendLine();
 
-            if (response.ErrorException != null)
-            {
-                stringBuilder.AppendFormat("Exception={0}", response.ErrorException).AppendLine();
-            }
+            if (ex != null)
+                stringBuilder.AppendFormat($"Exception={ex}").AppendLine();
 
             return stringBuilder;
         }
@@ -86,10 +82,8 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             var transactionId = string.Empty;
 
             var transactionIdHeader = response.Headers.FirstOrDefault(h => h.Key == "TransactionId");
-            if (transactionIdHeader != null && transactionIdHeader.Value != null)
-            {
-                transactionId = transactionIdHeader.Value.ToString();
-            }
+            if (transactionIdHeader.Value != null)
+                transactionId = transactionIdHeader.Value.FirstOrDefault() ?? string.Empty;
 
             return transactionId;
         }

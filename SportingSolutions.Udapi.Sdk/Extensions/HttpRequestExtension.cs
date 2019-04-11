@@ -11,7 +11,7 @@ namespace SportingSolutions.Udapi.Sdk.Extensions
     {
         private static string TimeoutPropertyKey = "RequestTimeout";
 
-        public static void SetTimeout(this HttpRequestMessage request, int timeout)
+        public static void SetTimeout(this HttpRequestMessage request, TimeSpan timeout)
         {
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
@@ -19,13 +19,14 @@ namespace SportingSolutions.Udapi.Sdk.Extensions
             request.Properties[TimeoutPropertyKey] = timeout;
         }
 
-        public static int? GetTimeout(this HttpRequestMessage request)
+        public static TimeSpan? GetTimeout(this HttpRequestMessage request)
         {
             if (request == null)
                 throw new ArgumentNullException(nameof(request));
 
-            if (request.Properties.TryGetValue(TimeoutPropertyKey, out var value) && Int32.TryParse(value.ToString(), out var timeout))
+            if (request.Properties.TryGetValue(TimeoutPropertyKey, out var value)  && value is TimeSpan timeout)
                 return timeout;
+
             return null;
         }
     }
