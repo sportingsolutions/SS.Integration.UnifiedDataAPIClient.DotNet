@@ -1,23 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Linq;
 using System.Net.Http;
 using Newtonsoft.Json;
+using SportingSolutions.Udapi.Sdk.Clients;
 
 namespace SportingSolutions.Udapi.Sdk.Extensions
 {
     public static class HttpResponseExtension
     {
+        public static string Read(this HttpContent content)
+        {
+            return content?.ReadAsStringAsync().Result;
+        }
+
         public static T Read<T>(this HttpContent content)
         {
             string contentString = string.Empty;
             T result = default(T);
             try
             {
-                contentString = content.ReadAsStringAsync().Result;
-                result = contentString.FromJson<T>();
+                contentString = content.Read();
+                if (contentString != null)
+                    result = new ConnectConverter(UDAPI.Configuration.ContentType).Deserialize<T>(contentString);
             }
             catch(JsonSerializationException ex)
             {

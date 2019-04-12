@@ -20,9 +20,7 @@ using SportingSolutions.Udapi.Sdk.Exceptions;
 using SportingSolutions.Udapi.Sdk.Extensions;
 using SportingSolutions.Udapi.Sdk.Model;
 using log4net;
-using Newtonsoft.Json;
 using System.Net.Http;
-using SportingSolutions.Udapi.Sdk.Extensions;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
@@ -59,45 +57,31 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         {
             ServicePointManager.DefaultConnectionLimit = 1000;
 
-            //var restClient = new RestClient();
-            var handler = new TimeoutHandler { InnerHandler = new HttpClientHandler() };
-            var httpClient = new HttpClient(handler);
-            httpClient.Timeout = TimeSpan.FromMilliseconds(UDAPI.Configuration.Timeout);
-            
-            //restClient.BaseUrl = _baseUrl;
-            httpClient.BaseAddress = _baseUrl;
+            var handler = new TimeoutHandler
+            {
+                InnerHandler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate }
+            };
+            var httpClient = new HttpClient(handler, false)
+            {
+                Timeout = TimeSpan.FromMilliseconds(UDAPI.Configuration.Timeout),
+                BaseAddress = _baseUrl
+            };
 
-            //restClient.ClearHandlers();
             httpClient.DefaultRequestHeaders.Clear();
-            
-            //restClient.AddHandler("*", new ConnectConverter(UDAPI.Configuration.ContentType));
-            //httpClient.DefaultRequestHeaders.Add("*", new ConnectConverter(UDAPI.Configuration.ContentType));
 
             if (!string.IsNullOrWhiteSpace(_xAuthToken))
-            {
-                //restClient.AddDefaultParameter(_xAuthTokenParameter);
                 httpClient.DefaultRequestHeaders.Add(XAuthToken, _xAuthToken);
-            }
+
             return httpClient;
         }
 
         private static HttpRequestMessage CreateRequest(Uri uri, HttpMethod method, object body, string contentType, int timeout)
         {
-            //IRestRequest restRequest = new RestRequest(uri, method);
             var request = new HttpRequestMessage(method, uri);
-            
-            //restRequest.Timeout = timeout;
             request.SetTimeout(TimeSpan.FromMilliseconds(timeout));
 
             if (body != null)
-            {
-                //request.RequestFormat = DataFormat.Json;
-                //request.JsonSerializer = new ConnectConverter(contentType);
-                //request.AddBody(body);
-
                 request.Content = new StringContent(body.ToString(), System.Text.Encoding.UTF8, JSON_CONTENT_TYPE);
-                //?????????????? serializier ??????????
-            }
 
             return request;
         }
@@ -139,7 +123,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         private bool Authenticate(HttpResponseMessage response)
         {
             var authenticated = false;
-            var udapiItems = response.Content.ReadAsStringAsync().Result.FromJson<List<UdapiItem>>();
+            var udapiItems = response.Content.Read<List<UdapiItem>>();
 
             var loginUri = FindLoginUri(udapiItems);
 

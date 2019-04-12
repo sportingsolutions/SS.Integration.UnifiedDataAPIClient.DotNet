@@ -129,7 +129,7 @@ namespace SportingSolutions.Udapi.Sdk
                         throw new Exception(string.Format($"Error calling {theUri}"), ex);
                     }
                 }
-                result = response.Content.ReadAsStringAsync().Result;
+                result = response.Content.Read();
 
             }
             return result;

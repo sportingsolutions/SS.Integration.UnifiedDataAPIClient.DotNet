@@ -66,7 +66,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                 stringBuilder.AppendFormat("TransactionId={0}", GetTransactionId(response)).AppendLine();
             }
 
-            var contestStr = response.Content.ReadAsStringAsync().Result;
+            var contestStr = response.Content.Read();
             if (!string.IsNullOrWhiteSpace(contestStr))
                 stringBuilder.AppendFormat($"Content={contestStr}").AppendLine();
 

@@ -16,6 +16,7 @@ using System.Net.Http;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using SportingSolutions.Udapi.Sdk.Extensions;
 
 namespace SportingSolutions.Udapi.Sdk.Clients
 {
@@ -43,11 +44,11 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             return JsonConvert.SerializeObject(obj, Formatting.None, SerializerSettings);
         }
 
-        public T Deserialize<T>(HttpResponseMessage response)
+        public T Deserialize<T>(string content)
         {
             var type = typeof(T);
 
-            return (T)JsonConvert.DeserializeObject(response.Content.ReadAsStringAsync().Result, type, SerializerSettings);
+            return (T)JsonConvert.DeserializeObject(content, type, SerializerSettings);
         }
 
         public string ContentType { get; set; }
