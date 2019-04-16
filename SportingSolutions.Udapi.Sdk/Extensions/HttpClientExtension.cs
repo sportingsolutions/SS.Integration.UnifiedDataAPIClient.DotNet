@@ -32,25 +32,25 @@ namespace SportingSolutions.Udapi.Sdk.Extensions
         public static T Send<T>(this HttpClient httpClient, HttpRequestMessage request)
         {
             var response = httpClient.Send(request);
-            return response.Content.Read<T>();
+            return response.Read<T>();
         }
 
         public static T Send<T>(this HttpClient httpClient, HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var response = httpClient.Send(request, cancellationToken);
-            return response.Content.Read<T>();
+            return response.Read<T>();
         }
 
         public static async Task<T> SendAsync<T>(this HttpClient httpClient, HttpRequestMessage request)
         {
             var response = await httpClient.SendAsync(request);
-            return response.Content.Read<T>();
+            return response.Read<T>();
         }
 
         public static async Task<T> SendAsync<T>(this HttpClient httpClient, HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var response = await httpClient.SendAsync(request, cancellationToken);
-            return response.Content.Read<T>();
+            return response.Read<T>();
         }
     }
 }

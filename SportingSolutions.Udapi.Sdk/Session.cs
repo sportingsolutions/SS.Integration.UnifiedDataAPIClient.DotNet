@@ -59,16 +59,16 @@ namespace SportingSolutions.Udapi.Sdk
 
         private IEnumerable<UdapiItem> GetRoot()
         {
-            var stopwatch = new Stopwatch();
             var messageStringBuilder = new StringBuilder("GetRoot request...");
             HttpResponseMessage rootResponse = null;
             try
             {
+                var stopwatch = new Stopwatch();
                 stopwatch.Start();
-
                 rootResponse = ConnectClient.Login();
+                stopwatch.Stop();
+
                 messageStringBuilder.AppendFormat("took {0}ms", stopwatch.ElapsedMilliseconds);
-                stopwatch.Restart();
 
                 if (rootResponse.StatusCode == HttpStatusCode.Unauthorized)
                     throw new NotAuthenticatedException("Username or password are incorrect");
@@ -76,7 +76,7 @@ namespace SportingSolutions.Udapi.Sdk
                 rootResponse.EnsureSuccessStatusCode();
 
                 if (rootResponse.Content != null)
-                    return rootResponse.Content.Read<List<UdapiItem>>();
+                    return rootResponse.Read<List<UdapiItem>>();
             }
             catch (NotAuthenticatedException)
             {
@@ -98,7 +98,6 @@ namespace SportingSolutions.Udapi.Sdk
             finally
             {
                 Logger.Debug(messageStringBuilder);
-                stopwatch.Stop();
             }
 
             return null;

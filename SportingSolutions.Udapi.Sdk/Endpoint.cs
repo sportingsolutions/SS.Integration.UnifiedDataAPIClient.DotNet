@@ -70,9 +70,8 @@ namespace SportingSolutions.Udapi.Sdk
                 {
                     try
                     {
-                        //response = ConnectClient.Request<List<UdapiItem>>(theUri, HttpMethod.Get);
                         response = ConnectClient.Request(theUri, HttpMethod.Get);
-                        result = response.Content.Read<List<UdapiItem>>();
+                        result = response.Read<List<UdapiItem>>();
                         break;
                     }
                     catch (JsonSerializationException ex)
@@ -129,7 +128,7 @@ namespace SportingSolutions.Udapi.Sdk
                         throw new Exception(string.Format($"Error calling {theUri}"), ex);
                     }
                 }
-                result = response.Content.Read();
+                result = response.Read();
 
             }
             return result;

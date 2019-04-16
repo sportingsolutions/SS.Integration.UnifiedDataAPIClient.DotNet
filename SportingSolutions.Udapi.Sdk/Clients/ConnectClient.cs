@@ -32,6 +32,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
         private readonly Uri _baseUrl;
         private readonly ICredentials _credentials;
+        private readonly HttpMessageHandler _timeoutHandler;
 
         private string _xAuthToken;
 
@@ -49,25 +50,23 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
             _credentials = credentials;
             _baseUrl = baseUrl;
-
-            Logger = LogManager.GetLogger(typeof(ConnectClient).ToString());
-        }
-
-        private HttpClient CreateClient()
-        {
             ServicePointManager.DefaultConnectionLimit = 1000;
-
-            var handler = new TimeoutHandler
+            _timeoutHandler = new TimeoutHandler
             {
                 InnerHandler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate }
             };
-            var httpClient = new HttpClient(handler, false)
+
+            Logger = LogManager.GetLogger(typeof(ConnectClient).ToString());
+            
+        }
+
+        private HttpClient CreateClient(TimeSpan? timeout = null)
+        {
+            var httpClient = new HttpClient(_timeoutHandler, false)
             {
-                Timeout = TimeSpan.FromMilliseconds(UDAPI.Configuration.Timeout),
+                Timeout = timeout ?? TimeSpan.FromMilliseconds(UDAPI.Configuration.Timeout),
                 BaseAddress = _baseUrl
             };
-
-            httpClient.DefaultRequestHeaders.Clear();
 
             if (!string.IsNullOrWhiteSpace(_xAuthToken))
                 httpClient.DefaultRequestHeaders.Add(XAuthToken, _xAuthToken);
@@ -88,28 +87,29 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
         public HttpResponseMessage Login()
         {
-            var client = CreateClient();
             var request = CreateRequest(_baseUrl, HttpMethod.Get, null, UDAPI.Configuration.ContentType, UDAPI.Configuration.Timeout);
 
-            var response = client.Send(request);
-            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            using (var client = CreateClient())
             {
-                var udapiItems = response.Content.Read<List<UdapiItem>>();
-                var loginUri = FindLoginUri(udapiItems);
-                if (loginUri != null)
+                var response = client.Send(request);
+                if (response.StatusCode == HttpStatusCode.Unauthorized)
                 {
-                    var loginRequest = CreateRequest(loginUri, HttpMethod.Post, null, UDAPI.Configuration.ContentType, UDAPI.Configuration.Timeout);
-                    loginRequest.Headers.Add(XAuthUser, _credentials.ApiUser);
-                    loginRequest.Headers.Add(XAuthKey, _credentials.ApiKey);
+                    var udapiItems = response.Read<List<UdapiItem>>();
 
-                    response = client.Send(loginRequest);
+                    var loginUri = FindLoginUri(udapiItems);
+                    if (loginUri != null)
+                    {
+                        var loginRequest = CreateRequest(loginUri, HttpMethod.Post, null, UDAPI.Configuration.ContentType, UDAPI.Configuration.Timeout);
+                        loginRequest.Headers.Add(XAuthUser, _credentials.ApiUser);
+                        loginRequest.Headers.Add(XAuthKey, _credentials.ApiKey);
 
-                    if (response.StatusCode == HttpStatusCode.OK)
-                        _xAuthToken = response.GetToken(XAuthToken);
+                        response = client.Send(loginRequest);
+                        if (response.StatusCode == HttpStatusCode.OK)
+                            _xAuthToken = response.GetToken(XAuthToken);
+                    }
                 }
+                return response;
             }
-
-            return response;
         }
 
         private static Uri FindLoginUri(IEnumerable<UdapiItem> udapiItems)
@@ -123,21 +123,24 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         private bool Authenticate(HttpResponseMessage response)
         {
             var authenticated = false;
-            var udapiItems = response.Content.Read<List<UdapiItem>>();
+            var udapiItems = response.Read<List<UdapiItem>>();
 
             var loginUri = FindLoginUri(udapiItems);
 
             var loginRequest = CreateRequest(loginUri, HttpMethod.Post, null, UDAPI.Configuration.ContentType, UDAPI.Configuration.Timeout);
-
             loginRequest.Headers.Add(XAuthUser, _credentials.ApiUser);
             loginRequest.Headers.Add(XAuthKey, _credentials.ApiKey);
 
-            response = CreateClient().Send(loginRequest);
-
-            if (response.StatusCode == HttpStatusCode.OK)
+            using (var client = CreateClient())
             {
-                _xAuthToken = response.GetToken(XAuthToken);
-                authenticated = true;
+                using (response = client.Send(loginRequest))
+                {
+                    if (response.StatusCode == HttpStatusCode.OK)
+                    {
+                        _xAuthToken = response.GetToken(XAuthToken);
+                        authenticated = true;
+                    }
+                }
             }
             return authenticated;
         }
@@ -151,15 +154,16 @@ namespace SportingSolutions.Udapi.Sdk.Clients
         {
             var connectionClosedRetryCounter = 0;
             HttpResponseMessage response = null;
+            HttpClient client = null;
             while (connectionClosedRetryCounter < DEFAULT_REQUEST_RETRY_ATTEMPTS)
             {
                 var request = CreateRequest(uri, method, body, contentType, timeout);
 
-                var client = CreateClient();
-                var oldAuth = client.DefaultRequestHeaders.FirstOrDefault(x => x.Key == XAuthToken).Value.FirstOrDefault();
-
                 try
                 {
+                    client = CreateClient();
+                    var oldAuth = client.DefaultRequestHeaders.FirstOrDefault(x => x.Key == XAuthToken).Value.FirstOrDefault();
+
                     response = client.Send(request);
                     if (response.StatusCode == HttpStatusCode.Unauthorized)
                     {
@@ -208,6 +212,11 @@ namespace SportingSolutions.Udapi.Sdk.Clients
                     Logger.WarnFormat($"Request failed due underlying connection closed URL={uri}, reason={response.ReasonPhrase}");
                     continue;
                 }
+                finally
+                {
+                    request.Dispose();
+                    client.Dispose();
+                }
 
                 connectionClosedRetryCounter = DEFAULT_REQUEST_RETRY_ATTEMPTS;
             }
@@ -244,7 +253,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
 
         public T Request<T>(Uri uri, HttpMethod method, object body, string contentType, int timeout) where T : new()
         {
-            return Request(uri, method, body, contentType, timeout).Content.Read<T>();
+            return Request(uri, method, body, contentType, timeout).Read<T>();
         }
 
 

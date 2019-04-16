@@ -7,18 +7,24 @@ namespace SportingSolutions.Udapi.Sdk.Extensions
 {
     public static class HttpResponseExtension
     {
-        public static string Read(this HttpContent content)
+        public static string Read(this HttpResponseMessage response)
         {
-            return content?.ReadAsStringAsync().Result;
+            if (response.Content == null)
+                return null;
+
+            using (response)
+            {
+                return response.Content.ReadAsStringAsync().Result;
+            }
         }
 
-        public static T Read<T>(this HttpContent content)
+        public static T Read<T>(this HttpResponseMessage response)
         {
             string contentString = string.Empty;
             T result = default(T);
             try
             {
-                contentString = content.Read();
+                contentString = response.Read();
                 if (contentString != null)
                     result = new ConnectConverter(UDAPI.Configuration.ContentType).Deserialize<T>(contentString);
             }
@@ -32,7 +38,7 @@ namespace SportingSolutions.Udapi.Sdk.Extensions
         public static string GetToken(this HttpResponseMessage response, string tokenName)
         {
             var header = response.Headers.FirstOrDefault(h => h.Key == tokenName);
-            return header.Value.FirstOrDefault();
+            return header.Value?.FirstOrDefault();
         }
     }
 }
