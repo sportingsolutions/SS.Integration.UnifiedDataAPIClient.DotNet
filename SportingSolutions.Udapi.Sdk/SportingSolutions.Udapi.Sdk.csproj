@@ -116,6 +116,7 @@
     <Compile Include="Actors\MailBox\StreamControllerActorMailBox.cs" />
     <Compile Include="Actors\SdkDeadletterMonitorActor.cs" />
     <Compile Include="Actors\EchoControllerActor.cs" />
+    <Compile Include="DiagnosticLogger.cs" />
     <Compile Include="Events\SdkErrorMessage.cs" />
     <Compile Include="Exceptions\EchoControllerActorException.cs" />
     <Compile Include="Extensions\HttpClientExtension.cs" />
