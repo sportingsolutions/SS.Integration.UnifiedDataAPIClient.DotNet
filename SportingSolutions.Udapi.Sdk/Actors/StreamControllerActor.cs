@@ -53,6 +53,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         private static ICancelable _validateCancellation;
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamControllerActor));
         protected IConnection _streamConnection;
+        private IModel _model = null;
+        private bool _isModelDisposed = true;
         private volatile ConnectionState _state;
         private readonly ICancelable _connectionCancellation = new Cancelable(Context.System.Scheduler);
         private Dictionary<string, int> _newConsumerErrorsCount = new Dictionary<string, int>();
@@ -67,7 +69,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             AutoReconnect = UDAPI.Configuration.AutoReconnect;
             CancelValidationMessages();
-            _validateCancellation= Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(10000, 10000, Self, new ValidateStateMessage(), Self);
+            _validateCancellation = Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(10000, 10000, Self, new ValidateStateMessage(), Self);
 
             _logger.DebugFormat("StreamController initialised, AutoReconnect={0}", AutoReconnect);
         }
@@ -169,7 +171,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             State = ConnectionState.CONNECTED;
             Stash.UnstashAll();
-            
+
         }
 
         private void ValidationStart(ValidationStartMessage validationStartMessage)
@@ -189,20 +191,20 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
 
 
-        private DisconnectedMessage DefaultDisconnectedMessage => new DisconnectedMessage {IDConnection = _streamConnection?.GetHashCode()};
+        private DisconnectedMessage DefaultDisconnectedMessage => new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() };
 
 
-        
+
 
         private void NewConsumerHandler(NewConsumerMessage newConsumerMessage)
         {
-            if (ProcessNewConsumer(newConsumerMessage.Consumer ))
+            if (ProcessNewConsumer(newConsumerMessage.Consumer))
             {
                 HandleNewConsumerMessageProcessed(newConsumerMessage);
             }
             else
             {
-                HandleNewConsumerMessageUnprocessed(newConsumerMessage);                
+                HandleNewConsumerMessageUnprocessed(newConsumerMessage);
             }
         }
 
@@ -262,23 +264,13 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             if (string.IsNullOrEmpty(queue?.Name))
             {
-                _logger.Warn("Method=ProcessNewConsumer Invalid queue details");
+                _logger.Warn($"Method=ProcessNewConsumer Invalid queue details, fixtureId={consumer?.Id}");
                 return false;
             }
 
-
-            IModel model;
-            try
+            if (_model == null)
             {
-                model = _streamConnection.CreateModel();
-            }
-            catch (Exception e)
-            {
-                _processNewConsumerErrorCounter++;
-                _logger.Warn(
-                    $"Method=ProcessNewConsumer CreateModel errored errorsCout={_processNewConsumerErrorCounter} for fixtureId={consumer.Id} {e}");
-                if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
-                    ProcessNewConsumerErrorHandler(e);
+                _logger.Warn($"Method=ProcessNewConsumer AMQP model not initialized, fixtureId={consumer?.Id}");
                 return false;
             }
 
@@ -286,7 +278,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
             try
             {
-                subscriber = new StreamSubscriber(model, consumer, Dispatcher);
+                subscriber = new StreamSubscriber(_model, consumer, Dispatcher);
                 subscriber.StartConsuming(queue.Name);
             }
             catch (Exception e)
@@ -299,7 +291,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     ProcessNewConsumerErrorHandler(e);
                 return false;
             }
-            
+
             _logger.Debug($"Method=ProcessNewConsumer successfully executed fixtureId={consumer.Id}");
 
             _processNewConsumerErrorCounter = 0;
@@ -320,8 +312,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                     $"Method=ProcessNewConsumer connectionStatus={ConnectionStatus} {(_streamConnection == null ? "this should not happening" : "")}");
 
 
-               DisconnectedHandler(DefaultDisconnectedMessage);
-                
+                DisconnectedHandler(DefaultDisconnectedMessage);
+
 
                 return false;
             }
@@ -379,7 +371,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                             _streamConnection.Close();
                             _logger.Debug("Connection Closed");
                         }
-                        
+
                     }
                 }
                 catch (Exception e)
@@ -390,6 +382,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 try
                 {
                     {
+                        DisposeModel();
                         _streamConnection.Dispose();
                         _logger.Debug("Connection Disposed");
                     }
@@ -456,12 +449,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 {
                     _streamConnection = factory.CreateConnection();
                     _streamConnection.ConnectionShutdown += OnConnectionShutdown;
-
                     _logger.Info("Connection to the streaming server correctly established");
-
+                    CreateModel();
                     Self.Tell(new ConnectedMessage());
                     return;
-
                 }
                 catch (Exception ex)
                 {
@@ -479,7 +470,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         }
 
-        
+
 
         private void GetQueueDetailsAndEstablisConnection(IConsumer consumer)
         {
@@ -492,7 +483,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.Info($"GetQueueDetailsAndEstablisConnection will not be executed state={State} isCancellationRequested={_connectionCancellation.IsCancellationRequested}");
                 return;
             }
-            
+
             CreateConectionFactory(consumer);
             EstablishConnection(_connectionFactory);
         }
@@ -535,7 +526,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             _logger.Error($"The AMQP connection was shutdown. AutoReconnect is enabled={AutoReconnect}, sender={sender} {sea}");
 
-            
+
             if (!AutoReconnect)
             {
                 SdkActorSystem.ActorSystem.ActorSelection(SdkActorSystem.StreamControllerActorPath).Tell(DefaultDisconnectedMessage);
@@ -566,7 +557,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private string ConnectionStatus => _streamConnection == null ? "NULL" : (_streamConnection.IsOpen ? "open" : "closed");
 
-        private void DisconnectedHandler(DisconnectedMessage disconnectedMessage )
+        private void DisconnectedHandler(DisconnectedMessage disconnectedMessage)
         {
             _logger.Info($"Disconnect message received");
             if (State == ConnectionState.DISCONNECTED || State == ConnectionState.CONNECTING)
@@ -574,16 +565,15 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.Warn($"DisconnectedHandler will not be executed as currentState={State}");
             }
 
-            if (disconnectedMessage.IDConnection !=null && disconnectedMessage.IDConnection != _streamConnection?.GetHashCode())
+            if (disconnectedMessage.IDConnection != null && disconnectedMessage.IDConnection != _streamConnection?.GetHashCode())
             {
                 _logger.Warn($"DisconnectedHandler will not be executed as we are already in connection with connectionHash={_streamConnection?.GetHashCode()}, messageConnectionHash={disconnectedMessage?.IDConnection}");
             }
 
-            
+
             Become(DisconnectedState);
             NotifyDispatcherConnectionError();
             EstablishConnection(_connectionFactory);
-            
         }
 
         private void DisconnecteOnDisconnectedHandler(DisconnectedMessage disconnectedMessage)
@@ -623,7 +613,33 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
             }
         }
-        
+
+        private void CreateModel()
+        {
+            try
+            {
+                _model = _streamConnection.CreateModel();
+                _isModelDisposed = false;
+                _logger.Debug("AMQP model sucessfully created");
+            }
+            catch (Exception e)
+            {
+                throw new Exception($"Creating AMQP model errored, errorsCout={_processNewConsumerErrorCounter} {e}", e);
+            }
+        }
+
+        private void DisposeModel()
+        {
+            if (!_isModelDisposed && _model != null)
+            {
+                _model.Dispose();
+                _model = null;
+                _isModelDisposed = true;
+                _logger.Debug("AMQP model sucessfully disposed");
+            }
+            else
+                _logger.Debug("AMQP model has already disposed");
+        }
 
         #endregion
 
@@ -631,7 +647,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected virtual void AddConsumerToQueue(IConsumer consumer)
         {
-            
             if (consumer == null)
             {
                 _logger.Warn("Method=AddConsumerToQueue Consumer is null");
@@ -646,7 +661,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.Warn("Method=AddConsumerToQueue Invalid queue details");
                 return;
             }
-
 
             if (_streamConnection == null)
             {
@@ -664,13 +678,17 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 return;
             }
 
-            var model = _streamConnection.CreateModel();
+            if (_model == null)
+            {
+                _logger.Warn($"Method=ProcessNewConsumer AMQP model not initialized, fixtureId={consumer?.Id}");
+                return;
+            }
 
             StreamSubscriber subscriber = null;
 
             try
             {
-                subscriber = new StreamSubscriber(model, consumer, Dispatcher);
+                subscriber = new StreamSubscriber(_model, consumer, Dispatcher);
                 subscriber.StartConsuming(queue.Name);
             }
             catch (Exception e)
@@ -708,6 +726,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             _logger.Debug("Shutting down StreamController");
             _connectionCancellation.Cancel();
+            DisposeModel();
             CancelValidationMessages();
             Dispatcher.Tell(new DisposeMessage());
             Self.Tell(new DisconnectedMessage { IDConnection = _streamConnection?.GetHashCode() });
