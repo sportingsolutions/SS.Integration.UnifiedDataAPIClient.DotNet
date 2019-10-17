@@ -48,7 +48,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         public const string ActorName = "StreamControllerActor";
         private int _processNewConsumerErrorCounter = 0;
-        public const int NewConsumerErrorLimit = 5;
+        public const int NewConsumerErrorLimit = 10;
         public const int NewConsumerErrorLimitForConsumer = 3;
         private static ICancelable _validateCancellation;
         private static readonly ILog _logger = LogManager.GetLogger(typeof(StreamControllerActor));
@@ -117,7 +117,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<DisposeMessage>(x => Dispose());
             Receive<ValidateStateMessage>(x => ValidateState(x));
             Receive<DisconnectedMessage>(x => DisconnecteOnDisconnectedHandler(x));
-
+            Receive<CreateModelMessage>(x => CreateModel());
             State = ConnectionState.DISCONNECTED;
         }
 
@@ -138,6 +138,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             Receive<RemoveConsumerMessage>(x => Stash.Stash());
             Receive<DisposeMessage>(x => Dispose());
             Receive<ValidateStateMessage>(x => ValidateState(x));
+            Receive<CreateModelMessage>(x => CreateModel());
 
             State = ConnectionState.DISCONNECTED;
         }
@@ -268,9 +269,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 return false;
             }
 
-            if (_model == null)
+            if (!IsModelValid)
             {
                 _logger.Warn($"Method=ProcessNewConsumer AMQP model not initialized, fixtureId={consumer?.Id}");
+                Self.Tell(new CreateModelMessage());
                 return false;
             }
 
@@ -284,7 +286,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             catch (Exception e)
             {
                 _processNewConsumerErrorCounter++;
-                subscriber?.Dispose();
                 _logger.Warn(
                     $"Method=ProcessNewConsumer StartConsuming errored errorsCout={_processNewConsumerErrorCounter} for fixtureId={consumer.Id} {e}");
                 if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
@@ -310,11 +311,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _logger.Warn(
                     $"Method=ProcessNewConsumer connectionStatus={ConnectionStatus} {(_streamConnection == null ? "this should not happening" : "")}");
-
-
                 DisconnectedHandler(DefaultDisconnectedMessage);
-
-
                 return false;
             }
 
@@ -547,6 +544,11 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.Warn($"{message} disconnected event will be raised");
                 DisconnectedHandler(DefaultDisconnectedMessage);
             }
+            else if (!IsModelValid)
+            {
+                _logger.Warn($"{message} AMQP model will re recreated");
+                ReCreateModel();
+            }
             else
             {
                 _logger.Debug(message);
@@ -554,6 +556,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         }
 
         private bool NeedRaiseDisconnect => State == ConnectionState.CONNECTED && (_streamConnection == null || !_streamConnection.IsOpen);
+        private bool IsModelValid => _model != null && !_isModelDisposed && _model.IsOpen;
 
         private string ConnectionStatus => _streamConnection == null ? "NULL" : (_streamConnection.IsOpen ? "open" : "closed");
 
@@ -614,13 +617,30 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
         }
 
+        private void ReCreateModel()
+        {
+            DisposeModel();
+            CreateModel();
+        }
+
         private void CreateModel()
         {
+            if (_streamConnection == null || !_streamConnection.IsOpen)
+            {
+                _logger.Warn($"Can't create AMQP model: connection is not open");
+                return;
+            }
+
             try
             {
-                _model = _streamConnection.CreateModel();
-                _isModelDisposed = false;
-                _logger.Debug("AMQP model sucessfully created");
+                if (_isModelDisposed)
+                {
+                    _model = _streamConnection.CreateModel();
+                    _isModelDisposed = false;
+                    _logger.Debug($"AMQP model sucessfully created, channelNo={_model.ChannelNumber}");
+                }
+                else
+                    _logger.Warn($"AMQP model already created, channelNo={_model.ChannelNumber}");
             }
             catch (Exception e)
             {
@@ -630,7 +650,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void DisposeModel()
         {
-            if (!_isModelDisposed && _model != null)
+            if (!_isModelDisposed)
             {
                 _model.Dispose();
                 _model = null;
@@ -678,9 +698,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 return;
             }
 
-            if (_model == null)
+            if (!IsModelValid)
             {
                 _logger.Warn($"Method=ProcessNewConsumer AMQP model not initialized, fixtureId={consumer?.Id}");
+                Self.Tell(new CreateModelMessage());
                 return;
             }
 
@@ -690,11 +711,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 subscriber = new StreamSubscriber(_model, consumer, Dispatcher);
                 subscriber.StartConsuming(queue.Name);
+                _logger.Debug($"Consumer with id={consumer.Id} added to queueName={queue.Name}");
             }
             catch (Exception e)
             {
-                if (subscriber != null)
-                    subscriber.Dispose();
                 _processNewConsumerErrorCounter++;
                 _logger.Warn($"Method=AddConsumerToQueue StartConsuming errored for fixtureId={consumer.Id} {e}");
                 if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
@@ -761,7 +781,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private class ValidateStateMessage
         {
+        }
 
+        private class CreateModelMessage
+        {
         }
 
         #endregion

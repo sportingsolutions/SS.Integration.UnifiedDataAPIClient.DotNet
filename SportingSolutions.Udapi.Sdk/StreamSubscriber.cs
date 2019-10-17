@@ -26,15 +26,12 @@ using SportingSolutions.Udapi.Sdk.Model.Message;
 namespace SportingSolutions.Udapi.Sdk
 {
 
-    internal class StreamSubscriber : DefaultBasicConsumer, IStreamSubscriber, IDisposable
+    internal class StreamSubscriber : DefaultBasicConsumer, IStreamSubscriber
     {
         private readonly ILog _logger = LogManager.GetLogger(typeof(StreamSubscriber));
 
-        private bool _isDisposed;
-
-        internal bool IsStreamingStopped => Model == null || !Model.IsOpen;
-
-        internal bool IsDisposed => _isDisposed;
+        internal bool IsStreamingStopped => Model == null || !Model.IsOpen || _isCanceled;
+        private bool _isCanceled = false;
 
         public StreamSubscriber(IModel model, IConsumer consumer, IActorRef dispatcher)
             : base(model)
@@ -42,18 +39,19 @@ namespace SportingSolutions.Udapi.Sdk
             Consumer = consumer;
             ConsumerTag = consumer.Id;
             Dispatcher = dispatcher;
-            _isDisposed = false;
         }
 
         public void StartConsuming(string queueName)
         {
             try
             {
-                Model.BasicConsume(queueName, true, Consumer.Id, this);
+                Model.BasicConsume(queueName, true, ConsumerTag, this);
+                _isCanceled = false;
+                //_logger.Debug($"Streaming started for consumerId={ConsumerTag}");
             }
             catch (Exception e)
             {
-                _logger.Error("Error starting stream for consumerId=" + Consumer.Id, e);
+                _logger.Error("Error starting stream for consumerId=" + ConsumerTag, e);
                 throw;
             }
         }
@@ -65,6 +63,7 @@ namespace SportingSolutions.Udapi.Sdk
                 if (!IsStreamingStopped)
                 {
                     Model.BasicCancel(ConsumerTag);
+                    _isCanceled = true;
                 }
             }
             catch (AlreadyClosedException e)
@@ -89,13 +88,6 @@ namespace SportingSolutions.Udapi.Sdk
             finally
             {
                 Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
-
-                try
-                {
-                    Dispose();
-                }
-                catch { }
-
                 _logger.DebugFormat("Streaming stopped for consumerId={0}", ConsumerTag);
             }
         }
@@ -140,31 +132,6 @@ namespace SportingSolutions.Udapi.Sdk
 
         #endregion
 
-        #region IDisposable
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (_isDisposed)
-                return;
-
-            if (disposing)
-            {
-                if (Model != null)
-                {
-                    Model.Dispose();
-                    Model = null;
-                }
-            }
-
-            _isDisposed = true;
-        }
-        #endregion
 
     }
 }

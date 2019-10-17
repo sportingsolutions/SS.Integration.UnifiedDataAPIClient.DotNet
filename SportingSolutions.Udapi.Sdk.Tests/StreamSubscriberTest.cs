@@ -60,22 +60,6 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
         }
 
-        [Test]
-        public void StopShouldSetDisposeFlatToFalseTest()
-        {
-            var model = new Mock<IModel>();
-            var consumer = new Mock<IConsumer>();
-            var actor = new Mock<IActorRef>();
-            var test = new StreamSubscriber(model.Object, consumer.Object, actor.Object);
-            model.Setup(x => x.BasicConsume("test", true, consumer.Object.Id, false, false, null, test)).Callback(() => { });
-            test.IsDisposed.Should().Be(false);
-
-            test.StartConsuming("test");
-            test.StopConsuming();
-
-            test.IsDisposed.Should().Be(true);
-        }
-
 
         [Test]
         public void StopShouldsENDdIApatchesRemoveMessageTest()
@@ -85,7 +69,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
             var actor = new Mock<IActorRef>();
             var test = new StreamSubscriber(model.Object, consumer.Object, actor.Object);
             model.Setup(x => x.BasicConsume("test", true, consumer.Object.Id, false, false, null, test)).Callback(() => { });
-            test.IsDisposed.Should().Be(false);
+            //test.IsDisposed.Should().Be(false);
 
             test.StartConsuming("test");
             test.StopConsuming();
