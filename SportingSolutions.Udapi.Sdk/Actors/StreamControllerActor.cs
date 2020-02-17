@@ -544,9 +544,9 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _logger.Warn($"{message} disconnected event will be raised");
                 DisconnectedHandler(DefaultDisconnectedMessage);
             }
-            else if (!IsModelValid)
+            else if (State != ConnectionState.DISCONNECTED && !IsModelValid)
             {
-                _logger.Warn($"{message} AMQP model will re recreated");
+                _logger.Info($"{message}. AMQP model will be recreated");
                 ReCreateModel();
             }
             else
@@ -627,7 +627,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             if (_streamConnection == null || !_streamConnection.IsOpen)
             {
-                _logger.Warn($"Can't create AMQP model: connection is not open");
+                _logger.Warn($"Connection is closed");
                 return;
             }
 
@@ -637,10 +637,10 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 {
                     _model = _streamConnection.CreateModel();
                     _isModelDisposed = false;
-                    _logger.Debug($"AMQP model sucessfully created, channelNo={_model.ChannelNumber}");
+                    _logger.Info($"AMQP model sucessfully created, channelNo={_model.ChannelNumber}");
                 }
                 else
-                    _logger.Warn($"AMQP model already created, channelNo={_model.ChannelNumber}");
+                    _logger.Debug($"AMQP model already created, channelNo={_model.ChannelNumber}");
             }
             catch (Exception e)
             {
