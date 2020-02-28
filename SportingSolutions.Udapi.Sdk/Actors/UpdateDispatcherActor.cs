@@ -56,7 +56,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 _subscribers.Remove(message.Id);
 
                 subscriber.Resource.Tell(message);
-                subscriber.StreamSubscriber.StopConsuming();
 
                 _logger.Debug(
                     $"subscriberId={message.Id} removed from UpdateDispatcherActor and stream disconnected; subscribersCount={_subscribers.Count}");
@@ -129,6 +128,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             if (subscriber == null)
                 return;
+
+            _logger.DebugFormat($"Removing consumerId={subscriber.Consumer.Id} from dispatcher");
 
             ResourceSubscriber resourceSubscriber;
             _subscribers.TryGetValue(subscriber.Consumer.Id, out resourceSubscriber);

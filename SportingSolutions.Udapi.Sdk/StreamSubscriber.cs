@@ -73,7 +73,7 @@ namespace SportingSolutions.Udapi.Sdk
 
             catch (ObjectDisposedException e)
             {
-                _logger.Warn("Stopp stream called for already disposed object for consumerId=" + ConsumerTag, e);
+                _logger.Warn("Stop stream called for already disposed object for consumerId=" + ConsumerTag, e);
             }
 
             catch (TimeoutException e)
@@ -87,7 +87,6 @@ namespace SportingSolutions.Udapi.Sdk
             }
             finally
             {
-                Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = this });
                 _logger.DebugFormat("Streaming stopped for consumerId={0}", ConsumerTag);
             }
         }

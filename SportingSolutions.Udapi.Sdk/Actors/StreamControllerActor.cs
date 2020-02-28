@@ -733,9 +733,12 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         protected virtual void RemoveConsumerFromQueue(IConsumer consumer)
         {
-            var sub = Dispatcher.Ask(new RetrieveSubscriberMessage { Id = consumer.Id }).Result as IStreamSubscriber;
-            if (sub != null)
-                sub.StopConsuming();
+            var subscriber = Dispatcher.Ask(new RetrieveSubscriberMessage { Id = consumer.Id }).Result as IStreamSubscriber;
+            if (subscriber != null)
+            {
+                subscriber.StopConsuming();
+                Dispatcher.Tell(new RemoveSubscriberMessage { Subscriber = subscriber });
+            }
         }
 
         #endregion
