@@ -72,6 +72,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
 
             var echoControllerActor = ActorOfAsTestActorRef(() => new EchoControllerActor(), EchoControllerActor.ActorName);
             var updateDispatcherActor = ActorOfAsTestActorRef(() => new UpdateDispatcherActor(), UpdateDispatcherActor.ActorName);
+            var streamControllerActor = ActorOfAsTestActorRef(() => new StreamControllerActor(updateDispatcherActor), StreamControllerActor.ActorName);
 
             var subscriber = new StreamSubscriber(model.Object, consumer.Object, updateDispatcherActor);
             subscriber.HandleBasicConsumeOk(Id1);
@@ -84,7 +85,7 @@ namespace SportingSolutions.Udapi.Sdk.Tests
                 TimeSpan.FromMilliseconds(ASSERT_WAIT_TIMEOUT),
                 TimeSpan.FromMilliseconds(ASSERT_EXEC_INTERVAL));
 
-            subscriber.StopConsuming();
+            streamControllerActor.Tell(new RemoveConsumerMessage { Consumer = consumer.Object });
 
             AwaitAssert(() =>
                 {
