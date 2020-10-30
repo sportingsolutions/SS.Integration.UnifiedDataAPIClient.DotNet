@@ -235,15 +235,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
                 return;
             }
 
-            if (_newConsumerErrorsCount.ContainsKey(fixtureId))
-            {
-                _newConsumerErrorsCount[fixtureId] = _newConsumerErrorsCount[fixtureId] + 1;
-            }
-            else
-            {
-                _newConsumerErrorsCount[fixtureId] = 1;
-            }
-
+            IncreaseConsumerErrorsCount(fixtureId);
 
             if (_newConsumerErrorsCount[fixtureId] > NewConsumerErrorLimitForConsumer)
             {
@@ -286,6 +278,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             catch (Exception e)
             {
                 _processNewConsumerErrorCounter++;
+                IncreaseConsumerErrorsCount(consumer.Id);
+                _newConsumerErrorsCount[consumer.Id]++;
                 _logger.Warn(
                     $"Method=ProcessNewConsumer StartConsuming errored errorsCount={_processNewConsumerErrorCounter} for fixtureId={consumer.Id} {e}");
                 if (IsShouldRaiseDisconnect(consumer.Id))
@@ -337,6 +331,18 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
 
             return false;
+        }
+
+        private void IncreaseConsumerErrorsCount(string fixtureId)
+        {
+            if (_newConsumerErrorsCount.ContainsKey(fixtureId))
+            {
+                _newConsumerErrorsCount[fixtureId] = _newConsumerErrorsCount[fixtureId] + 1;
+            }
+            else
+            {
+                _newConsumerErrorsCount[fixtureId] = 1;
+            }
         }
 
         /// <summary>
