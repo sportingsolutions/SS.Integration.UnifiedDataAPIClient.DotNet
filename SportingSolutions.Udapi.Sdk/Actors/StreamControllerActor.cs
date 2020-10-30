@@ -279,7 +279,6 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _processNewConsumerErrorCounter++;
                 IncreaseConsumerErrorsCount(consumer.Id);
-                _newConsumerErrorsCount[consumer.Id]++;
                 _logger.Warn(
                     $"Method=ProcessNewConsumer StartConsuming errored errorsCount={_processNewConsumerErrorCounter} for fixtureId={consumer.Id} {e}");
                 if (IsShouldRaiseDisconnect(consumer.Id))
@@ -337,7 +336,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
         {
             if (_newConsumerErrorsCount.ContainsKey(fixtureId))
             {
-                _newConsumerErrorsCount[fixtureId] = _newConsumerErrorsCount[fixtureId] + 1;
+                _newConsumerErrorsCount[fixtureId]++;
             }
             else
             {
