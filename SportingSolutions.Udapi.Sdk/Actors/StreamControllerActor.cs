@@ -287,8 +287,8 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             {
                 _processNewConsumerErrorCounter++;
                 _logger.Warn(
-                    $"Method=ProcessNewConsumer StartConsuming errored errorsCout={_processNewConsumerErrorCounter} for fixtureId={consumer.Id} {e}");
-                if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
+                    $"Method=ProcessNewConsumer StartConsuming errored errorsCount={_processNewConsumerErrorCounter} for fixtureId={consumer.Id} {e}");
+                if (IsShouldRaiseDisconnect(consumer.Id))
                     ProcessNewConsumerErrorHandler(e);
                 return false;
             }
@@ -321,9 +321,22 @@ namespace SportingSolutions.Udapi.Sdk.Actors
 
         private void ProcessNewConsumerErrorHandler(Exception e)
         {
-            _logger.Error($"ProcessNewConsumer limit exceeded with errorsCout={_processNewConsumerErrorCounter}  disconnected event will be raised  {e}");
+            _logger.Error($"ProcessNewConsumer limit exceeded with errorsCount={_processNewConsumerErrorCounter}  disconnected event will be raised  {e}");
             DisconnectedHandler(DefaultDisconnectedMessage);
             _processNewConsumerErrorCounter = 0;
+        }
+
+        private bool IsShouldRaiseDisconnect(string fixtureId)
+        {
+            if (_processNewConsumerErrorCounter > NewConsumerErrorLimit)
+                return true;
+            
+            if (_newConsumerErrorsCount.ContainsKey(fixtureId))
+            {
+                return _newConsumerErrorsCount[fixtureId] > NewConsumerErrorLimitForConsumer;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -644,7 +657,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             }
             catch (Exception e)
             {
-                throw new Exception($"Creating AMQP model errored, errorsCout={_processNewConsumerErrorCounter} {e}", e);
+                throw new Exception($"Creating AMQP model errored, errorsCount={_processNewConsumerErrorCounter} {e}", e);
             }
         }
 
