@@ -27,7 +27,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
         {
             InitializeComponent();
             AppDomain.CurrentDomain.UnhandledException += CurrentDomainUnhandledException;
-            _logger = LogManager.GetLogger(typeof(ExampleService).ToString());
+            _logger = LogManager.GetLogger(typeof(ExampleService));
             _theService = new GTPService();
         }
 

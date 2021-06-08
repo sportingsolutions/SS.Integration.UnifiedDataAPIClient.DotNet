@@ -33,7 +33,7 @@ namespace SportingSolutions.Udapi.Sdk.Actors
             id = this.GetHashCode().ToString();
             _resource = resource;
             
-            Logger = LogManager.GetLogger(typeof(ResourceActor).ToString());
+            Logger = LogManager.GetLogger(typeof(ResourceActor));
             Logger.Debug($"resourceActorId={id} Instantiated fixtureName=\"{resource}\" fixtureId=\"{Id}\"");
 
             Become(DisconnectedState);

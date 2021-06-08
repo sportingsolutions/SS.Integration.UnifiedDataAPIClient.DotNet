@@ -22,12 +22,10 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
 {
     internal class Udapi : BaseSS<IService>, IService
     {
-        private readonly ILog _simpleLogger;
-
         internal Udapi()
         {
-            _logger = LogManager.GetLogger(typeof(Udapi).ToString());
-            _simpleLogger = LogManager.GetLogger("SimpleUDAPILogger");
+            _logger = LogManager.GetLogger(typeof(Udapi));
+            
             try
             {
                 //Assign the method that is needed to get a fresh instance of the real service
@@ -36,7 +34,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             }
             catch (Exception)
             {
-                _simpleLogger.Error("Unable to connect to the GTP-UDAPI. Check the Evenue adapter is running ok.");
+                _logger.Error("Unable to connect to the GTP-UDAPI. Check the Evenue adapter is running ok.");
                 throw;
             }
         }
@@ -57,7 +55,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             }
             catch (Exception)
             {
-                _simpleLogger.Error("Unable to retrieve sports from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.");
+                _logger.Error("Unable to retrieve sports from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.");
                 throw;
             }
         }
@@ -71,7 +69,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             }
             catch (Exception)
             {
-                _simpleLogger.ErrorFormat("{0} - Unable to retrieve sport from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.",name);
+                _logger.ErrorFormat("{0} - Unable to retrieve sport from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.",name);
                 throw;
             }
         }

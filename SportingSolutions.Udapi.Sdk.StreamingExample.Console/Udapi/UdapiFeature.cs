@@ -23,12 +23,11 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
     internal class UdapiFeature : BaseSS<IFeature>, IFeature
     {
         private readonly String _featureName;
-        private readonly ILog _simpleLogger;
-
+        
         internal UdapiFeature(String featureName, IFeature theFeature)
         {
-            _logger = LogManager.GetLogger(typeof(UdapiFeature).ToString());
-            _simpleLogger = LogManager.GetLogger("SimpleUDAPILogger");
+            _logger = LogManager.GetLogger(typeof(UdapiFeature));
+            
             _featureName = featureName;
             //Assign the method that is needed to get a fresh instance of the real feature
             TheReconnectMethod = InitUdapiFeature;
@@ -55,7 +54,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             }
             catch (Exception)
             {
-                _simpleLogger.ErrorFormat("{0} - Unable to retrieve fixtures from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName);
+                _logger.ErrorFormat("{0} - Unable to retrieve fixtures from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName);
                 throw;
             }
             
@@ -74,7 +73,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             }
             catch (Exception)
             {
-                _simpleLogger.ErrorFormat("{0} : {1} - Unable to retrieve fixture from GTP-UDAPI after multiple attempts. Check the Evenue adpater is running ok.",_featureName, name);
+                _logger.ErrorFormat("{0} : {1} - Unable to retrieve fixture from GTP-UDAPI after multiple attempts. Check the Evenue adpater is running ok.",_featureName, name);
                 throw;
             }
         }

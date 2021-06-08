@@ -25,12 +25,11 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
         private readonly String _featureName;
         private readonly String _resourceName;
 
-        private readonly ILog _simpleLogger;
 
         internal UdapiResource(String featureName, String resourceName, IResource theResource)
         {
-            _logger = LogManager.GetLogger(typeof(UdapiResource).ToString());
-            _simpleLogger = LogManager.GetLogger("SimpleUDAPILogger");
+            _logger = LogManager.GetLogger(typeof(UdapiResource));
+            
             _featureName = featureName;
             _resourceName = resourceName;
             //Assign the method that is needed to get a fresh instance of the real resource
@@ -61,7 +60,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             }
             catch (Exception)
             {
-                _simpleLogger.ErrorFormat("{0} : {1} - Unable to retrieve Snapshot from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName, _resourceName);
+                _logger.ErrorFormat("{0} : {1} - Unable to retrieve Snapshot from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName, _resourceName);
                 throw;
             }
         }
@@ -74,7 +73,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             }
             catch (Exception)
             {
-                _simpleLogger.ErrorFormat("{0} : {1} - Unable to start streaming from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName, _resourceName);
+                _logger.ErrorFormat("{0} : {1} - Unable to start streaming from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName, _resourceName);
                 throw;
             }
         }
@@ -87,7 +86,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             }
             catch (Exception)
             {
-                _simpleLogger.ErrorFormat("{0} : {1} - Unable to start streaming from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName, _resourceName);
+                _logger.ErrorFormat("{0} : {1} - Unable to start streaming from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName, _resourceName);
                 throw;
             }
         }
@@ -110,7 +109,7 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console.Udapi
             }
             catch (Exception)
             {
-                _simpleLogger.ErrorFormat("{0} : {1} - Unable to stop streaming from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName, _resourceName);
+                _logger.ErrorFormat("{0} : {1} - Unable to stop streaming from GTP-UDAPI after multiple attempts. Check the Evenue adapter is running ok.", _featureName, _resourceName);
                 throw;
             }
         }
