@@ -50,7 +50,7 @@ namespace SportingSolutions.Udapi.Sdk.Clients
             _credentials = credentials;
             _baseUrl = baseUrl;
 
-            Logger = LogManager.GetLogger(typeof(ConnectClient).ToString());
+            Logger = LogManager.GetLogger(typeof(ConnectClient));
         }
 
         private IRestClient CreateClient()

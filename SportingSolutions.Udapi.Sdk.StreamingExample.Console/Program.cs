@@ -18,6 +18,7 @@ using System.Reflection;
 using System.ServiceProcess;
 using System.Threading.Tasks;
 using log4net;
+using log4net.Repository.Hierarchy;
 
 namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
 {
@@ -28,10 +29,9 @@ namespace SportingSolutions.Udapi.Sdk.StreamingExample.Console
             var path = Assembly.GetExecutingAssembly().Location;
             var fileInfo = new FileInfo(path);
             var dir = fileInfo.DirectoryName;
-            log4net.Config.XmlConfigurator.ConfigureAndWatch(new FileInfo(string.Format("{0}\\log4net.config", dir)));
-            var logger = LogManager.GetLogger(typeof(Program).ToString());
+            log4net.Config.XmlConfigurator.ConfigureAndWatch(new Hierarchy(), new FileInfo(string.Format("{0}\\log4net.config", dir)));
+            var logger = LogManager.GetLogger(typeof(Program));
             
-
             try
             {
                 TaskScheduler.UnobservedTaskException += (sender, eventArgs) =>

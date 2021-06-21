@@ -32,7 +32,7 @@ namespace SportingSolutions.Udapi.Sdk
         internal Session(IConnectClient connectClient)
             : base(connectClient)
         {
-            Logger = LogManager.GetLogger(typeof(Session).ToString());
+            Logger = LogManager.GetLogger(typeof(Session));
         }
 
         public IList<IService> GetServices()

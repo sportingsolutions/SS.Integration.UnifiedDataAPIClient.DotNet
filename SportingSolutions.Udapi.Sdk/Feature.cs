@@ -35,7 +35,7 @@ namespace SportingSolutions.Udapi.Sdk
         internal Feature(RestItem restItem, IConnectClient connectClient)
             : base(restItem, connectClient)
         {
-            Logger = LogManager.GetLogger(typeof(Feature).ToString());
+            Logger = LogManager.GetLogger(typeof(Feature));
             Logger.DebugFormat("Instantiated feature={0}", restItem.Name);
         }
 
