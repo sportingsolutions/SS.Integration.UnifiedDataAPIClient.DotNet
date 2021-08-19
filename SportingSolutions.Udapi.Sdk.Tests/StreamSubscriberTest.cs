@@ -28,13 +28,14 @@ namespace SportingSolutions.Udapi.Sdk.Tests
         {
             var model = new Mock<IModel>();
             var consumer = new Mock<IConsumer>();
+            consumer.SetupGet(x => x.Id).Returns("abcdef");
             var actor = new Mock<IActorRef>();
 
             var test = new StreamSubscriber(model.Object, consumer.Object, actor.Object);
 
 
             int startConsume = 0;
-            model.Setup(x => x.BasicConsume("test", true, consumer.Object.Id, false, false, null, test)).Callback(() => startConsume++);
+            model.Setup(x => x.BasicConsume("test", true, It.Is<string>(arg => arg.StartsWith(consumer.Object.Id)), false, false, null, test)).Callback(() => startConsume++);
             test.StartConsuming("test");
 
            startConsume.Should().Be(1);
