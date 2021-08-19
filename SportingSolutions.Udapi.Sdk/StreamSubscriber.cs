@@ -37,7 +37,7 @@ namespace SportingSolutions.Udapi.Sdk
             : base(model)
         {
             Consumer = consumer;
-            ConsumerTag = consumer.Id;
+            ConsumerTag = $"{consumer.Id}_{DateTime.Now.Ticks}";
             Dispatcher = dispatcher;
         }
 
@@ -47,7 +47,7 @@ namespace SportingSolutions.Udapi.Sdk
             {
                 Model.BasicConsume(queueName, true, ConsumerTag, this);
                 _isCanceled = false;
-                //_logger.Debug($"Streaming started for consumerId={ConsumerTag}");
+                _logger.Debug($"Streaming started for consumerId={ConsumerTag}");
             }
             catch (Exception e)
             {
@@ -119,7 +119,7 @@ namespace SportingSolutions.Udapi.Sdk
                 $" routingKey={routingKey ?? "null"}" +
                 (body == null ? " body=null" : $" bodyLength={body.Length}"));
 
-            Dispatcher.Tell(new StreamUpdateMessage { Id = consumerTag, Message = Encoding.UTF8.GetString(body), ReceivedAt = DateTime.UtcNow });
+            Dispatcher.Tell(new StreamUpdateMessage { Id = Consumer.Id, Message = Encoding.UTF8.GetString(body), ReceivedAt = DateTime.UtcNow });
         }
 
         public override void HandleBasicCancel(string consumerTag)
